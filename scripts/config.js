@@ -32,19 +32,19 @@ class ConfigManager {
        * @type {object}
        */
       DATABASE: {
-        NAME: "OopyOS",
+        NAME: "SamwiseOS",
         VERSION: 1,
         FS_STORE_NAME: "FileSystemsStore",
-        UNIFIED_FS_KEY: "OopisOS_SharedFS",
+        UNIFIED_FS_KEY: "SamwiseOS_SharedFS",
       },
       /**
        * Core operating system information.
        * @type {object}
        */
       OS: {
-        NAME: "OopisOs",
-        VERSION: "5.1",
-        DEFAULT_HOST_NAME: "OopisOs",
+        NAME: "SamwiseOS",
+        VERSION: "0.1",
+        DEFAULT_HOST_NAME: "SamwiseOS",
       },
       /**
        * User and authentication-related settings.

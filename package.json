@@ -1,20 +1,20 @@
 {
-  "name": "oopisos",
-  "version": "5.1.0",
-  "description": "OopisOS Pocket",
+  "name": "samwiseos",
+  "version": "0.0.1",
+  "description": "SamwiseOS",
   "keywords": [
     "OS"
   ],
-  "homepage": "https://github.com/aedmark/oopis-os#readme",
+  "homepage": "https://github.com/aedmark/samwiseos#readme",
   "bugs": {
-    "url": "https://github.com/aedmark/oopis-os/issues"
+    "url": "https://github.com/aedmark/samwiseos/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aedmark/oopis-os.git"
+    "url": "git+https://github.com/aedmark/samwiseos.git"
   },
   "license": "MIT",
-  "author": "Andrew Edmark & Gemini <oopismcgoopis@gmail.com> (https://oopisos.com/)",
+  "author": "Andrew Edmark & Gemini <oopismcgoopis@gmail.com> (https://oopismcgoopis.com/)",
   "main": "electron.cjs",
   "type": "module",
   "scripts": {
@@ -24,8 +24,8 @@
     "docs": "jsdoc -c jsdoc.json"
   },
   "build": {
-    "appId": "com.oopisos.app",
-    "productName": "OopisOS",
+    "appId": "com.samwiseos.app",
+    "productName": "SamwiseOS",
     "files": [
       "**/*",
       "!{dist,release,build}",
