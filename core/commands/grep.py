@@ -54,8 +54,8 @@ def _search_directory(directory_path, pattern, flags, user_context, output_lines
             output_lines.extend(_process_content(content, pattern, flags, child_path, True))
 
 
-def run(args, flags, user_context):
-    if not args:
+def run(args, flags, user_context, stdin_data=None):
+    if not args and stdin_data is None:
         return "grep: (pattern) regular expression is required"
 
     pattern_str = args[0]
@@ -69,26 +69,30 @@ def run(args, flags, user_context):
 
     output_lines = []
 
-    if not file_paths:
-        return "grep: requires file paths to search in this version"
+    if stdin_data is not None:
+        # Piped input mode
+        output_lines.extend(_process_content(stdin_data, pattern, flags, "(stdin)", False))
+    elif not file_paths:
+        return "grep: requires file paths to search when not used with a pipe."
+    else:
+        # File input mode
+        is_recursive = "-r" in flags or "-R" in flags or "--recursive" in flags
+        display_file_names = len(file_paths) > 1 or is_recursive
 
-    is_recursive = "-r" in flags or "-R" in flags or "--recursive" in flags
-    display_file_names = len(file_paths) > 1 or is_recursive
+        for path in file_paths:
+            node = fs_manager.get_node(path)
+            if not node:
+                output_lines.append(f"grep: {path}: No such file or directory")
+                continue
 
-    for path in file_paths:
-        node = fs_manager.get_node(path)
-        if not node:
-            output_lines.append(f"grep: {path}: No such file or directory")
-            continue
-
-        if node.get('type') == 'directory':
-            if is_recursive:
-                _search_directory(path, pattern, flags, user_context, output_lines)
-            else:
-                output_lines.append(f"grep: {path}: is a directory")
-        else: # It's a file
-            content = node.get('content', '')
-            output_lines.extend(_process_content(content, pattern, flags, path, display_file_names))
+            if node.get('type') == 'directory':
+                if is_recursive:
+                    _search_directory(path, pattern, flags, user_context, output_lines)
+                else:
+                    output_lines.append(f"grep: {path}: is a directory")
+            else: # It's a file
+                content = node.get('content', '')
+                output_lines.extend(_process_content(content, pattern, flags, path, display_file_names))
 
     return "\n".join(output_lines)
 
@@ -101,7 +105,7 @@ SYNOPSIS
     grep [OPTION...] PATTERNS [FILE...]
 
 DESCRIPTION
-    grep searches for PATTERNS in each FILE.
+    grep searches for PATTERNS in each FILE. A PATTERN is a regular expression.
     
     -i, --ignore-case
           Ignore case distinctions in patterns and input data.

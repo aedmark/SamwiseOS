@@ -384,25 +384,18 @@ class CommandExecutor {
         const commandName = segment.command?.toLowerCase();
 
         // --- Python Command Bridge ---
-        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm", "mv", "grep"];
+        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm", "mv", "grep", "sort", "wc"];
         if (pythonCommands.includes(commandName)) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-                // 1. Construct the full command string
                 const fullCommandString = [segment.command, ...segment.args].join(' ');
-
-                // 2. Create the context object to send to Python
                 const jsContext = {
                     current_path: FileSystemManager.getCurrentPath(),
-                    user_context: {
-                        name: UserManager.getCurrentUser().name
-                    }
+                    user_context: { name: UserManager.getCurrentUser().name }
                 };
                 const jsContextJson = JSON.stringify(jsContext);
 
-                // 3. Execute with context and get a JSON string back
-                const resultJson = OopisOS_Kernel.execute_command(fullCommandString, jsContextJson);
+                const resultJson = OopisOS_Kernel.execute_command(fullCommandString, jsContextJson, stdinContent);
 
-                // 4. Parse the JSON response
                 try {
                     const result = JSON.parse(resultJson);
                     if (result.success) {
@@ -414,15 +407,13 @@ class CommandExecutor {
                         return ErrorHandler.createError(result.error || "An unknown Python error occurred.");
                     }
                 } catch (e) {
-                    // This catches errors if Python returns a non-JSON string (e.g., from a crash)
                     return ErrorHandler.createError(`Python kernel communication error: ${resultJson}`);
                 }
-
             } else {
                 return ErrorHandler.createError("Python kernel is not yet ready. Please wait a moment and try again.");
             }
         }
-        // --- END: Python Command Bridge ---
+        // --- Python Command Bridge ---
 
         const cmdInstance = await this._ensureCommandLoaded(commandName);
         if (!cmdInstance) {
