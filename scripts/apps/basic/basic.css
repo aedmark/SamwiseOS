@@ -1,0 +1,62 @@
+/* Oopis BASIC Style Sheet */
+
+.basic-app__container.app-container {
+  background-color: #0088FF;
+  border-color: #AAFFEE;
+  color: #AAFFEE;
+  box-shadow: var(--shadow-inset-light), var(--shadow-drop-medium);
+}
+
+.basic-app__container .app-header {
+  color: #AAFFEE;
+  border-bottom: var(--border-width-thick) double #AAFFEE;
+}
+
+.basic-app__container .app-header__title {
+  color: #FFFFFF;
+}
+
+.basic-app__container .app-header__exit-btn {
+  color: #AAFFEE;
+}
+
+.basic-app__container .app-header__exit-btn:hover {
+  color: var(--color-error);
+}
+
+.basic-app__container .app-main {
+  flex-direction: column;
+}
+
+.basic-app__output {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: var(--line-height-terminal);
+}
+
+.basic-app__input-line {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: var(--spacing-sm);
+  border-top: var(--border-width) solid #AAFFEE;
+}
+
+.basic-app__input-line>span {
+  margin-right: var(--spacing-sm);
+  color: #AAFFEE;
+}
+
+.basic-app__input {
+  flex-grow: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #AAFFEE;
+  font-family: inherit;
+  font-size: inherit;
+  caret-color: #AAFFEE;
+}
