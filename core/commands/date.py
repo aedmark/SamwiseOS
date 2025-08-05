@@ -1,6 +1,6 @@
 from datetime import datetime
 
-def run(*args, **kwargs) -> str:
+def run(args, flags, user_context):
     """
     Returns the current date and time as a string.
     """

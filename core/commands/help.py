@@ -12,7 +12,7 @@ COMMAND_DESCRIPTIONS = {
     "clear": "Clears the terminal screen of all previous output."
 }
 
-def run(args, flags):
+def run(args, flags, user_context):
     """
     Displays help information for commands.
     """

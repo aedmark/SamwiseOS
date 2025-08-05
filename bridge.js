@@ -87,18 +87,21 @@ const OopisOS_Kernel = {
     /**
      * Executes a command in the Python kernel.
      * @param {string} commandString - The command to execute.
+     * @param {string} jsContextJson - The JSON string of the current JS context.
      * @returns {string|null} The result from the Python kernel, or null on error.
      */
-    execute_command(commandString) {
+    execute_command(commandString, jsContextJson) {
         if (!this.isReady || !this.kernel) {
             console.error("Kernel not ready. Cannot execute command.");
-            return "Error: Python kernel is not ready.";
+            // Return a JSON error string to maintain consistent return types
+            return JSON.stringify({"success": false, "error": "Error: Python kernel is not ready."});
         }
         try {
-            return this.kernel.execute_command(commandString);
+            // Pass BOTH arguments to the Python function
+            return this.kernel.execute_command(commandString, jsContextJson);
         } catch (error) {
             console.error("Error executing Python command:", error);
-            return `Python execution error: ${error.message}`;
+            return JSON.stringify({"success": false, "error": `Python execution error: ${error.message}`});
         }
     },
 
