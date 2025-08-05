@@ -4,11 +4,9 @@ from executor import command_executor
 from filesystem import fs_manager
 import json
 
-# --- DEPENDENCY INJECTION ---
-# 'save_fs_js' was placed in Python's global scope by bridge.js.
-# We can now access it directly by name and pass it to our FileSystemManager instance.
-fs_manager.set_save_function(save_fs_js)
-# ---------------------------
+def initialize_kernel(save_function):
+    """Initializes the kernel by setting up the filesystem save function."""
+    fs_manager.set_save_function(save_function)
 
 def load_fs_from_json(json_string):
     return fs_manager.load_state_from_json(json_string)

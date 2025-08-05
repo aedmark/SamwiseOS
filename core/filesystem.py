@@ -80,22 +80,27 @@ class FileSystemManager:
     def write_file(self, path, content, user_context):
         """Creates or updates a file with new content."""
         abs_path = self.get_absolute_path(path)
-        node = self.get_node(abs_path)
+        parent_path = os.path.dirname(abs_path)
+        file_name = os.path.basename(abs_path)
+        parent_node = self.get_node(parent_path)
+
+        if not parent_node or parent_node.get('type') != 'directory':
+            raise FileNotFoundError(f"Cannot create file in '{parent_path}': No such directory.")
+
         now_iso = datetime.utcnow().isoformat() + "Z"
+        existing_file_node = parent_node['children'].get(file_name)
 
-        if node:
-            if node.get('type') != 'file':
+        if existing_file_node:
+            # --- THIS IS THE FIX ---
+            # Instead of modifying a retrieved node, modify it directly in its parent.
+            if existing_file_node.get('type') != 'file':
                 raise IsADirectoryError(f"Cannot write to '{path}': It is a directory.")
-            node['content'] = content
-            node['mtime'] = now_iso
+
+            parent_node['children'][file_name]['content'] = content
+            parent_node['children'][file_name]['mtime'] = now_iso
+            # -----------------------
         else:
-            parent_path = os.path.dirname(abs_path)
-            file_name = os.path.basename(abs_path)
-            parent_node = self.get_node(parent_path)
-
-            if not parent_node or parent_node.get('type') != 'directory':
-                raise FileNotFoundError(f"Cannot create file in '{parent_path}': No such directory.")
-
+            # This logic for creating a new file was already correct!
             new_file = {
                 "type": "file",
                 "content": content,
@@ -105,8 +110,8 @@ class FileSystemManager:
                 "mtime": now_iso
             }
             parent_node['children'][file_name] = new_file
-            parent_node['mtime'] = now_iso
 
+        parent_node['mtime'] = now_iso
         self._save_state()
 
     def remove(self, path, recursive=False):

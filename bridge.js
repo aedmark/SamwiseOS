@@ -40,9 +40,6 @@ const OopisOS_Kernel = {
                 sys.path.append('/core')
             `);
 
-            // Expose the JS save function to the Python environment
-            this.pyodide.globals.set('save_fs_js', this.saveFileSystem);
-
 
             // Fetch and load all necessary Python files
             const filesToLoad = {
@@ -73,7 +70,14 @@ const OopisOS_Kernel = {
                 }
             }
 
+            // --- THE NEW, ROBUST INITIALIZATION ---
+            // 1. Import the kernel module. It will no longer error on import.
             this.kernel = this.pyodide.pyimport("kernel");
+
+            // 2. Formally pass the JavaScript save function to the Python kernel.
+            this.kernel.initialize_kernel(this.saveFileSystem);
+            // -----------------------------------------
+
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", {
                 typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
@@ -116,7 +120,7 @@ const OopisOS_Kernel = {
     async saveFileSystem(fsJsonString) {
         const { StorageHAL, ErrorHandler } = OopisOS_Kernel.dependencies;
         try {
-            const fsData = JSON.parse(fsJsonString);
+            const fsData = JSON.parse(fsJson_string);
             await StorageHAL.save(fsData);
         } catch (e) {
             console.error("JS Bridge: Failed to save filesystem state.", e);
