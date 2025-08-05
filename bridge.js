@@ -57,6 +57,9 @@ const OopisOS_Kernel = {
                 '/core/commands/clear.py': './core/commands/clear.py',
                 '/core/commands/help.py': './core/commands/help.py',
                 '/core/commands/man.py': './core/commands/man.py',
+                '/core/commands/cat.py': './core/commands/cat.py',
+                '/core/commands/mkdir.py': './core/commands/mkdir.py',
+                '/core/commands/touch.py': './core/commands/touch.py',
                 '/core/commands/__init__.py': null // Will be created empty
             };
 

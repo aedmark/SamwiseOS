@@ -382,7 +382,7 @@ class CommandExecutor {
         const commandName = segment.command?.toLowerCase();
 
         // --- MODIFIED: Python Command Bridge ---
-        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man"];
+        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch"];
         if (pythonCommands.includes(commandName)) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
                 // 1. Construct the full command string
