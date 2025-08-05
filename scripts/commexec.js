@@ -363,59 +363,74 @@ class CommandExecutor {
     return ErrorHandler.createSuccess("Script finished successfully.");
   }
 
-  /**
-   * Executes a single command segment.
-   * @private
-   * @param {ParsedCommandSegment} segment - The parsed command segment.
-   * @param {object} execCtxOpts - Execution context options.
-   * @param {string|null} [stdinContent=null] - Content to be used as standard input.
-   * @param {AbortSignal|null} signal - An optional signal for cancelling the command.
-   * @returns {Promise<object>} A promise that resolves to the command's result.
-   */
-  async _executeCommandHandler(
-      segment,
-      execCtxOpts,
-      stdinContent = null,
-      signal
-  ) {
-    const { ErrorHandler } = this.dependencies;
-    const commandName = segment.command?.toLowerCase();
+    /**
+     * Executes a single command segment.
+     * @private
+     * @param {ParsedCommandSegment} segment - The parsed command segment.
+     * @param {object} execCtxOpts - Execution context options.
+     * @param {string|null} [stdinContent=null] - Content to be used as standard input.
+     * @param {AbortSignal|null} signal - An optional signal for cancelling the command.
+     * @returns {Promise<object>} A promise that resolves to the command's result.
+     */
+    async _executeCommandHandler(
+        segment,
+        execCtxOpts,
+        stdinContent = null,
+        signal
+    ) {
+        const { ErrorHandler } = this.dependencies;
+        const commandName = segment.command?.toLowerCase();
 
-    const cmdInstance = await this._ensureCommandLoaded(commandName);
-    if (!cmdInstance) {
-      return ErrorHandler.createError(`${commandName}: command not found`);
-    }
-
-    if (cmdInstance instanceof Command) {
-      try {
-        const definition = cmdInstance.definition;
-        const commandDependencies = { ...this.dependencies };
-        if (definition.applicationModules && Array.isArray(definition.applicationModules)) {
-          for (const moduleName of definition.applicationModules) {
-            if (window[moduleName]) {
-              commandDependencies[moduleName] = window[moduleName];
+        // --- NEW: Python Command Bridge ---
+        const pythonCommands = ["date"]; // This list will grow!
+        if (pythonCommands.includes(commandName)) {
+            if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
+                const result = OopisOS_Kernel.execute_command(segment.command);
+                if (result.startsWith("Python Error:")) {
+                    return ErrorHandler.createError(result);
+                }
+                return ErrorHandler.createSuccess(result);
             } else {
-              console.error(`Command '${definition.commandName}' declared a dependency on '${moduleName}', but it was not found on the window object after loading.`);
+                return ErrorHandler.createError("Python kernel is not yet ready. Please wait a moment and try again.");
             }
-          }
         }
-        return await cmdInstance.execute(segment.args, {
-          ...execCtxOpts,
-          stdinContent,
-          signal,
-        }, commandDependencies);
-      } catch (e) {
-        console.error(`Error in command handler for '${segment.command}':`, e);
-        return ErrorHandler.createError(
-            `${segment.command}: ${e.message || "Unknown error"}`
-        );
-      }
-    } else if (segment.command) {
-      return ErrorHandler.createError(`${segment.command}: command not found`);
-    }
+        // --- END: Python Command Bridge ---
 
-    return ErrorHandler.createSuccess("");
-  }
+        const cmdInstance = await this._ensureCommandLoaded(commandName);
+        if (!cmdInstance) {
+            return ErrorHandler.createError(`${commandName}: command not found`);
+        }
+
+        if (cmdInstance instanceof Command) {
+            try {
+                const definition = cmdInstance.definition;
+                const commandDependencies = { ...this.dependencies };
+                if (definition.applicationModules && Array.isArray(definition.applicationModules)) {
+                    for (const moduleName of definition.applicationModules) {
+                        if (window[moduleName]) {
+                            commandDependencies[moduleName] = window[moduleName];
+                        } else {
+                            console.error(`Command '${definition.commandName}' declared a dependency on '${moduleName}', but it was not found on the window object after loading.`);
+                        }
+                    }
+                }
+                return await cmdInstance.execute(segment.args, {
+                    ...execCtxOpts,
+                    stdinContent,
+                    signal,
+                }, commandDependencies);
+            } catch (e) {
+                console.error(`Error in command handler for '${segment.command}':`, e);
+                return ErrorHandler.createError(
+                    `${segment.command}: ${e.message || "Unknown error"}`
+                );
+            }
+        } else if (segment.command) {
+            return ErrorHandler.createError(`${segment.command}: command not found`);
+        }
+
+        return ErrorHandler.createSuccess("");
+    }
 
   /**
    * Executes a full command pipeline, handling pipes, redirection, and operators.
