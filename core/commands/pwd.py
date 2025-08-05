@@ -1,22 +1,21 @@
 # core/commands/pwd.py
 
-from core.file_system_manager import FileSystemManager
+from filesystem import fs_manager
 
-def run(args, flags):
+def run(args, flags, user_context):
     """
     Prints the current working directory.
 
     Args:
         args (list): A list of arguments (not used by pwd).
         flags (list): A list of flags (not used by pwd).
+        user_context (dict): The context of the current user.
 
     Returns:
         str: The absolute path of the current directory.
     """
-    fs_manager = FileSystemManager()
-
     try:
-        # The FileSystemManager is the single source of truth for the CWD
-        return fs_manager.get_cwd()
+        # The fs_manager singleton is the single source of truth for the CWD
+        return fs_manager.current_path
     except Exception as e:
         return f"pwd: an unexpected error occurred: {e}"

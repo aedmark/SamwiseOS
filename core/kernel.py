@@ -1,8 +1,15 @@
+# gem/core/kernel.py
+
 from executor import command_executor
 from filesystem import fs_manager
 import json
 
-# ... (load_fs_from_json and save_fs_to_json are unchanged) ...
+# --- DEPENDENCY INJECTION ---
+# 'save_fs_js' was placed in Python's global scope by bridge.js.
+# We can now access it directly by name and pass it to our FileSystemManager instance.
+fs_manager.set_save_function(save_fs_js)
+# ---------------------------
+
 def load_fs_from_json(json_string):
     return fs_manager.load_state_from_json(json_string)
 
@@ -19,7 +26,6 @@ def write_file(path, content, js_context_json):
         return json.dumps({"success": False, "error": repr(e)})
 
 def execute_command(command_string: str, js_context_json: str) -> str:
-    # ... (rest of the function is unchanged) ...
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"))

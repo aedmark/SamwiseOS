@@ -21,7 +21,6 @@
     "start": "electron .",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
-    "docs": "jsdoc -c jsdoc.json"
   },
   "build": {
     "appId": "com.samwiseos.app",
@@ -48,7 +47,6 @@
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
     "globals": "^16.3.0",
-    "jsdoc": "^4.0.4"
   },
   "dependencies": {
     "pyodide": "^0.28.1",

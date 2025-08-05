@@ -1,3 +1,4 @@
+# gem/core/commands/touch.py
 import os
 from filesystem import fs_manager
 from datetime import datetime
@@ -11,6 +12,7 @@ def run(args, flags, user_context):
 
     no_create = "-c" in flags
     now_iso = datetime.utcnow().isoformat() + "Z"
+    changes_made = False
 
     for path_arg in args:
         full_path = fs_manager.get_absolute_path(path_arg)
@@ -19,6 +21,7 @@ def run(args, flags, user_context):
         if node:
             # File exists, just update timestamp
             node['mtime'] = now_iso
+            changes_made = True
         elif not no_create:
             # File does not exist, create it
             parent_path = os.path.dirname(full_path)
@@ -38,5 +41,9 @@ def run(args, flags, user_context):
             }
             parent_node['children'][file_name] = new_file
             parent_node['mtime'] = now_iso
+            changes_made = True
+
+    if changes_made:
+        fs_manager._save_state()
 
     return "" # No output on success

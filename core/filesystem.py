@@ -8,7 +8,20 @@ class FileSystemManager:
     def __init__(self):
         self.fs_data = {}
         self.current_path = "/"
+        self.save_function = None  # To hold the save function from JS
         self._initialize_default_filesystem()
+
+    def set_save_function(self, func):
+        """Accepts the save function from the kernel to break the direct dependency on JS."""
+        self.save_function = func
+
+    def _save_state(self):
+        """Internal method to safely call the provided save function."""
+        if self.save_function:
+            self.save_function(self.save_state_to_json())
+        else:
+            # This will appear in the browser console if something is wrong.
+            print("CRITICAL: Filesystem save function not provided. Changes will not be persisted.")
 
     def set_context(self, current_path):
         """Sets the current working directory from the JS side."""
@@ -55,10 +68,8 @@ class FileSystemManager:
         """Loads the entire filesystem state from a JSON string."""
         try:
             self.fs_data = json.loads(json_string)
-            # print("Python FileSystemManager: State loaded from JSON.") # Optional for debugging
             return True
         except json.JSONDecodeError:
-            # print("Python FileSystemManager: Error decoding JSON, initializing new FS.") # Optional for debugging
             self._initialize_default_filesystem()
             return False
 
@@ -96,9 +107,7 @@ class FileSystemManager:
             parent_node['children'][file_name] = new_file
             parent_node['mtime'] = now_iso
 
-        from pyodide.ffi import to_js
-        import js
-        js.save_fs_js(self.save_state_to_json())
+        self._save_state()
 
     def remove(self, path, recursive=False):
         """Removes a file or directory."""
@@ -121,9 +130,7 @@ class FileSystemManager:
         del parent_node['children'][node_name]
         parent_node['mtime'] = datetime.utcnow().isoformat() + "Z"
 
-        from pyodide.ffi import to_js
-        import js
-        js.save_fs_js(self.save_state_to_json())
+        self._save_state()
         return True
 
 # Singleton instance to be used across the Python environment

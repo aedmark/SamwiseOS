@@ -835,69 +835,70 @@ class FileSystemManager {
                 parentNode.children[dirName] = this._createNewDirectoryNode(currentUser, primaryGroup);
                 parentNode.mtime = nowISO;
             }
-            return ErrorHandler.createSuccess();
-        }
-
-        const existingNode = this.getNodeByPath(absolutePath);
-        const changeInBytes = (content || "").length - (existingNode?.content?.length || 0);
-
-        if (this._willOperationExceedQuota(changeInBytes)) {
-            return ErrorHandler.createError(
-                `Disk quota exceeded. Cannot write ${content.length} bytes.`
-            );
-        }
-
-        if (existingNode) {
-            if (existingNode.type !== this.config.FILESYSTEM.DEFAULT_FILE_TYPE) {
-                return ErrorHandler.createError(
-                    `Cannot overwrite non-file '${absolutePath}'`
-                );
-            }
-            if (!this.hasPermission(existingNode, currentUser, "write")) {
-                return ErrorHandler.createError(`'${absolutePath}': Permission denied`);
-            }
-            existingNode.content = content;
-            existingNode.mtime = nowISO;
         } else {
-            const parentDirResult =
-                this.createParentDirectoriesIfNeeded(absolutePath);
-            if (!parentDirResult.success) {
-                return parentDirResult;
-            }
-            const parentNode = parentDirResult.data;
+            const existingNode = this.getNodeByPath(absolutePath);
+            const changeInBytes = (content || "").length - (existingNode?.content?.length || 0);
 
-            if (!parentNode) {
+            if (this._willOperationExceedQuota(changeInBytes)) {
                 return ErrorHandler.createError(
-                    `Could not find or create parent directory for '${absolutePath}'.`
+                    `Disk quota exceeded. Cannot write ${content.length} bytes.`
                 );
             }
 
-            if (!this.hasPermission(parentNode, currentUser, "write")) {
-                return ErrorHandler.createError(
-                    `Cannot create file in parent directory: Permission denied`
-                );
-            }
+            if (existingNode) {
+                if (existingNode.type !== this.config.FILESYSTEM.DEFAULT_FILE_TYPE) {
+                    return ErrorHandler.createError(
+                        `Cannot overwrite non-file '${absolutePath}'`
+                    );
+                }
+                if (!this.hasPermission(existingNode, currentUser, "write")) {
+                    return ErrorHandler.createError(`'${absolutePath}': Permission denied`);
+                }
+                existingNode.content = content;
+                existingNode.mtime = nowISO;
+            } else {
+                const parentDirResult =
+                    this.createParentDirectoriesIfNeeded(absolutePath);
+                if (!parentDirResult.success) {
+                    return parentDirResult;
+                }
+                const parentNode = parentDirResult.data;
 
-            if (!parentNode.children || typeof parentNode.children !== "object") {
-                console.error(
-                    `FileSystemManager: Corrupted directory node at parent of '${absolutePath}'. Missing 'children' property. Restoring it.`,
-                    parentNode
-                );
-                parentNode.children = {};
-            }
+                if (!parentNode) {
+                    return ErrorHandler.createError(
+                        `Could not find or create parent directory for '${absolutePath}'.`
+                    );
+                }
 
-            const fileName = absolutePath.substring(
-                absolutePath.lastIndexOf(this.config.FILESYSTEM.PATH_SEPARATOR) + 1
-            );
-            parentNode.children[fileName] = this._createNewFileNode(
-                fileName,
-                content,
-                currentUser,
-                primaryGroup
-            );
-            parentNode.mtime = nowISO;
+                if (!this.hasPermission(parentNode, currentUser, "write")) {
+                    return ErrorHandler.createError(
+                        `Cannot create file in parent directory: Permission denied`
+                    );
+                }
+
+                if (!parentNode.children || typeof parentNode.children !== "object") {
+                    console.error(
+                        `FileSystemManager: Corrupted directory node at parent of '${absolutePath}'. Missing 'children' property. Restoring it.`,
+                        parentNode
+                    );
+                    parentNode.children = {};
+                }
+
+                const fileName = absolutePath.substring(
+                    absolutePath.lastIndexOf(this.config.FILESYSTEM.PATH_SEPARATOR) + 1
+                );
+                parentNode.children[fileName] = this._createNewFileNode(
+                    fileName,
+                    content,
+                    currentUser,
+                    primaryGroup
+                );
+                parentNode.mtime = nowISO;
+            }
         }
 
+        // CORRECTED: Add this line to ensure all changes are saved.
+        await this.save();
         return ErrorHandler.createSuccess();
     }
 
