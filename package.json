@@ -51,6 +51,7 @@
     "jsdoc": "^4.0.4"
   },
   "dependencies": {
+    "pyodide": "^0.28.1",
     "ws": "^8.18.3"
   }
 }
