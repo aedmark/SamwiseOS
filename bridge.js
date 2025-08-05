@@ -71,7 +71,7 @@ const OopisOS_Kernel = {
             }
 
             // --- THE NEW, ROBUST INITIALIZATION ---
-            // 1. Import the kernel module. It will no longer error on import.
+            // 1. Import the kernel module.
             this.kernel = this.pyodide.pyimport("kernel");
 
             // 2. Formally pass the JavaScript save function to the Python kernel.
@@ -101,11 +101,9 @@ const OopisOS_Kernel = {
     execute_command(commandString, jsContextJson) {
         if (!this.isReady || !this.kernel) {
             console.error("Kernel not ready. Cannot execute command.");
-            // Return a JSON error string to maintain consistent return types
             return JSON.stringify({"success": false, "error": "Error: Python kernel is not ready."});
         }
         try {
-            // Pass BOTH arguments to the Python function
             return this.kernel.execute_command(commandString, jsContextJson);
         } catch (error) {
             console.error("Error executing Python command:", error);
@@ -118,9 +116,9 @@ const OopisOS_Kernel = {
      * @param {string} fsJsonString - The filesystem state serialized as a JSON string.
      */
     async saveFileSystem(fsJsonString) {
-        const { StorageHAL, ErrorHandler } = OopisOS_Kernel.dependencies;
+        const { StorageHAL } = OopisOS_Kernel.dependencies;
         try {
-            const fsData = JSON.parse(fsJson_string);
+            const fsData = JSON.parse(fsJsonString);
             await StorageHAL.save(fsData);
         } catch (e) {
             console.error("JS Bridge: Failed to save filesystem state.", e);
