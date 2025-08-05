@@ -9,6 +9,7 @@ class FileSystemManager:
         self.fs_data = {}
         self.current_path = "/"
         self.save_function = None
+        self.user_context = {"name": "Guest", "groups": ["Guest"]}
         self._initialize_default_filesystem()
 
     def set_save_function(self, func):
@@ -20,8 +21,9 @@ class FileSystemManager:
         else:
             print("CRITICAL: Filesystem save function not provided.")
 
-    def set_context(self, current_path):
+    def set_context(self, current_path, user_context):
         self.current_path = current_path if current_path else "/"
+        self.user_context = user_context if user_context else {"name": "Guest", "groups": ["Guest"]}
 
     def get_absolute_path(self, target_path):
         if not target_path:
@@ -52,6 +54,62 @@ class FileSystemManager:
                 return None
         return node
 
+    def has_permission(self, node, user, permission_type):
+        if user['name'] == 'root':
+            return True
+        if not node:
+            return False
+
+        permission_map = {'read': 4, 'write': 2, 'execute': 1}
+        required_perm = permission_map.get(permission_type)
+        if not required_perm:
+            return False
+
+        mode = node.get('mode', 0)
+        owner_perms = (mode >> 6) & 7
+        group_perms = (mode >> 3) & 7
+        other_perms = mode & 7
+
+        if node.get('owner') == user['name']:
+            return (owner_perms & required_perm) == required_perm
+
+        user_groups = user.get('groups', [])
+        if node.get('group') in user_groups:
+            return (group_perms & required_perm) == required_perm
+
+        return (other_perms & required_perm) == required_perm
+
+    def calculate_node_size(self, node):
+        if not node:
+            return 0
+        if node.get('type') == 'file':
+            return len(node.get('content', ''))
+        if node.get('type') == 'directory':
+            total_size = 0
+            for child in node.get('children', {}).values():
+                total_size += self.calculate_node_size(child)
+            return total_size
+        return 0
+
+    def validate_path(self, path, options):
+        abs_path = self.get_absolute_path(path)
+        node = self.get_node(abs_path)
+        user = self.user_context
+
+        if not node:
+            if options.get('allowMissing'):
+                return {"success": True, "data": {"node": None, "resolvedPath": abs_path}}
+            return {"success": False, "error": f"{path}: No such file or directory"}
+
+        if options.get('expectedType') and node.get('type') != options.get('expectedType'):
+            return {"success": False, "error": f"{path}: Is not a {options.get('expectedType')}"}
+
+        for perm in options.get('permissions', []):
+            if not self.has_permission(node, user, perm):
+                return {"success": False, "error": f"{path}: Permission denied"}
+
+        return {"success": True, "data": {"node": node, "resolvedPath": abs_path}}
+
     def load_state_from_json(self, json_string):
         try:
             self.fs_data = json.loads(json_string)
@@ -81,7 +139,7 @@ class FileSystemManager:
         else:
             new_file = {
                 "type": "file", "content": content, "owner": user_context.get('name', 'guest'),
-                "group": user_context.get('name', 'guest'), "mode": 0o644, "mtime": now_iso
+                "group": user_context.get('primaryGroup', 'guest'), "mode": 0o644, "mtime": now_iso
             }
             parent_node['children'][file_name] = new_file
 
@@ -89,7 +147,6 @@ class FileSystemManager:
         self._save_state()
 
     def create_directory(self, path, user_context):
-        """Creates a new directory."""
         abs_path = self.get_absolute_path(path)
         parent_path = os.path.dirname(abs_path)
         dir_name = os.path.basename(abs_path)
@@ -104,14 +161,13 @@ class FileSystemManager:
         now_iso = datetime.utcnow().isoformat() + "Z"
         new_dir = {
             "type": "directory", "children": {}, "owner": user_context.get('name', 'guest'),
-            "group": user_context.get('name', 'guest'), "mode": 0o755, "mtime": now_iso
+            "group": user_context.get('primaryGroup', 'guest'), "mode": 0o755, "mtime": now_iso
         }
         parent_node['children'][dir_name] = new_dir
         parent_node['mtime'] = now_iso
         self._save_state()
 
     def rename_node(self, old_path, new_path):
-        """Renames or moves a file or directory."""
         abs_old_path = self.get_absolute_path(old_path)
         abs_new_path = self.get_absolute_path(new_path)
 
@@ -125,7 +181,6 @@ class FileSystemManager:
         if not old_parent_node or old_name not in old_parent_node.get('children', {}):
             raise FileNotFoundError(f"Cannot rename '{old_path}': No such file or directory.")
 
-        # Check if new_path is a directory; if so, move the node into it
         new_node_target = self.get_node(abs_new_path)
         if new_node_target and new_node_target.get('type') == 'directory':
             new_parent_node = new_node_target
@@ -141,7 +196,6 @@ class FileSystemManager:
         if new_name in new_parent_node.get('children', {}):
             raise FileExistsError(f"Cannot rename to '{new_path}': Destination already exists.")
 
-        # Move the node and update timestamps
         now_iso = datetime.utcnow().isoformat() + "Z"
         node_to_move = old_parent_node['children'].pop(old_name)
         node_to_move['mtime'] = now_iso

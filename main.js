@@ -272,15 +272,14 @@ window.onload = async () => {
                 // Normal boot: Load existing state from storage into Python
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
                 OopisOS_Kernel.kernel.load_fs_from_json(fsJsonString);
-                // Also load it into the JS manager for path utilities and legacy command support
-                fsManager.setFsData(fsJsonFromStorage);
+                // The JS fsManager is now just a client, no need to load state here.
             } else {
                 // First boot: Initialize in JS, then send to Python and save.
                 await outputManager.appendToOutput(
                     "No file system found. Initializing new one.",
                     { typeClass: configManager.CSS_CLASSES.CONSOLE_LOG_MSG }
                 );
-                // 1. JS fsManager creates the default structure
+                // 1. JS fsManager (acting as a setup tool) creates the default structure
                 await fsManager.initialize(configManager.USER.DEFAULT_NAME);
 
                 // 2. Get the new structure
@@ -314,9 +313,9 @@ window.onload = async () => {
 
 
         const guestHome = `/home/${configManager.USER.DEFAULT_NAME}`;
-        if (!fsManager.getNodeByPath(fsManager.getCurrentPath())) {
+        if (! (await fsManager.getNodeByPath(fsManager.getCurrentPath())) ) {
             fsManager.setCurrentPath(
-                fsManager.getNodeByPath(guestHome)
+                (await fsManager.getNodeByPath(guestHome))
                     ? guestHome
                     : configManager.FILESYSTEM.ROOT_PATH
             );
