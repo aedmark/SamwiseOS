@@ -8,6 +8,7 @@ const OopisOS_Kernel = {
     isReady: false,
     pyodide: null,
     kernel: null,
+    dependencies: null,
 
     /**
      * Initializes the Pyodide engine and loads the core Python kernel.
@@ -15,7 +16,8 @@ const OopisOS_Kernel = {
      * @returns {Promise<void>}
      */
     async initialize(dependencies) {
-        const { OutputManager, Config } = dependencies;
+        this.dependencies = dependencies;
+        const { OutputManager, Config } = this.dependencies;
 
         try {
             await OutputManager.appendToOutput("Initializing Python runtime via Pyodide...", {
@@ -28,27 +30,46 @@ const OopisOS_Kernel = {
                 typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
             });
 
-            // Add the 'commands' directory to Python's path
+            // Create the directory structure within Pyodide's virtual FS first!
+            this.pyodide.FS.mkdir('/core');
+            this.pyodide.FS.mkdir('/core/commands');
+
+            // Add the 'core' directory to Python's path so it can find the modules
             await this.pyodide.runPythonAsync(`
                 import sys
                 sys.path.append('/core')
             `);
 
-            // Fetch and load the main kernel file
-            const kernelCode = await (await fetch('./core/kernel.py')).text();
-            this.pyodide.FS.writeFile('/core/kernel.py', kernelCode);
+            // Expose the JS save function to the Python environment
+            this.pyodide.globals.set('save_fs_js', this.saveFileSystem);
 
-            // Fetch and load the date command module
-            const dateCommandCode = await (await fetch('./core/commands/date.py')).text();
-            this.pyodide.FS.mkdir('/core/commands');
-            this.pyodide.FS.writeFile('/core/commands/date.py', dateCommandCode);
 
-            // Create an empty __init__.py to make 'commands' a package
-            this.pyodide.FS.writeFile('/core/commands/__init__.py', '');
+            // Fetch and load all necessary Python files
+            const filesToLoad = {
+                '/core/kernel.py': './core/kernel.py',
+                '/core/filesystem.py': './core/filesystem.py',
+                '/core/executor.py': './core/executor.py',
+                '/core/commands/date.py': './core/commands/date.py',
+                '/core/commands/pwd.py': './core/commands/pwd.py',
+                '/core/commands/echo.py': './core/commands/echo.py',
+                '/core/commands/ls.py': './core/commands/ls.py',
+                '/core/commands/whoami.py': './core/commands/whoami.py',
+                '/core/commands/clear.py': './core/commands/clear.py',
+                '/core/commands/help.py': './core/commands/help.py',
+                '/core/commands/man.py': './core/commands/man.py',
+                '/core/commands/__init__.py': null // Will be created empty
+            };
 
+            for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
+                if (jsPath) {
+                    const code = await (await fetch(jsPath)).text();
+                    this.pyodide.FS.writeFile(pyPath, code, { encoding: 'utf8' });
+                } else {
+                    this.pyodide.FS.writeFile(pyPath, '', { encoding: 'utf8' });
+                }
+            }
 
             this.kernel = this.pyodide.pyimport("kernel");
-
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", {
                 typeClass: Config.CSS_CLASSES.SUCCESS_MSG,
@@ -78,6 +99,20 @@ const OopisOS_Kernel = {
         } catch (error) {
             console.error("Error executing Python command:", error);
             return `Python execution error: ${error.message}`;
+        }
+    },
+
+    /**
+     * JavaScript helper function exposed to Python for saving the filesystem state.
+     * @param {string} fsJsonString - The filesystem state serialized as a JSON string.
+     */
+    async saveFileSystem(fsJsonString) {
+        const { StorageHAL, ErrorHandler } = OopisOS_Kernel.dependencies;
+        try {
+            const fsData = JSON.parse(fsJsonString);
+            await StorageHAL.save(fsData);
+        } catch (e) {
+            console.error("JS Bridge: Failed to save filesystem state.", e);
         }
     }
 };

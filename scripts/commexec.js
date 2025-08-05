@@ -378,18 +378,44 @@ class CommandExecutor {
         stdinContent = null,
         signal
     ) {
-        const { ErrorHandler } = this.dependencies;
+        const { ErrorHandler, FileSystemManager, UserManager } = this.dependencies;
         const commandName = segment.command?.toLowerCase();
 
-        // --- NEW: Python Command Bridge ---
-        const pythonCommands = ["date"]; // This list will grow!
+        // --- MODIFIED: Python Command Bridge ---
+        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man"];
         if (pythonCommands.includes(commandName)) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-                const result = OopisOS_Kernel.execute_command(segment.command);
-                if (result.startsWith("Python Error:")) {
-                    return ErrorHandler.createError(result);
+                // 1. Construct the full command string
+                const fullCommandString = [segment.command, ...segment.args].join(' ');
+
+                // 2. Create the context object to send to Python
+                const jsContext = {
+                    current_path: FileSystemManager.getCurrentPath(),
+                    user_context: {
+                        name: UserManager.getCurrentUser().name
+                    }
+                };
+                const jsContextJson = JSON.stringify(jsContext);
+
+                // 3. Execute with context and get a JSON string back
+                const resultJson = OopisOS_Kernel.execute_command(fullCommandString, jsContextJson);
+
+                // 4. Parse the JSON response
+                try {
+                    const result = JSON.parse(resultJson);
+                    if (result.success) {
+                        if (result.effect === 'clear_screen') {
+                            return ErrorHandler.createSuccess(null, { effect: "clear_screen" });
+                        }
+                        return ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+                    } else {
+                        return ErrorHandler.createError(result.error || "An unknown Python error occurred.");
+                    }
+                } catch (e) {
+                    // This catches errors if Python returns a non-JSON string (e.g., from a crash)
+                    return ErrorHandler.createError(`Python kernel communication error: ${resultJson}`);
                 }
-                return ErrorHandler.createSuccess(result);
+
             } else {
                 return ErrorHandler.createError("Python kernel is not yet ready. Please wait a moment and try again.");
             }

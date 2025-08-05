@@ -32,8 +32,8 @@ class ConfigManager {
        * @type {object}
        */
       DATABASE: {
-        NAME: "OopisOsDB",
-        VERSION: 51,
+        NAME: "OopyOS",
+        VERSION: 1,
         FS_STORE_NAME: "FileSystemsStore",
         UNIFIED_FS_KEY: "OopisOS_SharedFS",
       },

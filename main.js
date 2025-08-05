@@ -6,14 +6,7 @@
  * the primary event listeners for the terminal interface once the window has loaded.
  */
 
-/**
- * Initializes all the essential event listeners for the terminal UI.
- * This includes handling command submission, history navigation, tab completion,
- * and focusing behavior.
- * @param {object} domElements - A collection of cached DOM elements for the terminal.
- * @param {CommandExecutor} commandExecutor - The main command executor instance.
- * @param {object} dependencies - The dependency injection container.
- */
+// ... (initializeTerminalEventListeners function remains unchanged) ...
 function initializeTerminalEventListeners(domElements, commandExecutor, dependencies) {
     const { AppLayerManager, ModalManager, TerminalUI, TabCompletionManager, HistoryManager, SoundManager } = dependencies;
 
@@ -154,17 +147,7 @@ function initializeTerminalEventListeners(domElements, commandExecutor, dependen
     }
 }
 
-/**
- * The main entry point of the OopisOS application, triggered after the DOM is fully loaded.
- * This function orchestrates the entire boot sequence:
- * 1. Caches essential DOM elements.
- * 2. Instantiates all manager classes.
- * 3. Sets up a dependency injection container.
- * 4. Initializes each manager in the correct order.
- * 5. Loads persisted data (filesystem, users, aliases, etc.).
- * 6. Sets up the terminal event listeners.
- * 7. Displays the welcome message and initial prompt.
- */
+
 window.onload = async () => {
     const domElements = {
         terminalBezel: document.getElementById("terminal-bezel"),
@@ -283,7 +266,21 @@ window.onload = async () => {
         // Initialize the Python Kernel Bridge
         await OopisOS_Kernel.initialize(dependencies);
 
-        await fsManager.load();
+        // ** NEW BOOT SEQUENCE for FILESYSTEM **
+        // 1. Load the filesystem JSON from IndexedDB
+        const fsJsonFromStorage = await storageHAL.load();
+        if (OopisOS_Kernel.isReady) {
+            if (fsJsonFromStorage) {
+                // 2. Pass it to the Python kernel to hydrate its state
+                const fsJsonString = JSON.stringify(fsJsonFromStorage);
+                OopisOS_Kernel.kernel.load_fs_from_json(fsJsonString);
+            }
+            // If nothing is in storage, the Python FS manager will use its default.
+        }
+        // The JS fsManager will still initialize with a default structure, but it's no longer the source of truth.
+        await fsManager.initialize(configManager.USER.DEFAULT_NAME);
+
+
         await userManager.initializeDefaultUsers();
         await configManager.loadFromFile();
         await configManager.loadPackageManifest();
