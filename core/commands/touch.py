@@ -1,49 +1,57 @@
 # gem/core/commands/touch.py
-import os
+
 from filesystem import fs_manager
-from datetime import datetime
 
 def run(args, flags, user_context):
     """
-    Changes file timestamps or creates empty files.
+    Updates the access and modification times of a file to the current time.
+    If the file does not exist, it is created with empty content.
     """
     if not args:
-        raise ValueError("touch: missing file operand")
+        return help(args, flags, user_context)
 
-    no_create = "-c" in flags
-    now_iso = datetime.utcnow().isoformat() + "Z"
-    changes_made = False
+    for path in args:
+        try:
+            # We'll use the robust write_file function which handles both creation and updates.
+            # If the file exists, we'll re-write its existing content to update the timestamp.
+            # If it doesn't exist, we'll write empty content to create it.
 
-    for path_arg in args:
-        full_path = fs_manager.get_absolute_path(path_arg)
-        node = fs_manager.get_node(full_path)
+            node = fs_manager.get_node(path)
+            if node:
+                # File exists, "touch" it by writing its own content back to it.
+                content = node.get('content', '')
+                fs_manager.write_file(path, content, user_context)
+            else:
+                # File does not exist, create it empty.
+                fs_manager.write_file(path, '', user_context)
 
-        if node:
-            # File exists, just update timestamp
-            node['mtime'] = now_iso
-            changes_made = True
-        elif not no_create:
-            # File does not exist, create it
-            parent_path = os.path.dirname(full_path)
-            file_name = os.path.basename(full_path)
-            parent_node = fs_manager.get_node(parent_path)
+        except IsADirectoryError:
+            # fs_manager.write_file will raise an error if path is a directory, which is correct.
+            # We can just ignore it, as `touch` on a directory should do nothing.
+            pass
+        except Exception as e:
+            return f"touch: an unexpected error occurred with '{path}': {repr(e)}"
 
-            if not parent_node or parent_node.get('type') != 'directory':
-                raise FileNotFoundError(f"touch: cannot touch '{path_arg}': No such file or directory")
+    return "" # Success
 
-            new_file = {
-                "type": "file",
-                "content": "",
-                "owner": user_context.get('name', 'root'),
-                "group": user_context.get('name', 'root'),
-                "mode": 0o644,
-                "mtime": now_iso
-            }
-            parent_node['children'][file_name] = new_file
-            parent_node['mtime'] = now_iso
-            changes_made = True
+def man(args, flags, user_context):
+    """
+    Displays the manual page for the touch command.
+    """
+    return """
+NAME
+    touch - change file timestamps
 
-    if changes_made:
-        fs_manager._save_state()
+SYNOPSIS
+    touch [FILE]...
 
-    return "" # No output on success
+DESCRIPTION
+    Update the access and modification times of each FILE to the current time.
+    A FILE argument that does not exist is created empty.
+"""
+
+def help(args, flags, user_context):
+    """
+    Provides help information for the touch command.
+    """
+    return "Usage: touch [FILE...]"

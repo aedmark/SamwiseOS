@@ -1,52 +1,77 @@
+# gem/core/commands/ls.py
+
 from filesystem import fs_manager
 from datetime import datetime
-
-def format_mode_to_string(node):
-    if 'mode' not in node or not isinstance(node['mode'], int):
-        return "----------"
-    type_char = 'd' if node.get('type') == 'directory' else '-'
-    mode = node['mode']
-    perms = []
-    for i in range(3):
-        p = (mode >> (6 - i * 3)) & 7
-        perms.append("r" if p & 4 else "-")
-        perms.append("w" if p & 2 else "-")
-        perms.append("x" if p & 1 else "-")
-    return type_char + "".join(perms)
+import json
 
 def run(args, flags, user_context):
-    path_arg = args[0] if args else "."
-    full_path = fs_manager.get_absolute_path(path_arg)
-    node = fs_manager.get_node(full_path)
+    """
+    Lists the contents of a directory.
+    Supports a '-l' flag for a long listing format.
+    """
+    path = args[0] if args else "."
+    target_path = fs_manager.get_absolute_path(path)
+    node = fs_manager.get_node(target_path)
 
     if not node:
-        raise FileNotFoundError(f"ls: cannot access '{path_arg}': No such file or directory")
+        return f"ls: cannot access '{path}': No such file or directory"
 
     if node.get('type') != 'directory':
-        return path_arg
+        return path # If it's a file, just list the file itself
 
-    output_lines = []
-    children = node.get('children', {})
-    sorted_names = sorted(children.keys())
+    # If we are here, node is a directory
+    children = sorted(node.get('children', {}).keys())
 
-    for name in sorted_names:
-        child_node = children[name]
-        if not "-a" in flags and name.startswith('.'):
-            continue
+    if "-l" in flags:
+        output = []
+        for name in children:
+            child_node = node['children'][name]
+            # Format permissions, owner, group, size, date, and name
+            perms = "d" if child_node.get('type') == 'directory' else "-"
+            # This is a simplified permission model for now
+            perms += "rwx" * 3
 
-        if "-l" in flags:
-            perms = format_mode_to_string(child_node)
-            owner = child_node.get('owner', 'unknown').ljust(10)
-            group = child_node.get('group', 'unknown').ljust(10)
-            size = str(len(child_node.get('content', ''))).rjust(8)
+            owner = child_node.get('owner', 'root').ljust(8)
+            group = child_node.get('group', 'root').ljust(8)
+
+            # Rough size calculation for content
+            size = str(len(child_node.get('content', '')) if child_node.get('type') == 'file' else 4096).rjust(6)
+
+            mtime_str = child_node.get('mtime', '')
             try:
-                mtime_str = child_node.get('mtime', '').split('.')[0]
-                mtime_obj = datetime.fromisoformat(mtime_str)
-                mtime = mtime_obj.strftime('%b %d %H:%M')
-            except:
-                mtime = "Jan 01 1970"
-            output_lines.append(f"{perms}  1 {owner}{group}{size} {mtime.ljust(12)} {name}")
-        else:
-            output_lines.append(name)
+                # Parse ISO format and reformat to 'Month Day HH:MM'
+                mtime_dt = datetime.fromisoformat(mtime_str.replace('Z', '+00:00'))
+                mtime_formatted = mtime_dt.strftime('%b %d %H:%M')
+            except ValueError:
+                mtime_formatted = "Jan 01 00:00"
 
-    return "\\n".join(output_lines)
+            output.append(f"{perms} 1 {owner} {group} {size} {mtime_formatted} {name}")
+        return "\n".join(output)
+    else:
+        # Simple listing
+        return "  ".join(children)
+
+def man(args, flags, user_context):
+    """
+    Displays the manual page for the ls command.
+    """
+    return """
+NAME
+    ls - list directory contents
+
+SYNOPSIS
+    ls [-l] [FILE...]
+
+DESCRIPTION
+    List information about the FILEs (the current directory by default).
+    Sort entries alphabetically.
+
+    -l    use a long listing format, showing permissions, owner, size,
+          and modification date.
+"""
+
+def help(args, flags, user_context):
+    """
+    Provides help information for the ls command.
+    """
+    return "Usage: ls [-l] [DIRECTORY]"

@@ -8,53 +8,41 @@ class FileSystemManager:
     def __init__(self):
         self.fs_data = {}
         self.current_path = "/"
-        self.save_function = None  # To hold the save function from JS
+        self.save_function = None
         self._initialize_default_filesystem()
 
     def set_save_function(self, func):
-        """Accepts the save function from the kernel to break the direct dependency on JS."""
         self.save_function = func
 
     def _save_state(self):
-        """Internal method to safely call the provided save function."""
         if self.save_function:
             self.save_function(self.save_state_to_json())
         else:
-            # This will appear in the browser console if something is wrong.
-            print("CRITICAL: Filesystem save function not provided. Changes will not be persisted.")
+            print("CRITICAL: Filesystem save function not provided.")
 
     def set_context(self, current_path):
-        """Sets the current working directory from the JS side."""
         self.current_path = current_path if current_path else "/"
 
     def get_absolute_path(self, target_path):
-        """Resolves a path to its absolute form."""
-        if not target_path: # Handle empty or None path
+        if not target_path:
             target_path = "."
         if os.path.isabs(target_path):
             return os.path.normpath(target_path)
         return os.path.normpath(os.path.join(self.current_path, target_path))
 
     def _initialize_default_filesystem(self):
-        """Initializes a default file system structure if one doesn't exist."""
         now_iso = datetime.utcnow().isoformat() + "Z"
         self.fs_data = {
             "/": {
-                "type": "directory",
-                "children": {},
-                "owner": "root",
-                "group": "root",
-                "mode": 0o755,
-                "mtime": now_iso,
+                "type": "directory", "children": {}, "owner": "root",
+                "group": "root", "mode": 0o755, "mtime": now_iso,
             }
         }
 
     def get_node(self, path):
-        """Retrieves a node from the filesystem using its absolute or relative path."""
-        abs_path = self.get_absolute_path(path) # Always resolve to absolute path first
+        abs_path = self.get_absolute_path(path)
         if abs_path == '/':
             return self.fs_data.get('/')
-
         parts = [part for part in abs_path.split('/') if part]
         node = self.fs_data.get('/')
         for part in parts:
@@ -65,7 +53,6 @@ class FileSystemManager:
         return node
 
     def load_state_from_json(self, json_string):
-        """Loads the entire filesystem state from a JSON string."""
         try:
             self.fs_data = json.loads(json_string)
             return True
@@ -74,11 +61,9 @@ class FileSystemManager:
             return False
 
     def save_state_to_json(self):
-        """Serializes the entire filesystem state to a JSON string."""
         return json.dumps(self.fs_data)
 
     def write_file(self, path, content, user_context):
-        """Creates or updates a file with new content."""
         abs_path = self.get_absolute_path(path)
         parent_path = os.path.dirname(abs_path)
         file_name = os.path.basename(abs_path)
@@ -88,36 +73,86 @@ class FileSystemManager:
             raise FileNotFoundError(f"Cannot create file in '{parent_path}': No such directory.")
 
         now_iso = datetime.utcnow().isoformat() + "Z"
-        existing_file_node = parent_node['children'].get(file_name)
-
-        if existing_file_node:
-            # --- THIS IS THE FIX ---
-            # Instead of modifying a retrieved node, modify it directly in its parent.
-            if existing_file_node.get('type') != 'file':
+        if file_name in parent_node['children']:
+            if parent_node['children'][file_name].get('type') != 'file':
                 raise IsADirectoryError(f"Cannot write to '{path}': It is a directory.")
-
             parent_node['children'][file_name]['content'] = content
             parent_node['children'][file_name]['mtime'] = now_iso
-            # -----------------------
         else:
-            # This logic for creating a new file was already correct!
             new_file = {
-                "type": "file",
-                "content": content,
-                "owner": user_context.get('name', 'guest'),
-                "group": user_context.get('name', 'guest'),
-                "mode": 0o644,
-                "mtime": now_iso
+                "type": "file", "content": content, "owner": user_context.get('name', 'guest'),
+                "group": user_context.get('name', 'guest'), "mode": 0o644, "mtime": now_iso
             }
             parent_node['children'][file_name] = new_file
 
         parent_node['mtime'] = now_iso
         self._save_state()
 
-    def remove(self, path, recursive=False):
-        """Removes a file or directory."""
+    def create_directory(self, path, user_context):
+        """Creates a new directory."""
         abs_path = self.get_absolute_path(path)
+        parent_path = os.path.dirname(abs_path)
+        dir_name = os.path.basename(abs_path)
+        parent_node = self.get_node(parent_path)
 
+        if not parent_node or parent_node.get('type') != 'directory':
+            raise FileNotFoundError(f"Cannot create directory in '{parent_path}': No such directory.")
+
+        if dir_name in parent_node['children']:
+            raise FileExistsError(f"Cannot create directory '{path}': File exists.")
+
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        new_dir = {
+            "type": "directory", "children": {}, "owner": user_context.get('name', 'guest'),
+            "group": user_context.get('name', 'guest'), "mode": 0o755, "mtime": now_iso
+        }
+        parent_node['children'][dir_name] = new_dir
+        parent_node['mtime'] = now_iso
+        self._save_state()
+
+    def rename_node(self, old_path, new_path):
+        """Renames or moves a file or directory."""
+        abs_old_path = self.get_absolute_path(old_path)
+        abs_new_path = self.get_absolute_path(new_path)
+
+        if abs_old_path == '/':
+            raise PermissionError("Cannot rename the root directory.")
+
+        old_parent_path = os.path.dirname(abs_old_path)
+        old_name = os.path.basename(abs_old_path)
+        old_parent_node = self.get_node(old_parent_path)
+
+        if not old_parent_node or old_name not in old_parent_node.get('children', {}):
+            raise FileNotFoundError(f"Cannot rename '{old_path}': No such file or directory.")
+
+        # Check if new_path is a directory; if so, move the node into it
+        new_node_target = self.get_node(abs_new_path)
+        if new_node_target and new_node_target.get('type') == 'directory':
+            new_parent_node = new_node_target
+            new_name = old_name
+        else:
+            new_parent_path = os.path.dirname(abs_new_path)
+            new_name = os.path.basename(abs_new_path)
+            new_parent_node = self.get_node(new_parent_path)
+
+        if not new_parent_node or new_parent_node.get('type') != 'directory':
+            raise FileNotFoundError(f"Target directory '{os.path.dirname(new_path)}' does not exist.")
+
+        if new_name in new_parent_node.get('children', {}):
+            raise FileExistsError(f"Cannot rename to '{new_path}': Destination already exists.")
+
+        # Move the node and update timestamps
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        node_to_move = old_parent_node['children'].pop(old_name)
+        node_to_move['mtime'] = now_iso
+        new_parent_node['children'][new_name] = node_to_move
+        old_parent_node['mtime'] = now_iso
+        new_parent_node['mtime'] = now_iso
+
+        self._save_state()
+
+    def remove(self, path, recursive=False):
+        abs_path = self.get_absolute_path(path)
         if abs_path == '/':
             raise PermissionError("Cannot remove the root directory.")
 
@@ -134,9 +169,7 @@ class FileSystemManager:
 
         del parent_node['children'][node_name]
         parent_node['mtime'] = datetime.utcnow().isoformat() + "Z"
-
         self._save_state()
         return True
 
-# Singleton instance to be used across the Python environment
 fs_manager = FileSystemManager()

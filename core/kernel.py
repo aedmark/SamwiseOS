@@ -23,12 +23,28 @@ def write_file(path, content, js_context_json):
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
 
+def create_directory(path, js_context_json):
+    """Exposes the filesystem's create_directory method."""
+    try:
+        js_context = json.loads(js_context_json)
+        fs_manager.create_directory(path, js_context.get('user_context'))
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def rename_node(old_path, new_path):
+    """Exposes the filesystem's rename_node method."""
+    try:
+        fs_manager.rename_node(old_path, new_path)
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
 def execute_command(command_string: str, js_context_json: str) -> str:
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"))
         command_executor.set_context(js_context.get("user_context"))
-
         return command_executor.execute(command_string)
     except Exception as e:
         return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}"})

@@ -1,68 +1,44 @@
 # gem/core/commands/mkdir.py
-import os
+
 from filesystem import fs_manager
-from datetime import datetime
 
 def run(args, flags, user_context):
     """
-    Creates one or more new directories.
+    Creates new directories.
     """
     if not args:
-        raise ValueError("mkdir: missing operand")
+        return help(args, flags, user_context)
 
-    create_parents = "-p" in flags
-    now_iso = datetime.utcnow().isoformat() + "Z"
-    changes_made = False
+    for path in args:
+        try:
+            # Use the robust create_directory function from our filesystem core
+            fs_manager.create_directory(path, user_context)
+        except FileExistsError:
+            return f"mkdir: cannot create directory ‘{path}’: File exists"
+        except FileNotFoundError:
+            return f"mkdir: cannot create directory ‘{path}’: No such file or directory"
+        except Exception as e:
+            return f"mkdir: an unexpected error occurred with '{path}': {repr(e)}"
 
-    for path_arg in args:
-        full_path = fs_manager.get_absolute_path(path_arg)
+    return "" # Success
 
-        if fs_manager.get_node(full_path):
-            if not create_parents:
-                raise FileExistsError(f"mkdir: cannot create directory ‘{path_arg}’: File exists")
-            continue
+def man(args, flags, user_context):
+    """
+    Displays the manual page for the mkdir command.
+    """
+    return """
+NAME
+    mkdir - make directories
 
-        parent_path = os.path.dirname(full_path)
-        dir_name = os.path.basename(full_path)
-        parent_node = fs_manager.get_node(parent_path)
+SYNOPSIS
+    mkdir [DIRECTORY]...
 
-        if not parent_node:
-            if not create_parents:
-                raise FileNotFoundError(f"mkdir: cannot create directory ‘{path_arg}’: No such file or directory")
+DESCRIPTION
+    Create the DIRECTORY(ies), if they do not already exist.
+"""
 
-            parts = parent_path.strip('/').split('/')
-            current_path = ''
-            for part in parts:
-                current_path = f"{current_path}/{part}"
-                if not fs_manager.get_node(current_path):
-                    parent_of_current = os.path.dirname(current_path)
-                    p_node = fs_manager.get_node(parent_of_current)
-                    new_dir = {
-                        "type": "directory", "children": {},
-                        "owner": user_context.get('name', 'root'),
-                        "group": user_context.get('name', 'root'),
-                        "mode": 0o755, "mtime": now_iso
-                    }
-                    p_node['children'][part] = new_dir
-                    changes_made = True
-            parent_node = fs_manager.get_node(parent_path)
-
-        if parent_node.get('type') != 'directory':
-            raise NotADirectoryError(f"mkdir: cannot create directory ‘{path_arg}’: Not a directory")
-
-        new_directory = {
-            "type": "directory",
-            "children": {},
-            "owner": user_context.get('name', 'root'),
-            "group": user_context.get('name', 'root'),
-            "mode": 0o755,
-            "mtime": now_iso
-        }
-        parent_node['children'][dir_name] = new_directory
-        parent_node['mtime'] = now_iso
-        changes_made = True
-
-    if changes_made:
-        fs_manager._save_state()
-
-    return "" # No output on success
+def help(args, flags, user_context):
+    """
+    Provides help information for the mkdir command.
+    """
+    return "Usage: mkdir [DIRECTORY]..."

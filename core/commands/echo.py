@@ -1,23 +1,28 @@
-# core/commands/echo.py
+# gem/core/commands/echo.py
 
-def run(args, flags):
+def run(args, flags, user_context):
     """
     Displays a line of text.
-
-    Args:
-        args (list): A list of strings to be printed.
-        flags (list): A list of flags. We can add support for flags like '-n' later.
-
-    Returns:
-        str: The concatenated string of arguments.
     """
-    try:
-        # Join the arguments with spaces to form the output string
-        output = " ".join(args)
+    return " ".join(args)
 
-        # In the future, we could handle flags like -n to suppress the newline.
-        # For now, the terminal handler will add the newline.
-        return output
+def man(args, flags, user_context):
+    """
+    Displays the manual page for the echo command.
+    """
+    return """
+NAME
+    echo - display a line of text
 
-    except Exception as e:
-        return f"echo: an unexpected error occurred: {e}"
+SYNOPSIS
+    echo [STRING]...
+
+DESCRIPTION
+    Echo the STRING(s) to standard output.
+"""
+
+def help(args, flags, user_context):
+    """
+    Provides help information for the echo command.
+    """
+    return "Usage: echo [STRING]..."

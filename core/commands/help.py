@@ -1,30 +1,45 @@
-# This is a simplified version. We'll need to build a way for Python
-# to access the command definitions later on.
-
-COMMAND_DESCRIPTIONS = {
-    "help": "Displays a list of commands or a command's syntax.",
-    "man": "Formats and displays the manual page for a command.",
-    "ls": "Lists directory contents and file information.",
-    "echo": "Writes arguments to the standard output.",
-    "date": "Display the current system date and time.",
-    "pwd": "Prints the current working directory.",
-    "whoami": "Prints the current effective user name.",
-    "clear": "Clears the terminal screen of all previous output."
-}
+# gem/core/commands/help.py
 
 def run(args, flags, user_context):
     """
-    Displays help information for commands.
+    Displays a list of available commands.
     """
-    if not args:
-        output = ["OopisOS Help (Python Core)", "", "Available commands:"]
-        for cmd, desc in sorted(COMMAND_DESCRIPTIONS.items()):
-            output.append(f"  {cmd.ljust(15)} {desc}")
-        output.append("\nType 'help [command]' for more details.")
-        return "\n".join(output)
-    else:
-        cmd_name = args[0]
-        if cmd_name in COMMAND_DESCRIPTIONS:
-            return f"Usage: {cmd_name} [options]" # Simplified for now
-        else:
-            return f"help: command not found: {cmd_name}"
+    # This list should be updated as we add more Python commands
+    available_commands = [
+        "cat", "clear", "date", "echo", "help", "ls", "man",
+        "mkdir", "mv", "pwd", "rm", "touch", "whoami"
+    ]
+
+    output = [
+        "SamwiseOS - Powered by Python",
+        "Welcome to the official command reference.",
+        "The following commands are available:",
+        "",
+        "  " + "  ".join(available_commands),
+        "",
+        "Use 'man [command]' for more information on a specific command."
+    ]
+    return "\n".join(output)
+
+def man(args, flags, user_context):
+    """
+    Displays the manual page for the help command.
+    """
+    return """
+NAME
+    help - display information about available commands
+
+SYNOPSIS
+    help
+
+DESCRIPTION
+    help displays a list of common commands that are built into the
+    SamwiseOS Python kernel. For more details on a specific command,
+    type 'man [command_name]'.
+"""
+
+def help(args, flags, user_context):
+    """
+    Provides help information for the help command.
+    """
+    return "Usage: help"
