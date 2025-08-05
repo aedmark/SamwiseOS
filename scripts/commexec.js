@@ -385,13 +385,14 @@ class CommandExecutor {
 
         // --- Python Command Bridge ---
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
-            "touch", "rm", "mv", "grep", "wc", "uniq", "head", "tr", "base64", "cksum"];
+            "touch", "rm", "mv", "grep", "wc", "uniq", "head", "tr", "base64", "cksum", "listusers"];
         if (pythonCommands.includes(commandName)) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
                 const fullCommandString = [segment.command, ...segment.args].join(' ');
                 const jsContext = {
                     current_path: FileSystemManager.getCurrentPath(),
-                    user_context: { name: UserManager.getCurrentUser().name }
+                    user_context: { name: UserManager.getCurrentUser().name },
+                    users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {})
                 };
                 const jsContextJson = JSON.stringify(jsContext);
 

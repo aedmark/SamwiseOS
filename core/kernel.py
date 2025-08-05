@@ -87,7 +87,7 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
-        command_executor.set_context(js_context.get("user_context"))
+        command_executor.set_context(js_context.get("user_context"), js_context.get("users"))
         return command_executor.execute(command_string, stdin_data)
     except Exception as e:
         return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}"})

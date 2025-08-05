@@ -42,6 +42,7 @@ const OopisOS_Kernel = {
                 '/core/commands/uniq.py': './core/commands/uniq.py',
                 '/core/commands/wc.py': './core/commands/wc.py',
                 '/core/commands/head.py': './core/commands/head.py',
+                '/core/commands/listusers.py': './core/commands/listusers.py',
                 '/core/commands/tr.py': './core/commands/tr.py',
                 '/core/commands/base64.py': './core/commands/base64.py',
                 '/core/commands/cksum.py': './core/commands/cksum.py',

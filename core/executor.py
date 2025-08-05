@@ -10,10 +10,13 @@ class CommandExecutor:
         self.fs_manager = fs_manager
         # The list of all migrated Python commands
         self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
-                         "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum"]
+                         "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
+                         "listusers"]
         self.user_context = {"name": "Guest"}
+        self.users = {}
 
-    def set_context(self, user_context):
+    def set_context(self, user_context, users):
+        self.users = users if users else {}
         """Sets the current user context from the JS side."""
         self.user_context = user_context if user_context else {"name": "Guest"}
 
@@ -49,7 +52,7 @@ class CommandExecutor:
 
         try:
             command_module = import_module(f"commands.{command_name}")
-            result = command_module.run(args=args, flags=flags, user_context=self.user_context, stdin_data=stdin_data)
+            result = command_module.run(args=args, flags=flags, user_context=self.user_context, stdin_data=stdin_data, users=self.users)
 
             if isinstance(result, dict):
                 return json.dumps({"success": True, **result})
