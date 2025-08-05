@@ -1,0 +1,396 @@
+/* OopisOS v5.1 Main Style Sheet */
+/* Design Tokens (Root Variables) */
+
+:root {
+    --color-text-primary: #00ff5b;
+    --color-text-secondary: #a3a3a3;
+    --color-text-subtle: #737373;
+    --color-text-link: #2dd4bf;
+    --color-text-link-hover: #0a3b36;
+
+    --color-accent-sky: #38bdf8;
+    --color-accent-amber: #fbbF24;
+    --color-accent-lime: #a3e635;
+    --color-accent-green: #52cf05;
+
+    --color-success: var(--color-accent-lime);
+    --color-warning: var(--color-accent-amber);
+    --color-error: #ef4444;
+    --color-info: var(--color-accent-sky);
+    --color-background-darkest: #0a0a0a;
+    --color-background-dark: #1a1a1a;
+    --color-background-medium: #27272a;
+    --color-background-light: #3f3f46;
+    --color-border-primary: #52525b;
+    --color-border-secondary: #3f3f46;
+
+    --font-family-mono: 'VT323', monospace;
+    --font-family-sans: 'Inter', sans-serif;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --line-height-base: 1.5;
+    --line-height-terminal: 1.35;
+
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+
+    --border-radius-sm: 0.25rem;
+    --border-radius-md: 0.5rem;
+    --border-radius-lg: 1rem;
+    --border-width: 1px;
+    --border-width-thick: 2px;
+
+    --shadow-inset-light: inset 0 0 10px rgba(0, 255, 0, 0.1);
+    --shadow-inset-dark: inset 0 0 15px rgba(0, 0, 0, 0.5);
+    --shadow-drop-medium: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* 2. Base & Reset Styles */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    font-family: var(--font-family-mono), monospace;
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* 3. Layout Architecture */
+
+#app-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    padding: var(--spacing-md);
+}
+
+#main-column {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    min-width: 480px;
+    min-height: 360px;
+    max-width: 75%;
+    max-height: 100%;
+}
+
+#main-footer {
+    flex-shrink: 0;
+    text-align: center;
+    font-family: var(--font-family-mono), monospace;
+    font-size: clamp(0.75rem, 1.6vw, 1.125rem);
+    white-space: nowrap;
+    overflow: hidden;
+    color: var(--color-text-primary);
+    padding-top: var(--spacing-sm);
+}
+
+#main-footer a {
+    color: var(--color-text-link);
+    text-decoration: none;
+}
+
+#main-footer a:hover {
+    text-decoration: underline;
+    color: var(--color-text-link-hover);
+}
+
+#terminal-bezel {
+    flex-grow: 1;
+    display: flex;
+    background-color: var(--color-background-medium);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-inset-dark), var(--shadow-drop-medium);
+    min-height: 0;
+    width: 100%;
+    padding: var(--spacing-lg);
+    position: relative;
+}
+
+/* 4. Terminal Component (BEM-like) */
+
+.terminal {
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-background-darkest);
+    border: var(--border-width-thick) solid var(--color-border-secondary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-inset-light);
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 1fr auto;
+    position: relative;
+}
+
+.terminal__output {
+    overflow-y: auto;
+    overflow-x: hidden;
+    word-break: break-word;
+    padding-right: var(--spacing-sm);
+    min-height: 0;
+}
+
+.terminal__output-line {
+    white-space: pre-wrap;
+    min-height: var(--line-height-terminal);
+    line-height: var(--line-height-terminal);
+    margin-bottom: var(--spacing-xs);
+}
+
+.terminal__input-line {
+    display: flex;
+    align-items: flex-start;
+    line-height: var(--line-height-terminal);
+    padding-top: var(--spacing-xs);
+}
+
+.terminal__prompt {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-right: var(--spacing-sm);
+    color: var(--color-info);
+}
+
+.terminal__input {
+    flex-grow: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-text-primary);
+    caret-color: var(--color-text-primary);
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+/* 5. App Layer & Modals */
+
+#app-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(10, 10, 10, 0.85);
+    backdrop-filter: blur(2px);
+}
+
+.modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: transparent;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius-lg);
+}
+
+.modal-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: var(--color-background-darkest);
+    color: var(--color-text-secondary);
+    padding: var(--spacing-lg);
+    border-radius: var(--border-radius-md);
+    z-index: 100;
+    min-width: 320px;
+    max-width: 450px;
+    border: var(--border-width) solid var(--color-text-primary);
+    font-family: var(--font-family-mono), monospace;
+    text-align: center;
+}
+
+.modal-dialog--wide {
+    max-width: 800px;
+    width: 90%;
+    max-height: 80vh;
+}
+
+.modal-dialog--wide .paint-modal-body {
+    max-height: calc(80vh - 150px);
+    overflow-y: auto;
+}
+
+.modal-dialog p {
+    margin-bottom: var(--spacing-md);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+    color: var(--color-text-primary);
+}
+
+.modal-dialog__buttons {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-md);
+}
+
+.modal-dialog__input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    background-color: var(--color-background-medium);
+    border: var(--border-width) solid var(--color-border-primary);
+    color: var(--color-text-secondary);
+    border-radius: var(--border-radius-sm);
+    font-family: var(--font-family-mono), monospace;
+    font-size: var(--font-size-lg);
+}
+
+.modal-dialog__input:focus {
+    outline: none;
+    box-shadow: 0 0 5px var(--color-text-primary);
+    border-color: var(--color-text-primary);
+}
+
+.btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: var(--border-width) solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    font-family: var(--font-family-mono), monospace;
+    font-size: var(--font-size-base);
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
+    background-color: #1f1f22;
+    color: var(--color-text-secondary);
+}
+
+.btn:hover:not(:disabled) {
+    background-color: var(--color-background-light);
+    color: #fff;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn.active {
+    background-color: var(--color-info);
+    color: var(--color-background-darkest);
+    border-color: var(--color-info);
+}
+
+.btn--confirm {
+    border-color: var(--color-success);
+    color: var(--color-success);
+}
+
+.btn--confirm:hover {
+    background-color: var(--color-success);
+    color: var(--color-background-darkest);
+}
+
+.btn--cancel {
+    border-color: var(--color-error);
+    color: var(--color-error);
+}
+
+.btn--cancel:hover {
+    background-color: var(--color-error);
+    color: var(--color-background-darkest);
+}
+
+.prose-output h3 {
+    color: var(--color-accent-sky);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border-primary);
+}
+
+.prose-output p {
+    margin-bottom: var(--spacing-md);
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-background-darkest);
+    border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: var(--color-text-primary);
+    border-radius: 10px;
+    border: 2px solid var(--color-background-darkest);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-accent-lime);
+}
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-text-primary) var(--color-background-darkest);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.text-error {
+    color: var(--color-error);
+}
+
+.text-success {
+    color: var(--color-success);
+}
+
+.text-warning {
+    color: var(--color-warning);
+}
+
+.text-info {
+    color: var(--color-info);
+}
+
+.text-subtle {
+    color: var(--color-text-secondary);
+}
+
+.text-dir {
+    color: var(--color-info);
+    font-weight: 600;
+}
+
+.text-file {
+    color: var(--color-text-primary);
+}

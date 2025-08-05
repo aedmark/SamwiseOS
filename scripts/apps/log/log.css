@@ -1,0 +1,94 @@
+/* Captain's Log Style Sheet */
+
+#captains-log-app-container .app-main {
+    padding: var(--spacing-md);
+    padding-top: 0;
+    gap: var(--spacing-md);
+}
+
+#captains-log-app-container .app-header {
+    gap: var(--spacing-md);
+    padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.log-app__search {
+    background-color: var(--color-background-medium);
+    border: var(--border-width) solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    color: var(--color-text-primary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    flex-grow: 1; /* Allow search to take up space */
+}
+
+.log-app__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.log-app__main {
+    display: flex;
+    flex-grow: 1;
+    min-height: 0;
+    gap: var(--spacing-md);
+}
+
+.log-app__list-pane {
+    width: 35%;
+    flex-shrink: 0;
+    background-color: var(--color-background-medium);
+    border-radius: var(--border-radius-sm);
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+}
+
+.log-app__list-item {
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-border-secondary);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    color: var(--color-text-secondary);
+}
+
+.log-app__list-item:hover {
+    background-color: var(--color-background-light);
+}
+
+.log-app__list-item.selected {
+    background-color: var(--color-info);
+    color: var(--color-background-darkest);
+    font-weight: bold;
+}
+
+.log-app__list-item strong {
+    color: var(--color-text-primary);
+}
+
+.log-app__list-item.selected strong {
+    color: var(--color-background-darkest);
+}
+
+.log-app__list-item span {
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.log-app__content-pane {
+    flex-grow: 1;
+    background-color: var(--color-background-darkest);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-md);
+    overflow-y: auto;
+    color: var(--color-text-primary);
+    line-height: var(--line-height-base);
+    font-family: var(--font-family-sans), sans-serif;
+    border: none;
+    resize: none;
+}
+
+.log-app__content-pane:focus {
+    outline: 1px solid var(--color-info);
+}

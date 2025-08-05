@@ -1,0 +1,56 @@
+{
+  "name": "oopisos",
+  "version": "5.1.0",
+  "description": "OopisOS Pocket",
+  "keywords": [
+    "OS"
+  ],
+  "homepage": "https://github.com/aedmark/oopis-os#readme",
+  "bugs": {
+    "url": "https://github.com/aedmark/oopis-os/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aedmark/oopis-os.git"
+  },
+  "license": "MIT",
+  "author": "Andrew Edmark & Gemini <oopismcgoopis@gmail.com> (https://oopisos.com/)",
+  "main": "electron.cjs",
+  "type": "module",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "docs": "jsdoc -c jsdoc.json"
+  },
+  "build": {
+    "appId": "com.oopisos.app",
+    "productName": "OopisOS",
+    "files": [
+      "**/*",
+      "!{dist,release,build}",
+      "!*.{map,ts,md}",
+      "!**/*.{o,h}"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icons/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "deb"
+      ],
+      "icon": "icons/"
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.31.0",
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
+    "globals": "^16.3.0",
+    "jsdoc": "^4.0.4"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}

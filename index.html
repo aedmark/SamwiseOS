@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OopisOS v5.1</title>
+  <script src="marked.min.js"></script>
+  <script src="purify.min.js"></script>
+  <script src="jszip.min.js"></script>
+  <script src="tone.js"></script>
+  <link rel="stylesheet" href="./main.css">
+  <link rel="stylesheet" href="./scripts/apps/apps.css">
+  <link rel="stylesheet" href="./scripts/apps/explorer/explorer.css">
+  <link rel="stylesheet" href="./scripts/apps/editor/editor.css">
+  <link rel="stylesheet" href="./scripts/apps/chidi/chidi.css">
+  <link rel="stylesheet" href="./scripts/apps/gemini_chat/gemini_chat.css">
+  <link rel="stylesheet" href="./scripts/apps/adventure/adventure.css">
+  <link rel="stylesheet" href="./scripts/apps/desktop/desktop.css">
+  <link rel="stylesheet" href="./scripts/apps/log/log.css">
+  <link rel="stylesheet" href="./scripts/apps/paint/paint.css">
+  <link rel="stylesheet" href="./scripts/apps/basic/basic.css">
+  <link rel="stylesheet" href="./scripts/apps/top/top.css">
+
+</head>
+<body>
+
+<div id="app-container">
+  <div id="main-column">
+    <div id="terminal-bezel">
+      <div id="terminal" class="terminal">
+        <div id="output" class="terminal__output"></div>
+        <div id="app-layer" class="hidden"></div>
+        <div class="terminal__input-line">
+          <div id="prompt-container" class="terminal__prompt">
+          </div>
+          <div id="editable-input-container" class="terminal__input-wrapper">
+            <div id="editable-input" contenteditable="true" spellcheck="false" autocapitalize="none"
+                 class="terminal__input">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <h1 id="main-footer">| COPYRIGHT ©2025 | <a href="mailto:oopismcgoopis@gmail.com">EDMARK</a> & <a href="https://gemini.google.com">GEMINI</a> | <a target="_blank" href="https://github.com/aedmark/oopis-os">GIT</a> | <a target="_blank" href="https://oopisos.com">HOME</a> | <a target="_blank" href="https://github.com/aedmark/oopis-os/wiki">GUIDE</a> |</h1>
+  </div>
+</div>
+
+<script src="./scripts/utils.js"></script>
+<script src="./scripts/comm_utils.js"></script>
+<script src="./scripts/pager.js"></script>
+<script src="./scripts/ui_components.js"></script>
+<script src="./scripts/config.js"></script>
+<script src="./scripts/ai_manager.js"></script>
+<script src="./scripts/error_handler.js"></script>
+<script src="./scripts/storage.js"></script>
+<script src="./scripts/output_manager.js"></script>
+<script src="./scripts/group_manager.js"></script>
+<script src="./scripts/user_manager.js"></script>
+<script src="./scripts/fs_manager.js"></script>
+<script src="./scripts/sudo_manager.js"></script>
+<script src="./scripts/session_manager.js"></script>
+<script src="./scripts/terminal_ui.js"></script>
+<script src="./scripts/modal_manager.js"></script>
+<script src="./scripts/sound_manager.js"></script>
+<script src="./scripts/message_bus_manager.js"></script>
+<script src="./scripts/apps/app.js"></script>
+<script src="./scripts/lexpar.js"></script>
+<script src="./scripts/commands/command_base.js"></script>
+<script src="./scripts/command_registry.js"></script>
+<script src="./scripts/commexec.js"></script>
+<script src="./scripts/storage_hal.js"></script>
+<script src="./scripts/network_manager.js"></script>
+<script src="./scripts/audit_manager.js"></script>
+<script src="./main.js"></script>
+
+</body>
+</html>

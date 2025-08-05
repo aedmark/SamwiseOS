@@ -1,0 +1,157 @@
+/* Oopis Editor Style Sheet */
+
+#text-editor-app-container > .app-main {
+    display: flex;
+    flex-direction: column !important;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+}
+
+.editor-header {
+    flex-shrink: 0;
+}
+
+.editor-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    height: 100%;
+}
+
+.editor-title-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xl);
+    font-weight: 600;
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    outline: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.editor-title-input:focus {
+    border-color: var(--color-info);
+    box-shadow: 0 0 5px var(--color-info);
+}
+
+.editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.editor-toolbar-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--spacing-xs);
+}
+
+.editor-main-content {
+    flex-grow: 1;
+    display: flex;
+    min-height: 0;
+    gap: var(--spacing-md);
+}
+
+.editor-main--split .editor-textarea,
+.editor-main--split .editor-preview {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.editor-main--full .editor-textarea,
+.editor-main--full .editor-preview {
+    flex: 1 1 100%;
+}
+
+.editor-main-content .hidden {
+    display: none;
+}
+
+.editor-textarea, .editor-preview {
+    padding: var(--spacing-md);
+    border: 1px solid var(--color-border-primary);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--color-background-dark);
+    color: var(--color-text-primary);
+    font-size: 16px;
+    line-height: 1.6;
+    outline: none;
+    transition: all 0.2s ease-in-out;
+    overflow-y: auto;
+}
+
+.editor-textarea {
+    font-family: var(--font-family-mono), monospace;
+    white-space: pre;
+    word-wrap: normal;
+    caret-color: var(--color-text-primary);
+}
+
+.editor-textarea.word-wrap-enabled {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.editor-preview h1,
+.editor-preview h2,
+.editor-preview h3 {
+    border-bottom: 1px solid var(--color-border-primary);
+    padding-bottom: .3em;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    color: var(--color-info);
+}
+
+.editor-preview p {
+    margin-bottom: 1em;
+}
+
+.editor-preview code:not(pre > code) {
+    background-color: var(--color-background-light);
+    color: var(--color-accent-amber);
+    padding: .2em .4em;
+    border-radius: 3px;
+}
+
+.editor-preview pre {
+    background-color: #000;
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+    color: #fff;
+}
+
+.editor-preview blockquote {
+    border-left: 4px solid var(--color-info);
+    padding-left: 1em;
+    margin-left: 0;
+    color: var(--color-text-subtle);
+}
+
+.editor-preview ul,
+.editor-preview ol {
+    padding-left: 2em;
+    margin-bottom: 1em;
+}
+
+.editor-textarea em {
+    color: #9cdcfe;
+    font-style: italic;
+}
+
+.editor-textarea strong {
+    color: #c586c0;
+    font-weight: normal;
+}
+
+.editor-textarea em strong,
+.editor-textarea strong em {
+    color: #ce9178;
+    font-style: italic;
+}
