@@ -1,9 +1,10 @@
+# gem/core/filesystem.py
+
 import json
 from datetime import datetime
 import os
 
 class FileSystemManager:
-    # ... (init, set_context, get_absolute_path, _initialize_default_filesystem, get_node are unchanged) ...
     def __init__(self):
         self.fs_data = {}
         self.current_path = "/"
@@ -15,9 +16,10 @@ class FileSystemManager:
 
     def get_absolute_path(self, target_path):
         """Resolves a path to its absolute form."""
+        if not target_path: # Handle empty or None path
+            target_path = "."
         if os.path.isabs(target_path):
             return os.path.normpath(target_path)
-
         return os.path.normpath(os.path.join(self.current_path, target_path))
 
     def _initialize_default_filesystem(self):
@@ -35,8 +37,8 @@ class FileSystemManager:
         }
 
     def get_node(self, path):
-        """Retrieves a node from the filesystem by its absolute path."""
-        abs_path = os.path.normpath(path)
+        """Retrieves a node from the filesystem using its absolute or relative path."""
+        abs_path = self.get_absolute_path(path) # Always resolve to absolute path first
         if abs_path == '/':
             return self.fs_data.get('/')
 
@@ -53,10 +55,10 @@ class FileSystemManager:
         """Loads the entire filesystem state from a JSON string."""
         try:
             self.fs_data = json.loads(json_string)
-            print("Python FileSystemManager: State loaded from JSON.")
+            # print("Python FileSystemManager: State loaded from JSON.") # Optional for debugging
             return True
         except json.JSONDecodeError:
-            print("Python FileSystemManager: Error decoding JSON, initializing new FS.")
+            # print("Python FileSystemManager: Error decoding JSON, initializing new FS.") # Optional for debugging
             self._initialize_default_filesystem()
             return False
 
@@ -94,10 +96,35 @@ class FileSystemManager:
             parent_node['children'][file_name] = new_file
             parent_node['mtime'] = now_iso
 
-        # After any write, we should trigger a save back to JS/IndexedDB
         from pyodide.ffi import to_js
         import js
         js.save_fs_js(self.save_state_to_json())
+
+    def remove(self, path, recursive=False):
+        """Removes a file or directory."""
+        abs_path = self.get_absolute_path(path)
+
+        if abs_path == '/':
+            raise PermissionError("Cannot remove the root directory.")
+
+        parent_path = os.path.dirname(abs_path)
+        node_name = os.path.basename(abs_path)
+        parent_node = self.get_node(parent_path)
+
+        if not parent_node or node_name not in parent_node.get('children', {}):
+            raise FileNotFoundError(f"Cannot remove '{path}': No such file or directory.")
+
+        child_node = parent_node['children'][node_name]
+        if child_node.get('type') == 'directory' and child_node.get('children') and not recursive:
+            raise IsADirectoryError(f"Cannot remove '{path}': Directory not empty.")
+
+        del parent_node['children'][node_name]
+        parent_node['mtime'] = datetime.utcnow().isoformat() + "Z"
+
+        from pyodide.ffi import to_js
+        import js
+        js.save_fs_js(self.save_state_to_json())
+        return True
 
 # Singleton instance to be used across the Python environment
 fs_manager = FileSystemManager()

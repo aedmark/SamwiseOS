@@ -1,3 +1,5 @@
+# core/executor.py
+
 import shlex
 import json
 from importlib import import_module
@@ -6,7 +8,8 @@ from filesystem import fs_manager
 class CommandExecutor:
     def __init__(self):
         self.fs_manager = fs_manager
-        self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch"]
+        # The list of all migrated Python commands
+        self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm"]
         self.user_context = {"name": "Guest"}
 
     def set_context(self, user_context):
@@ -44,6 +47,8 @@ class CommandExecutor:
         args, flags = self.parse_flags_and_args(parts[1:])
 
         try:
+            # We need to ensure that the FileSystemManager's CWD is set before every command
+            # This is a potential improvement for later, but for now we assume it's set from JS
             command_module = import_module(f"commands.{command_name}")
             result = command_module.run(args=args, flags=flags, user_context=self.user_context)
 
