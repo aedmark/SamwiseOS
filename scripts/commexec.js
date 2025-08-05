@@ -114,7 +114,7 @@ class CommandExecutor {
                 return commandInstance;
             } catch (error) {
                 const vfsPath = `/bin/${commandName}`;
-                const packageNode = FileSystemManager.getNodeByPath(vfsPath);
+                const packageNode = await FileSystemManager.getNodeByPath(vfsPath);
 
                 if (packageNode && packageNode.type === 'file') {
                     try {
@@ -198,7 +198,7 @@ class CommandExecutor {
                                 continue;
                             }
                             const pathArg = remainingArgs[index];
-                            const pathValidationResult = FileSystemManager.validatePath(
+                            const pathValidationResult = await FileSystemManager.validatePath(
                                 pathArg,
                                 rule.options || {}
                             );
@@ -221,7 +221,7 @@ class CommandExecutor {
                                 const parentPath =
                                     resolvedPath.substring(0, resolvedPath.lastIndexOf("/")) ||
                                     "/";
-                                const parentValidation = FileSystemManager.validatePath(
+                                const parentValidation = await FileSystemManager.validatePath(
                                     parentPath,
                                     { permissions: rule.permissionsOnParent }
                                 );
@@ -263,12 +263,14 @@ class CommandExecutor {
                 }
             }
 
-            const command = new Command(definition);
+            // This part is now handled by the Command base class 'execute' method
+            const command = new Command(definition); // Assuming Command is the base class
             return command.execute(remainingArgs, options, commandDependencies);
         };
         handler.definition = definition;
         return handler;
     }
+
 
     /**
      * Retrieves a list of all active background jobs.
@@ -381,8 +383,8 @@ class CommandExecutor {
         const { ErrorHandler, FileSystemManager, UserManager } = this.dependencies;
         const commandName = segment.command?.toLowerCase();
 
-        // --- MODIFIED: Python Command Bridge ---
-        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm", "mv"];
+        // --- Python Command Bridge ---
+        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm", "mv", "grep"];
         if (pythonCommands.includes(commandName)) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
                 // 1. Construct the full command string
@@ -473,7 +475,7 @@ class CommandExecutor {
         let lastResult = ErrorHandler.createSuccess("");
 
         if (pipeline.inputRedirectFile) {
-            const pathValidationResult = FileSystemManager.validatePath(
+            const pathValidationResult = await FileSystemManager.validatePath(
                 pipeline.inputRedirectFile,
                 { expectedType: "file" }
             );
@@ -599,7 +601,7 @@ class CommandExecutor {
             if (!lastResult.suppressNewline) {
                 outputToWrite += "\n";
             }
-            const redirValResult = FileSystemManager.validatePath(redirFile, {
+            const redirValResult = await FileSystemManager.validatePath(redirFile, {
                 allowMissing: true,
                 disallowRoot: true,
                 defaultToCurrentIfEmpty: false,
@@ -612,38 +614,10 @@ class CommandExecutor {
                     });
                 return redirValResult;
             }
-            const { resolvedPath: absRedirPath } = redirValResult.data;
-            const pDirRes =
-                FileSystemManager.createParentDirectoriesIfNeeded(absRedirPath);
-            if (!pDirRes.success) {
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(
-                        `Redir err: ${pDirRes.error}`,
-                        {
-                            typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                        }
-                    );
-                return pDirRes;
-            }
-            const finalParentDirPath =
-                absRedirPath.substring(
-                    0,
-                    absRedirPath.lastIndexOf(Config.FILESYSTEM.PATH_SEPARATOR)
-                ) || Config.FILESYSTEM.ROOT_PATH;
-            const finalParentNodeForFile =
-                FileSystemManager.getNodeByPath(finalParentDirPath);
-            if (!finalParentNodeForFile) {
-                const errorMsg = `Redir err: critical internal error, parent dir '${finalParentDirPath}' for file write not found.`;
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(errorMsg, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                return ErrorHandler.createError(
-                    `parent dir '${finalParentDirPath}' for file write not found (internal)`
-                );
-            }
 
-            const existingNode = FileSystemManager.getNodeByPath(absRedirPath);
+            const { resolvedPath: absRedirPath } = redirValResult.data;
+
+            const existingNode = await FileSystemManager.getNodeByPath(absRedirPath);
             if (
                 existingNode &&
                 existingNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE
@@ -654,28 +628,6 @@ class CommandExecutor {
                         typeClass: Config.CSS_CLASSES.ERROR_MSG,
                     });
                 return ErrorHandler.createError(`'${redirFile}' is dir.`);
-            }
-            if (
-                existingNode &&
-                !FileSystemManager.hasPermission(existingNode, user, "write")
-            ) {
-                const errorMsg = `Redir err: no write to '${redirFile}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`;
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(errorMsg, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                return ErrorHandler.createError(`no write to '${redirFile}'`);
-            }
-            if (
-                !existingNode &&
-                !FileSystemManager.hasPermission(finalParentNodeForFile, user, "write")
-            ) {
-                const errorMsg = `Redir err: no create in '${finalParentDirPath}'${Config.MESSAGES.PERMISSION_DENIED_SUFFIX}`;
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(errorMsg, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                return ErrorHandler.createError(`no create in '${finalParentDirPath}'`);
             }
 
             let finalFileContent;
@@ -705,7 +657,6 @@ class CommandExecutor {
                 return saveResult;
             }
 
-            FileSystemManager._updateNodeAndParentMtime(absRedirPath, nowISO);
             const fsSaveResult = await FileSystemManager.save();
             if (!fsSaveResult.success) {
                 if (!pipeline.isBackground)
@@ -721,6 +672,7 @@ class CommandExecutor {
             }
             lastResult.data = "";
         }
+
 
         if (
             !pipeline.redirection &&

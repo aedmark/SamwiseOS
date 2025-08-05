@@ -38,6 +38,7 @@ const OopisOS_Kernel = {
                 '/core/commands/mkdir.py': './core/commands/mkdir.py',
                 '/core/commands/touch.py': './core/commands/touch.py',
                 '/core/commands/rm.py': './core/commands/rm.py',
+                '/core/commands/grep.py': './core/commands/grep.py',
                 '/core/commands/__init__.py': null
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {

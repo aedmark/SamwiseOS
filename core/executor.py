@@ -9,7 +9,7 @@ class CommandExecutor:
     def __init__(self):
         self.fs_manager = fs_manager
         # The list of all migrated Python commands
-        self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm", "mv"]
+        self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir", "touch", "rm", "mv", "grep"]
         self.user_context = {"name": "Guest"}
 
     def set_context(self, user_context):
