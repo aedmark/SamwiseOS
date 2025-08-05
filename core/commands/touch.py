@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Updates the access and modification times of a file to the current time.
     If the file does not exist, it is created with empty content.
@@ -34,7 +34,7 @@ def run(args, flags, user_context):
 
     return "" # Success
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the touch command.
     """
@@ -50,7 +50,7 @@ DESCRIPTION
     A FILE argument that does not exist is created empty.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the touch command.
     """

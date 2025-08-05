@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Creates new directories.
     """
@@ -22,7 +22,7 @@ def run(args, flags, user_context):
 
     return "" # Success
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the mkdir command.
     """
@@ -37,7 +37,7 @@ DESCRIPTION
     Create the DIRECTORY(ies), if they do not already exist.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the mkdir command.
     """

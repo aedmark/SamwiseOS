@@ -4,7 +4,7 @@ from filesystem import fs_manager
 from datetime import datetime
 import json
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Lists the contents of a directory.
     Supports a '-l' flag for a long listing format.
@@ -51,7 +51,7 @@ def run(args, flags, user_context):
         # Simple listing
         return "  ".join(children)
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the ls command.
     """
@@ -70,7 +70,7 @@ DESCRIPTION
           and modification date.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the ls command.
     """

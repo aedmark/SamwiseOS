@@ -1,6 +1,6 @@
 # gem/core/commands/help.py
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Displays a list of available commands.
     """
@@ -21,7 +21,7 @@ def run(args, flags, user_context):
     ]
     return "\n".join(output)
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the help command.
     """
@@ -38,7 +38,7 @@ DESCRIPTION
     type 'man [command_name]'.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the help command.
     """

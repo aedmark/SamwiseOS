@@ -39,6 +39,12 @@ const OopisOS_Kernel = {
                 '/core/commands/touch.py': './core/commands/touch.py',
                 '/core/commands/rm.py': './core/commands/rm.py',
                 '/core/commands/grep.py': './core/commands/grep.py',
+                '/core/commands/uniq.py': './core/commands/uniq.py',
+                '/core/commands/wc.py': './core/commands/wc.py',
+                '/core/commands/head.py': './core/commands/head.py',
+                '/core/commands/tr.py': './core/commands/tr.py',
+                '/core/commands/base64.py': './core/commands/base64.py',
+                '/core/commands/cksum.py': './core/commands/cksum.py',
                 '/core/commands/__init__.py': null
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {

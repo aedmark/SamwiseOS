@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Moves or renames a source file/directory to a destination.
     """
@@ -24,7 +24,7 @@ def run(args, flags, user_context):
         # A catch-all for other potential filesystem issues
         return f"mv: an unexpected error occurred: {repr(e)}"
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the mv command.
     """
@@ -43,7 +43,7 @@ DESCRIPTION
     This command is powered by the core Python filesystem for maximum reliability.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the mv command.
     """

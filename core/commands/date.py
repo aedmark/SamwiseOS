@@ -2,13 +2,13 @@
 
 from datetime import datetime
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Returns the current date and time.
     """
     return datetime.now().strftime('%a %b %d %H:%M:%S %Z %Y')
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the date command.
     """
@@ -24,7 +24,7 @@ DESCRIPTION
     (Note: Setting the date is not supported in SamwiseOS).
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the date command.
     """

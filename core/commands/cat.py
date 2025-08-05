@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Concatenates and displays the content of files.
     """
@@ -29,7 +29,7 @@ def run(args, flags, user_context):
 
     return "\n".join(output_parts)
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the cat command.
     """
@@ -45,7 +45,7 @@ DESCRIPTION
     With no FILE, or when FILE is -, read standard input. (Note: stdin not supported in SamwiseOS).
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the cat command.
     """

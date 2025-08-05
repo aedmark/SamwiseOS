@@ -2,13 +2,13 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Returns the current working directory.
     """
     return fs_manager.current_path
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the pwd command.
     """
@@ -23,7 +23,7 @@ DESCRIPTION
     Print the full filename of the current working directory.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the pwd command.
     """

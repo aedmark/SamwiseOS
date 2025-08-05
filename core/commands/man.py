@@ -13,7 +13,7 @@ DESCRIPTION
 """
 }
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for a command.
     """

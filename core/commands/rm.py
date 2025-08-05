@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, stdin_data=None):
     """
     Removes files or directories.
     Requires '-r' or '--recursive' flag to remove directories.
@@ -32,7 +32,7 @@ def run(args, flags, user_context):
 
     return "\n".join(output_messages)
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, stdin_data=None):
     """
     Displays the manual page for the rm command.
     """
@@ -53,7 +53,7 @@ AUTHOR
     Built with love by the Pawnee-SamwiseOS Unification Committee.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, stdin_data=None):
     """
     Provides help information for the rm command.
     """
