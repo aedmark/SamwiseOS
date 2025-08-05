@@ -6,7 +6,6 @@ from filesystem import fs_manager
 class CommandExecutor:
     def __init__(self):
         self.fs_manager = fs_manager
-        # In the future, we can expand this registry
         self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man"]
         self.user_context = {"name": "Guest"}
 
@@ -32,27 +31,22 @@ class CommandExecutor:
         try:
             parts = shlex.split(command_string)
         except ValueError as e:
-            return f"Parse error: {e}"
+            return json.dumps({"success": False, "error": f"Parse error: {e}"})
 
         if not parts:
-            return ""
+            return json.dumps({"success": True, "output": ""})
 
         command_name = parts[0]
 
         if command_name not in self.commands:
-            # We must return a JSON string for errors to be handled consistently
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
 
         args, flags = self.parse_flags_and_args(parts[1:])
 
         try:
-            # Dynamically import the command module
             command_module = import_module(f"commands.{command_name}")
-
-            # Pass the user context to the run function
             result = command_module.run(args=args, flags=flags, user_context=self.user_context)
 
-            # Standardize the output format to JSON for reliability
             if isinstance(result, dict):
                 return json.dumps({"success": True, **result})
             else:
@@ -60,9 +54,9 @@ class CommandExecutor:
 
         except ImportError:
             return json.dumps({"success": False, "error": f"Error: Could not find implementation for command '{command_name}'."})
+        except FileNotFoundError as e:
+            return json.dumps({"success": False, "error": str(e)})
         except Exception as e:
-            # Use repr(e) to get a more detailed error message
             return json.dumps({"success": False, "error": f"Error executing '{command_name}': {repr(e)}"})
 
-# Singleton instance
 command_executor = CommandExecutor()

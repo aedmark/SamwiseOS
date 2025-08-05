@@ -266,20 +266,37 @@ window.onload = async () => {
         // Initialize the Python Kernel Bridge
         await OopisOS_Kernel.initialize(dependencies);
 
-        // ** NEW BOOT SEQUENCE for FILESYSTEM **
-        // 1. Load the filesystem JSON from IndexedDB
         const fsJsonFromStorage = await storageHAL.load();
         if (OopisOS_Kernel.isReady) {
             if (fsJsonFromStorage) {
-                // 2. Pass it to the Python kernel to hydrate its state
+                // Normal boot: Load existing state from storage into Python
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
                 OopisOS_Kernel.kernel.load_fs_from_json(fsJsonString);
-            }
-            // If nothing is in storage, the Python FS manager will use its default.
-        }
-        // The JS fsManager will still initialize with a default structure, but it's no longer the source of truth.
-        await fsManager.initialize(configManager.USER.DEFAULT_NAME);
+                // Also load it into the JS manager for path utilities and legacy command support
+                fsManager.setFsData(fsJsonFromStorage);
+            } else {
+                // First boot: Initialize in JS, then send to Python and save.
+                await outputManager.appendToOutput(
+                    "No file system found. Initializing new one.",
+                    { typeClass: configManager.CSS_CLASSES.CONSOLE_LOG_MSG }
+                );
+                // 1. JS fsManager creates the default structure
+                await fsManager.initialize(configManager.USER.DEFAULT_NAME);
 
+                // 2. Get the new structure
+                const initialFsData = fsManager.getFsData();
+                const initialFsJsonString = JSON.stringify(initialFsData);
+
+                // 3. Send it to Python to become the source of truth
+                OopisOS_Kernel.kernel.load_fs_from_json(initialFsJsonString);
+
+                // 4. Save this initial state for the next boot
+                await storageHAL.save(initialFsData);
+            }
+        } else {
+            // Fallback if kernel failed to load
+            await fsManager.load();
+        }
 
         await userManager.initializeDefaultUsers();
         await configManager.loadFromFile();
