@@ -385,7 +385,8 @@ class CommandExecutor {
 
         // --- Python Command Bridge ---
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
-            "touch", "rm", "mv", "grep", "wc", "uniq", "head", "tr", "base64", "cksum", "listusers"];
+            "touch", "rm", "mv", "grep", "wc", "uniq", "head", "tr", "base64", "cksum", "listusers", "groups",
+        "delay"];
         if (pythonCommands.includes(commandName)) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
                 const fullCommandString = [segment.command, ...segment.args].join(' ');
