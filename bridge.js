@@ -53,6 +53,8 @@ const OopisOS_Kernel = {
                 '/core/commands/tree.py': './core/commands/tree.py',
                 '/core/commands/du.py': './core/commands/du.py',
                 '/core/commands/nl.py': './core/commands/nl.py',
+                '/core/commands/ln.py': './core/commands/ln.py',
+            '/core/commands/patch.py': './core/commands/patch.py',
                 '/core/commands/cut.py': './core/commands/cut.py',
                 '/core/commands/df.py': './core/commands/df.py',
                 '/core/commands/groups.py': './core/commands/groups.py',

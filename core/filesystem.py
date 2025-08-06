@@ -172,6 +172,36 @@ class FileSystemManager:
 
         self._save_state()
 
+    def ln(self, target, link_name_arg, user_context):
+        """Creates a symbolic link."""
+        link_path = self.get_absolute_path(link_name_arg)
+        link_name = os.path.basename(link_path)
+        parent_path = os.path.dirname(link_path)
+
+        parent_node = self.get_node(parent_path)
+        if not parent_node or parent_node.get('type') != 'directory':
+            raise FileNotFoundError(f"cannot create symbolic link '{link_name}': No such file or directory")
+
+        if link_name in parent_node.get('children', {}):
+            raise FileExistsError(f"cannot create symbolic link '{link_name}': File exists")
+
+        # In a more complex system, we'd check write perms on parent_path
+        # For now, we assume if the command gets this far, it's allowed.
+
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        symlink_node = {
+            "type": "symlink",
+            "target": target,
+            "owner": user_context.get('name', 'guest'),
+            "group": user_context.get('group', 'guest'),
+            "mode": 0o777, # Symlinks often have permissive modes
+            "mtime": now_iso
+        }
+
+        parent_node['children'][link_name] = symlink_node
+        parent_node['mtime'] = now_iso
+        self._save_state()
+
     def rename_node(self, old_path, new_path):
         """Renames or moves a file or directory."""
         abs_old_path = self.get_absolute_path(old_path)
