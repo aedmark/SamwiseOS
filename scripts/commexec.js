@@ -387,7 +387,7 @@ class CommandExecutor {
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
-        "tree", "cut", "du", "nl", "ln", "patch"];
+        "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit"];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));

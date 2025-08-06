@@ -12,7 +12,7 @@ class CommandExecutor:
         self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
                          "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
                          "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown",
-                         "chgrp", "tree", "cut", "du", "nl", "ln", "patch"]
+                         "chgrp", "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit"]
         self.user_context = {"name": "Guest"}
         self.users = {}
         self.user_groups = {}
