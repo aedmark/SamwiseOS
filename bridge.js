@@ -48,6 +48,8 @@ const OopisOS_Kernel = {
                 '/core/commands/diff.py': './core/commands/diff.py',
                 '/core/commands/beep.py': './core/commands/beep.py',
                 '/core/commands/chmod.py': './core/commands/chmod.py',
+                '/core/commands/chown.py': './core/commands/chown.py',
+                '/core/commands/chgrp.py': './core/commands/chgrp.py',
                 '/core/commands/df.py': './core/commands/df.py',
                 '/core/commands/groups.py': './core/commands/groups.py',
                 '/core/commands/listusers.py': './core/commands/listusers.py',

@@ -11,16 +11,18 @@ class CommandExecutor:
         # The list of all migrated Python commands
         self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
                          "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
-                         "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod"]
+                         "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp"]
         self.user_context = {"name": "Guest"}
         self.users = {}
         self.user_groups = {}
         self.config = {}
+        self.groups = {}
 
-    def set_context(self, user_context, users, user_groups, config):
+    def set_context(self, user_context, users, user_groups, config, groups):
         self.users = users if users else {}
         self.user_groups = user_groups if user_groups else {}
         self.config = config if config else {}
+        self.groups = groups if groups else {}
         """Sets the current user context from the JS side."""
         self.user_context = user_context if user_context else {"name": "Guest"}
 
@@ -56,7 +58,7 @@ class CommandExecutor:
 
         try:
             command_module = import_module(f"commands.{command_name}")
-            result = command_module.run(args=args, flags=flags, user_context=self.user_context, stdin_data=stdin_data, users=self.users, user_groups=self.user_groups, config=self.config)
+            result = command_module.run(args=args, flags=flags, user_context=self.user_context, stdin_data=stdin_data, users=self.users, user_groups=self.user_groups, config=self.config, groups=self.groups)
 
             if isinstance(result, dict):
                 return json.dumps({"success": True, **result})

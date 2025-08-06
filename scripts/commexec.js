@@ -386,7 +386,7 @@ class CommandExecutor {
         // --- Python Command Bridge ---
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
-            "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod"];
+            "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));
@@ -412,6 +412,7 @@ class CommandExecutor {
                     user_context: { name: UserManager.getCurrentUser().name },
                     users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}),
                     user_groups: userGroups,
+                    groups: GroupManager.groups,
                     config: {
                         MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE
                     }

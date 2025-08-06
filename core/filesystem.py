@@ -126,6 +126,52 @@ class FileSystemManager:
         node['mtime'] = datetime.utcnow().isoformat() + "Z"
         self._save_state()
 
+    def _recursive_chown(self, node, new_owner):
+        """Helper for recursively changing ownership."""
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        node['owner'] = new_owner
+        node['mtime'] = now_iso
+        if node.get('type') == 'directory' and node.get('children'):
+            for child_node in node['children'].values():
+                self._recursive_chown(child_node, new_owner)
+
+    def chown(self, path, new_owner, recursive=False):
+        """Changes the owner of a file or directory."""
+        node = self.get_node(path)
+        if not node:
+            raise FileNotFoundError(f"Cannot access '{path}': No such file or directory")
+
+        if recursive and node.get('type') == 'directory':
+            self._recursive_chown(node, new_owner)
+        else:
+            node['owner'] = new_owner
+            node['mtime'] = datetime.utcnow().isoformat() + "Z"
+
+        self._save_state()
+
+    def _recursive_chgrp(self, node, new_group):
+        """Helper for recursively changing group ownership."""
+        now_iso = datetime.utcnow().isoformat() + "Z"
+        node['group'] = new_group
+        node['mtime'] = now_iso
+        if node.get('type') == 'directory' and node.get('children'):
+            for child_node in node['children'].values():
+                self._recursive_chgrp(child_node, new_group)
+
+    def chgrp(self, path, new_group, recursive=False):
+        """Changes the group of a file or directory."""
+        node = self.get_node(path)
+        if not node:
+            raise FileNotFoundError(f"Cannot access '{path}': No such file or directory")
+
+        if recursive and node.get('type') == 'directory':
+            self._recursive_chgrp(node, new_group)
+        else:
+            node['group'] = new_group
+            node['mtime'] = datetime.utcnow().isoformat() + "Z"
+
+        self._save_state()
+
     def rename_node(self, old_path, new_path):
         """Renames or moves a file or directory."""
         abs_old_path = self.get_absolute_path(old_path)
