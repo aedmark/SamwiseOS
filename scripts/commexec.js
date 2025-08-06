@@ -388,7 +388,7 @@ class CommandExecutor {
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
         "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
-        "wget", "curl"];
+        "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps"];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));
@@ -415,6 +415,7 @@ class CommandExecutor {
                     users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}),
                     user_groups: userGroups,
                     groups: GroupManager.groups,
+                    jobs: this.activeJobs,
                     config: {
                         MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE
                     }
@@ -435,8 +436,8 @@ class CommandExecutor {
                             SoundManager.beep();
                             return ErrorHandler.createSuccess("");
                         }
-                        if (result.effect === 'execute_commands') {
-                            // Pass the entire result object, including the commands array
+                        if (result.effect === 'execute_commands' || result.effect === 'write_binary_file' || result.effect === 'extract_archive' || result.effect === 'reboot') {
+                            // Pass the entire result object through
                             return ErrorHandler.createSuccess(null, result);
                         }
                         // Default case for simple text output
@@ -597,6 +598,30 @@ class CommandExecutor {
                         // as the final result should be handled by the shell.
                         await this.processSingleCommand(new_command, { isInteractive: false, suppressOutput: false });
                     }
+                } else if (lastResult.effect === "write_binary_file") {
+                    const { path, b64_content } = lastResult;
+                    // The atob function decodes a base64 string.
+                    const binary_content = atob(b64_content);
+                    const user = UserManager.getCurrentUser().name;
+                    const primaryGroup = UserManager.getPrimaryGroupForUser(user);
+                    await FileSystemManager.createOrUpdateFile(path, binary_content, { currentUser: user, primaryGroup });
+                } else if (lastResult.effect === "extract_archive") {
+                    const { files } = lastResult;
+                    const user = UserManager.getCurrentUser().name;
+                    const primaryGroup = UserManager.getPrimaryGroupForUser(user);
+                    // Process directories first to ensure paths exist
+                    for (const file of files.filter(f => f.is_dir)) {
+                        await FileSystemManager.createOrUpdateFile(file.path, null, { currentUser: user, primaryGroup, isDirectory: true });
+                    }
+                    // Then create the files
+                    for (const file of files.filter(f => !f.is_dir)) {
+                        await FileSystemManager.createOrUpdateFile(file.path, file.content, { currentUser: user, primaryGroup });
+                    }
+                } else if (lastResult.effect === "reboot") {
+                    // Display a message and then reload the page
+                    await OutputManager.appendToOutput("Rebooting...");
+                    // A short delay to allow the message to be seen
+                    setTimeout(() => window.location.reload(), 1000);
                 } else if (lastResult.effect === "backup") {
                     const { content, fileName } = lastResult.effectData;
                     const blob = new Blob([content], { type: "application/json" });
