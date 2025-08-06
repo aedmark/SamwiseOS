@@ -385,15 +385,33 @@ class CommandExecutor {
 
         // --- Python Command Bridge ---
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
-            "touch", "rm", "mv", "grep", "wc", "uniq", "head", "tr", "base64", "cksum", "listusers", "groups",
-        "delay"];
-        if (pythonCommands.includes(commandName)) {
+            "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
+            "listusers", "groups", "delay", "rmdir", "tail", "diff"];
+
+        // Special condition for `tail -f`, which must be handled by JS for its async nature.
+        const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));
+
+        if (usePython) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
                 const fullCommandString = [segment.command, ...segment.args].join(' ');
+                const { FileSystemManager, UserManager, StorageManager, Config, GroupManager } = this.dependencies;
+                const allGroups = GroupManager.groups;
+                const userGroups = {};
+                // Construct the user_groups object just like we do in fs_manager.js
+                for (const groupName in allGroups) {
+                    for (const member of allGroups[groupName].members) {
+                        if (!userGroups[member]) {
+                            userGroups[member] = [];
+                        }
+                        userGroups[member].push(groupName);
+                    }
+                }
+
                 const jsContext = {
                     current_path: FileSystemManager.getCurrentPath(),
                     user_context: { name: UserManager.getCurrentUser().name },
-                    users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {})
+                    users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}),
+                    user_groups: userGroups
                 };
                 const jsContextJson = JSON.stringify(jsContext);
 

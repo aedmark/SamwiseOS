@@ -11,7 +11,7 @@ class CommandExecutor:
         # The list of all migrated Python commands
         self.commands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
                          "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
-                         "listusers", "groups", "delay"]
+                         "listusers", "groups", "delay", "rmdir", "tail", "diff"]
         self.user_context = {"name": "Guest"}
         self.users = {}
         self.user_groups = {}
