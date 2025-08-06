@@ -3,6 +3,7 @@
 import json
 from datetime import datetime
 import os
+import re
 
 class FileSystemManager:
     def __init__(self):
@@ -110,6 +111,19 @@ class FileSystemManager:
         }
         parent_node['children'][dir_name] = new_dir
         parent_node['mtime'] = now_iso
+        self._save_state()
+
+    def chmod(self, path, mode_str):
+        """Changes the permission mode of a file or directory."""
+        if not re.match(r'^[0-7]{3,4}$', mode_str):
+            raise ValueError(f"Invalid mode: '{mode_str}'")
+
+        node = self.get_node(path)
+        if not node:
+            raise FileNotFoundError(f"Cannot access '{path}': No such file or directory")
+
+        node['mode'] = int(mode_str, 8)
+        node['mtime'] = datetime.utcnow().isoformat() + "Z"
         self._save_state()
 
     def rename_node(self, old_path, new_path):
