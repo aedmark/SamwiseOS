@@ -46,6 +46,8 @@ const OopisOS_Kernel = {
                 '/core/commands/rmdir.py': './core/commands/rmdir.py',
                 '/core/commands/tail.py': './core/commands/tail.py',
                 '/core/commands/diff.py': './core/commands/diff.py',
+                '/core/commands/beep.py': './core/commands/beep.py',
+                '/core/commands/df.py': './core/commands/df.py',
                 '/core/commands/groups.py': './core/commands/groups.py',
                 '/core/commands/listusers.py': './core/commands/listusers.py',
                 '/core/commands/tr.py': './core/commands/tr.py',
