@@ -388,7 +388,7 @@ class CommandExecutor {
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
         "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
-        "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps"];
+        "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync"];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));
@@ -436,7 +436,7 @@ class CommandExecutor {
                             SoundManager.beep();
                             return ErrorHandler.createSuccess("");
                         }
-                        if (result.effect === 'execute_commands' || result.effect === 'write_binary_file' || result.effect === 'extract_archive' || result.effect === 'reboot') {
+                        if (['execute_commands', 'write_binary_file', 'extract_archive', 'reboot', 'signal_job'].includes(result.effect)) {
                             // Pass the entire result object through
                             return ErrorHandler.createSuccess(null, result);
                         }
@@ -622,6 +622,9 @@ class CommandExecutor {
                     await OutputManager.appendToOutput("Rebooting...");
                     // A short delay to allow the message to be seen
                     setTimeout(() => window.location.reload(), 1000);
+                } else if (lastResult.effect === "signal_job") {
+                    const { job_id, signal } = lastResult;
+                    this.sendSignalToJob(job_id, signal);
                 } else if (lastResult.effect === "backup") {
                     const { content, fileName } = lastResult.effectData;
                     const blob = new Blob([content], { type: "application/json" });

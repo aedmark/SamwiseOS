@@ -65,6 +65,8 @@ const OopisOS_Kernel = {
                 '/core/commands/unzip.py': './core/commands/unzip.py',
                 '/core/commands/reboot.py': './core/commands/reboot.py',
                 '/core/commands/ps.py': './core/commands/ps.py',
+                '/core/commands/kill.py': './core/commands/kill.py',
+                '/core/commands/sync.py': './core/commands/sync.py',
                 '/core/commands/wget.py': './core/commands/wget.py',
                 '/core/commands/curl.py': './core/commands/curl.py',
                 '/core/commands/bc.py': './core/commands/bc.py',
