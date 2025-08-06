@@ -388,7 +388,8 @@ class CommandExecutor {
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
         "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
-        "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor", "ocrypt"];
+        "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor", "ocrypt", "reset",
+        ];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));

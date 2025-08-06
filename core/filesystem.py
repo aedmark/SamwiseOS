@@ -37,10 +37,20 @@ class FileSystemManager:
         now_iso = datetime.utcnow().isoformat() + "Z"
         self.fs_data = {
             "/": {
-                "type": "directory", "children": {}, "owner": "root",
-                "group": "root", "mode": 0o755, "mtime": now_iso,
+                "type": "directory", "children": {
+                    "home": {"type": "directory", "children": {}, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
+                    "etc": {"type": "directory", "children": {
+                        'sudoers': {"type": "file", "content": "# /etc/sudoers...", "owner": "root", "group": "root", "mode": 0o440, "mtime": now_iso}
+                    }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
+                }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso,
             }
         }
+
+    def reset(self):
+        """Resets the filesystem to a default state."""
+        self._initialize_default_filesystem()
+        # In a real system, you might want to re-create default users' home directories here
+        self._save_state()
 
     def get_node(self, path):
         abs_path = self.get_absolute_path(path)
