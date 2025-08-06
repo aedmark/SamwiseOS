@@ -387,7 +387,8 @@ class CommandExecutor {
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
-        "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit"];
+        "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
+        "wget", "curl"];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));
@@ -425,6 +426,7 @@ class CommandExecutor {
                 try {
                     const result = JSON.parse(resultJson);
                     if (result.success) {
+                        // Check for special effects that need handling
                         if (result.effect === 'clear_screen') {
                             return ErrorHandler.createSuccess(null, { effect: "clear_screen" });
                         }
@@ -433,6 +435,11 @@ class CommandExecutor {
                             SoundManager.beep();
                             return ErrorHandler.createSuccess("");
                         }
+                        if (result.effect === 'execute_commands') {
+                            // Pass the entire result object, including the commands array
+                            return ErrorHandler.createSuccess(null, result);
+                        }
+                        // Default case for simple text output
                         return ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
                     } else {
                         return ErrorHandler.createError(result.error || "An unknown Python error occurred.");
@@ -582,6 +589,14 @@ class CommandExecutor {
 
                 if (lastResult.effect === "clear_screen") {
                     OutputManager.clearOutput();
+                } else if (lastResult.effect === "execute_commands" && lastResult.commands) {
+                    // This is the new logic for handling commands sent back from Python
+                    for (const new_command of lastResult.commands) {
+                        // We call processSingleCommand for each command requested by xargs.
+                        // We run it non-interactively and suppress its direct output,
+                        // as the final result should be handled by the shell.
+                        await this.processSingleCommand(new_command, { isInteractive: false, suppressOutput: false });
+                    }
                 } else if (lastResult.effect === "backup") {
                     const { content, fileName } = lastResult.effectData;
                     const blob = new Blob([content], { type: "application/json" });
