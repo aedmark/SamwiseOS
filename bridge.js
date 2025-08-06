@@ -16,6 +16,7 @@ const OopisOS_Kernel = {
         try {
             await OutputManager.appendToOutput("Initializing Python runtime via Pyodide...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
             this.pyodide = await loadPyodide();
+            await this.pyodide.loadPackage("cryptography");
             await OutputManager.appendToOutput("Python runtime loaded. Loading kernel...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
 
             this.pyodide.FS.mkdir('/core');
@@ -67,6 +68,7 @@ const OopisOS_Kernel = {
                 '/core/commands/ps.py': './core/commands/ps.py',
                 '/core/commands/kill.py': './core/commands/kill.py',
                 '/core/commands/sync.py': './core/commands/sync.py',
+                '/core/commands/ocrypt.py': './core/commands/ocrypt.py',
                 '/core/commands/xor.py': './core/commands/xor.py',
                 '/core/commands/wget.py': './core/commands/wget.py',
                 '/core/commands/curl.py': './core/commands/curl.py',
