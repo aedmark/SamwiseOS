@@ -4,6 +4,7 @@ import shlex
 import json
 from importlib import import_module
 from filesystem import fs_manager
+import inspect
 
 class CommandExecutor:
     def __init__(self):
@@ -63,7 +64,27 @@ class CommandExecutor:
 
         try:
             command_module = import_module(f"commands.{command_name}")
-            result = command_module.run(args=args, flags=flags, user_context=self.user_context, stdin_data=stdin_data, users=self.users, user_groups=self.user_groups, config=self.config, groups=self.groups, jobs=self.jobs)
+            run_func = command_module.run
+
+            # Build the argument list and send only what the command expects
+            possible_kwargs = {
+                "args": args,
+                "flags": flags,
+                "user_context": self.user_context,
+                "stdin_data": stdin_data,
+                "users": self.users,
+                "user_groups": self.user_groups,
+                "config": self.config,
+                "groups": self.groups,
+                "jobs": self.jobs,
+            }
+
+            sig = inspect.signature(run_func)
+            filtered_kwargs = {
+                k: v for k, v in possible_kwargs.items() if k in sig.parameters
+            }
+
+            result = run_func(**filtered_kwargs)
 
             if isinstance(result, dict):
                 return json.dumps({"success": True, **result})
