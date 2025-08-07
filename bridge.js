@@ -27,6 +27,7 @@ const OopisOS_Kernel = {
                 '/core/kernel.py': './core/kernel.py',
                 '/core/filesystem.py': './core/filesystem.py',
                 '/core/executor.py': './core/executor.py',
+                '/core/session.py': './core/session.py', // [MODIFIED] Load the new session module
                 '/core/commands/date.py': './core/commands/date.py',
                 '/core/commands/pwd.py': './core/commands/pwd.py',
                 '/core/commands/echo.py': './core/commands/echo.py',
@@ -102,9 +103,13 @@ const OopisOS_Kernel = {
             this.kernel = this.pyodide.pyimport("kernel");
             this.kernel.initialize_kernel(this.saveFileSystem);
 
-            // [MODIFIED] Register Python commands with the central JS registry
             const pythonCommands = this.kernel.command_executor.commands.toJs();
             pythonCommands.forEach(cmd => CommandRegistry.addCommandToManifest(cmd));
+
+            // Expose the Python session managers to the JS kernel object
+            this.envManager = this.kernel.env_manager;
+            this.historyManager = this.kernel.history_manager;
+            this.aliasManager = this.kernel.alias_manager;
 
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
@@ -125,8 +130,6 @@ const OopisOS_Kernel = {
             return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
         }
     },
-
-    // --- NEW FILESYSTEM BRIDGE FUNCTIONS ---
 
     writeFile(path, content, jsContextJson) {
         if (!this.isReady || !this.kernel) {
@@ -160,8 +163,6 @@ const OopisOS_Kernel = {
             return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
         }
     },
-
-    // --- END NEW FUNCTIONS ---
 
     async saveFileSystem(fsJsonString) {
         const { StorageHAL } = OopisOS_Kernel.dependencies;

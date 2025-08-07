@@ -2,420 +2,274 @@
 
 /**
  * @class EnvironmentManager
- * @classdesc Manages shell environment variables, including a stack for nested sessions like 'su'.
+ * @description An API client for the OopisOS Python Environment Manager kernel.
+ * All core logic and state are now handled by `core/session.py`.
  */
 class EnvironmentManager {
-    /**
-     * Initializes the environment manager with a base environment stack.
-     */
     constructor() {
-        /**
-         * A stack of environment objects to support nested sessions.
-         * @type {Array<Object<string, string>>}
-         */
-        this.envStack = [{}];
-        /**
-         * Reference to the UserManager instance.
-         * @type {UserManager|null}
-         */
-        this.userManager = null;
-        /**
-         * Reference to the FileSystemManager instance.
-         * @type {FileSystemManager|null}
-         */
-        this.fsManager = null;
-        /**
-         * Reference to the Config instance.
-         * @type {ConfigManager|null}
-         */
-        this.config = null; // Add config dependency
+        this.dependencies = {};
     }
 
-    /**
-     * Sets the dependencies for the EnvironmentManager.
-     * @param {UserManager} userManager - The user manager instance.
-     * @param {FileSystemManager} fsManager - The file system manager instance.
-     * @param {ConfigManager} config - The configuration manager instance.
-     */
     setDependencies(userManager, fsManager, config) {
-        this.userManager = userManager;
-        this.fsManager = fsManager;
-        this.config = config;
+        this.dependencies = { userManager, fsManager, config };
     }
 
-    /**
-     * Gets the currently active environment from the top of the stack.
-     * @private
-     * @returns {Object<string, string>} The active environment object.
-     */
-    _getActiveEnv() {
-        return this.envStack[this.envStack.length - 1];
+    _getManager() {
+        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
+            return OopisOS_Kernel.envManager;
+        }
+        throw new Error("Python kernel for EnvironmentManager is not available.");
     }
 
-    /**
-     * Pushes a new, duplicated environment onto the stack for a new session.
-     */
-    push() {
-        this.envStack.push(JSON.parse(JSON.stringify(this._getActiveEnv())));
+    push() { this._getManager().push(); }
+    pop() { this._getManager().pop(); }
+
+    initialize() {
+        const { userManager, config } = this.dependencies;
+        const currentUser = userManager.getCurrentUser().name;
+        const baseEnv = {
+            "USER": currentUser,
+            "HOME": `/home/${currentUser}`,
+            "HOST": config.OS.DEFAULT_HOST_NAME,
+            "PATH": "/bin:/usr/bin"
+        };
+        this.load(baseEnv);
     }
 
-    /**
-     * Pops the current environment from the stack, returning to the previous session's environment.
-     */
-    pop() {
-        if (this.envStack.length > 1) {
-            this.envStack.pop();
-        } else {
-            console.error(
-                "EnvironmentManager: Attempted to pop the base environment stack."
-            );
+    get(varName) {
+        try {
+            return this._getManager().get(varName);
+        } catch (e) {
+            console.error(e);
+            return "";
         }
     }
 
-    /**
-     * Initializes the base environment with default variables like USER, HOME, HOST, and PATH.
-     */
-    initialize() {
-        const baseEnv = {};
-        const currentUser = this.userManager.getCurrentUser().name;
-        baseEnv["USER"] = currentUser;
-        baseEnv["HOME"] = `/home/${currentUser}`;
-        baseEnv["HOST"] = this.config.OS.DEFAULT_HOST_NAME;
-        baseEnv["PATH"] = "/bin:/usr/bin";
-        this.envStack = [baseEnv];
-    }
-
-    /**
-     * Gets the value of a specific environment variable.
-     * @param {string} varName - The name of the variable to retrieve.
-     * @returns {string} The value of the variable, or an empty string if not found.
-     */
-    get(varName) {
-        return this._getActiveEnv()[varName] || "";
-    }
-
-    /**
-     * Sets the value of an environment variable.
-     * @param {string} varName - The name of the variable to set.
-     * @param {string} value - The value to assign to the variable.
-     * @returns {{success: boolean, error?: string}} A result object.
-     */
     set(varName, value) {
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(varName)) {
-            return {
-                success: false,
-                error: `Invalid variable name: '${varName}'. Must start with a letter or underscore, followed by letters, numbers, or underscores.`,
-            };
+            return { success: false, error: `Invalid variable name: '${varName}'.` };
         }
-        this._getActiveEnv()[varName] = value;
-        return { success: true };
+        try {
+            this._getManager().set(varName, value);
+            return { success: true };
+        } catch (e) {
+            console.error(e);
+            return { success: false, error: e.message };
+        }
     }
 
-    /**
-     * Deletes an environment variable.
-     * @param {string} varName - The name of the variable to unset.
-     */
     unset(varName) {
-        delete this._getActiveEnv()[varName];
+        try {
+            this._getManager().unset(varName);
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    /**
-     * Gets a copy of all current environment variables.
-     * @returns {Object<string, string>} A copy of the active environment.
-     */
     getAll() {
-        return { ...this._getActiveEnv() };
+        try {
+            const pyProxy = this._getManager().get_all();
+            const jsObject = pyProxy.toJs({ dict_converter: Object.fromEntries });
+            pyProxy.destroy();
+            return jsObject;
+        } catch (e) {
+            console.error(e);
+            return {};
+        }
     }
 
-    /**
-     * Loads a new set of variables into the current environment, replacing existing ones.
-     * @param {Object<string, string>} vars - The variables to load.
-     */
     load(vars) {
-        this.envStack[this.envStack.length - 1] = { ...(vars || {}) };
-    }
-
-    /**
-     * Clears all variables from the current environment.
-     */
-    clear() {
-        this.envStack[this.envStack.length - 1] = {};
+        try {
+            this._getManager().load(vars);
+        } catch (e) {
+            console.error(e);
+        }
     }
 }
 
 /**
  * @class HistoryManager
- * @classdesc Manages the command history for the terminal session.
+ * @description An API client for the OopisOS Python History Manager kernel.
+ * All core logic and state are now handled by `core/session.py`.
  */
 class HistoryManager {
-    /**
-     * Initializes the HistoryManager.
-     */
     constructor() {
-        /**
-         * An array storing the command history.
-         * @type {string[]}
-         */
-        this.commandHistory = [];
-        /**
-         * The current position in the history for up/down arrow navigation.
-         * @type {number}
-         */
-        this.historyIndex = 0;
-        /**
-         * A container for dependency injection.
-         * @type {object}
-         */
         this.dependencies = {};
-        /**
-         * Reference to the Config instance.
-         * @type {ConfigManager|null}
-         */
-        this.config = null;
+        this.historyIndex = 0; // JS-side navigation index
+        this.jsHistoryCache = []; // Cache for navigation
     }
 
-    /**
-     * Sets the dependencies for the HistoryManager.
-     * @param {object} injectedDependencies - The dependency container.
-     */
     setDependencies(injectedDependencies) {
         this.dependencies = injectedDependencies;
-        this.config = injectedDependencies.Config;
     }
 
-    /**
-     * Adds a command to the history.
-     * @param {string} command - The command string to add.
-     */
-    add(command) {
-        const trimmedCommand = command.trim();
-        if (
-            trimmedCommand &&
-            (this.commandHistory.length === 0 ||
-                this.commandHistory[this.commandHistory.length - 1] !== trimmedCommand)
-        ) {
-            this.commandHistory.push(trimmedCommand);
-            if (this.commandHistory.length > this.config.TERMINAL.MAX_HISTORY_SIZE)
-                this.commandHistory.shift();
+    _getManager() {
+        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
+            return OopisOS_Kernel.historyManager;
         }
-        this.historyIndex = this.commandHistory.length;
+        throw new Error("Python kernel for HistoryManager is not available.");
     }
 
-    /**
-     * Gets the previous command from history for arrow-up navigation.
-     * @returns {string|null} The previous command, or null if at the beginning.
-     */
+    _syncCache() {
+        this.jsHistoryCache = this.getFullHistory();
+        this.historyIndex = this.jsHistoryCache.length;
+    }
+
+    add(command) {
+        try {
+            this._getManager().add(command);
+            this._syncCache();
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
     getPrevious() {
-        if (this.commandHistory.length > 0 && this.historyIndex > 0) {
+        if (this.jsHistoryCache.length > 0 && this.historyIndex > 0) {
             this.historyIndex--;
-            return this.commandHistory[this.historyIndex];
+            return this.jsHistoryCache[this.historyIndex];
         }
         return null;
     }
 
-    /**
-     * Gets the next command from history for arrow-down navigation.
-     * @returns {string|null} The next command, or an empty string if at the end.
-     */
     getNext() {
-        if (this.historyIndex < this.commandHistory.length - 1) {
+        if (this.historyIndex < this.jsHistoryCache.length - 1) {
             this.historyIndex++;
-            return this.commandHistory[this.historyIndex];
-        } else if (this.historyIndex >= this.commandHistory.length - 1) {
-            this.historyIndex = this.commandHistory.length;
+            return this.jsHistoryCache[this.historyIndex];
+        } else {
+            this.historyIndex = this.jsHistoryCache.length;
             return "";
         }
-        return null;
     }
 
-    /**
-     * Resets the history navigation index to the end of the history list.
-     */
     resetIndex() {
-        this.historyIndex = this.commandHistory.length;
+        this.historyIndex = this.jsHistoryCache.length;
     }
 
-    /**
-     * Returns a copy of the full command history.
-     * @returns {string[]} An array of all commands in history.
-     */
     getFullHistory() {
-        return [...this.commandHistory];
+        try {
+            const pyProxy = this._getManager().get_full_history();
+            const jsArray = pyProxy.toJs();
+            pyProxy.destroy();
+            return jsArray;
+        } catch (e) {
+            console.error(e);
+            return [];
+        }
     }
 
-    /**
-     * Clears the command history.
-     */
     clearHistory() {
-        this.commandHistory = [];
-        this.historyIndex = 0;
+        try {
+            this._getManager().clear_history();
+            this._syncCache();
+        } catch (e) {
+            console.error(e);
+        }
     }
 
-    /**
-     * Sets the command history to a new array of commands.
-     * @param {string[]} newHistory - The new history array.
-     */
     setHistory(newHistory) {
-        this.commandHistory = Array.isArray(newHistory) ? [...newHistory] : [];
-        if (this.commandHistory.length > this.config.TERMINAL.MAX_HISTORY_SIZE)
-            this.commandHistory = this.commandHistory.slice(
-                this.commandHistory.length - this.config.TERMINAL.MAX_HISTORY_SIZE
-            );
-        this.historyIndex = this.commandHistory.length;
+        try {
+            this._getManager().set_history(newHistory);
+            this._syncCache();
+        } catch (e) {
+            console.error(e);
+        }
     }
 }
 
 /**
  * @class AliasManager
- * @classdesc Manages command aliases, allowing users to create shortcuts for longer commands.
+ * @description An API client for the OopisOS Python Alias Manager kernel.
+ * All core logic and state are now handled by `core/session.py`.
  */
 class AliasManager {
-    /**
-     * Initializes the AliasManager.
-     */
     constructor() {
-        /**
-         * An object storing the alias definitions.
-         * @type {Object<string, string>}
-         */
-        this.aliases = {};
-        /**
-         * A container for dependency injection.
-         * @type {object}
-         */
         this.dependencies = {};
-        /**
-         * Reference to the Config instance.
-         * @type {ConfigManager|null}
-         */
-        this.config = null;
     }
 
-    /**
-     * Sets the dependencies for the AliasManager.
-     * @param {object} injectedDependencies - The dependency container.
-     */
     setDependencies(injectedDependencies) {
         this.dependencies = injectedDependencies;
-        this.config = injectedDependencies.Config;
     }
 
-    /**
-     * Saves the current aliases to persistent storage.
-     * @private
-     */
-    _save() {
-        const { StorageManager } = this.dependencies;
-        StorageManager.saveItem(
-            this.config.STORAGE_KEYS.ALIAS_DEFINITIONS,
-            this.aliases,
-            "Aliases"
-        );
+    _getManager() {
+        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
+            return OopisOS_Kernel.aliasManager;
+        }
+        throw new Error("Python kernel for AliasManager is not available.");
     }
 
-    /**
-     * Initializes the AliasManager, loading aliases from storage or creating defaults.
-     */
     initialize() {
-        const { StorageManager } = this.dependencies;
-        this.aliases = StorageManager.loadItem(
-            this.config.STORAGE_KEYS.ALIAS_DEFINITIONS,
-            "Aliases",
-            {}
-        );
-
-        // Set up default aliases on first boot
-        if (Object.keys(this.aliases).length === 0) {
-            const defaultAliases = {
-                'll': 'ls -la',
-                'la': 'ls -a',
-                '..': 'cd ..',
-                '...': 'cd ../..',
-                'h': 'history',
-                'c': 'clear',
-                'q': 'exit',
-                'e': 'edit',
-                'ex': 'explore'
-            };
-
-            Object.entries(defaultAliases).forEach(([name, value]) => {
-                this.aliases[name] = value;
-            });
-            this._save();
+        const allAliases = this.getAllAliases();
+        if (Object.keys(allAliases).length === 0) {
+            const defaultAliases = { 'll': 'ls -la', 'la': 'ls -a', '..': 'cd ..', '...': 'cd ../..', 'h': 'history', 'c': 'clear', 'q': 'exit', 'e': 'edit', 'ex': 'explore' };
+            this._getManager().load_aliases(defaultAliases);
         }
     }
 
-    /**
-     * Sets or updates an alias.
-     * @param {string} name - The name of the alias.
-     * @param {string} value - The command string the alias expands to.
-     * @returns {boolean} True on success, false on failure.
-     */
     setAlias(name, value) {
-        if (!name || typeof value !== "string") return false;
-        this.aliases[name] = value;
-        this._save();
-        return true;
+        try {
+            return this._getManager().set_alias(name, value);
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
     }
 
-    /**
-     * Removes an alias.
-     * @param {string} name - The name of the alias to remove.
-     * @returns {boolean} True if the alias was removed, false if it didn't exist.
-     */
     removeAlias(name) {
-        if (!this.aliases[name]) return false;
-        delete this.aliases[name];
-        this._save();
-        return true;
+        try {
+            return this._getManager().remove_alias(name);
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
     }
 
-    /**
-     * Gets the value of a specific alias.
-     * @param {string} name - The name of the alias.
-     * @returns {string|null} The command string of the alias, or null if not found.
-     */
     getAlias(name) {
-        return this.aliases[name] || null;
+        try {
+            return this._getManager().get_alias(name);
+        } catch (e) {
+            console.error(e);
+            return null;
+        }
     }
 
-    /**
-     * Gets a copy of all defined aliases.
-     * @returns {Object<string, string>} An object containing all aliases.
-     */
     getAllAliases() {
-        return { ...this.aliases };
+        try {
+            const pyProxy = this._getManager().get_all_aliases();
+            const jsObject = pyProxy.toJs({ dict_converter: Object.fromEntries });
+            pyProxy.destroy();
+            return jsObject;
+        } catch (e) {
+            console.error(e);
+            return {};
+        }
     }
 
-    /**
-     * Resolves a command string, expanding any aliases it may start with.
-     * @param {string} commandString - The command string to resolve.
-     * @returns {{newCommand: string, error?: string}} An object with the resolved command or an error.
-     */
     resolveAlias(commandString) {
+        const { AliasManager } = this.dependencies;
         const parts = commandString.split(/\s+/);
         let commandName = parts[0];
         const remainingArgs = parts.slice(1).join(" ");
         const MAX_RECURSION = 10;
         let count = 0;
-        while (this.aliases[commandName] && count < MAX_RECURSION) {
-            const aliasValue = this.aliases[commandName];
+
+        let aliasValue = AliasManager.getAlias(commandName);
+        while (aliasValue && count < MAX_RECURSION) {
             const aliasParts = aliasValue.split(/\s+/);
             commandName = aliasParts[0];
             const aliasArgs = aliasParts.slice(1).join(" ");
             commandString = `${commandName} ${aliasArgs} ${remainingArgs}`.trim();
             count++;
+            aliasValue = AliasManager.getAlias(commandName);
         }
+
         if (count === MAX_RECURSION) {
-            return {
-                error: `Alias loop detected for '${parts[0]}'`,
-            };
+            return { error: `Alias loop detected for '${parts[0]}'` };
         }
-        return {
-            newCommand: commandString,
-        };
+        return { newCommand: commandString };
     }
 }
+
 
 /**
  * @class SessionManager
@@ -562,6 +416,7 @@ class SessionManager {
             currentInput: currentInput,
             commandHistory: this.dependencies.HistoryManager.getFullHistory(),
             environmentVariables: this.environmentManager.getAll(),
+            aliases: this.dependencies.AliasManager.getAllAliases(),
         };
         this.storageManager.saveItem(
             this._getAutomaticSessionStateKey(username),
@@ -614,6 +469,7 @@ class SessionManager {
             this.terminalUI.setCurrentInputValue(autoState.currentInput || "");
             this.dependencies.HistoryManager.setHistory(autoState.commandHistory || []);
             this.environmentManager.load(autoState.environmentVariables);
+            OopisOS_Kernel.aliasManager.load_aliases(autoState.aliases || {});
         } else {
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
