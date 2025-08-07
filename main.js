@@ -252,6 +252,8 @@ window.onload = async () => {
     networkManager.setDependencies(dependencies);
     storageHAL.setDependencies(dependencies);
     auditManager.setDependencies(dependencies);
+    commandRegistry.setDependencies(dependencies);
+
 
     try {
         // Initialization sequence
@@ -268,6 +270,8 @@ window.onload = async () => {
 
         const fsJsonFromStorage = await storageHAL.load();
         if (OopisOS_Kernel.isReady) {
+            // [MODIFIED] This section is now much simpler.
+            // The command manifest is now handled by the bridge and registry.
             if (fsJsonFromStorage) {
                 // Normal boot: Load existing state from storage into Python
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);

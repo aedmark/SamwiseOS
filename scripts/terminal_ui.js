@@ -533,10 +533,8 @@ class TabCompletionManager {
         const { CommandExecutor, Config, StorageManager, FileSystemManager, UserManager } = this.dependencies;
 
         if (isCompletingCommand) {
-            // [MODIFIED] Merge JS and Python command lists for a complete set of suggestions
-            const pythonCommands = OopisOS_Kernel && OopisOS_Kernel.isReady ? OopisOS_Kernel.pyodide.globals.get('command_executor').commands.toJs() : [];
-            const allCommands = [...new Set([...Config.COMMANDS_MANIFEST, ...pythonCommands])];
-            suggestions = allCommands.filter((cmd) =>
+            // [MODIFIED] Use the unified command manifest from Config
+            suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
                 cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
             ).sort();
         } else {
@@ -544,9 +542,8 @@ class TabCompletionManager {
             if (!commandDefinition) return [];
 
             if (commandDefinition.definition.completionType === "commands") {
-                const pythonCommands = OopisOS_Kernel && OopisOS_Kernel.isReady ? OopisOS_Kernel.pyodide.globals.get('command_executor').commands.toJs() : [];
-                const allCommands = [...new Set([...Config.COMMANDS_MANIFEST, ...pythonCommands])];
-                suggestions = allCommands.filter((cmd) =>
+                // [MODIFIED] Use the unified command manifest from Config
+                suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
                     cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
                 ).sort();
             } else if (commandDefinition.definition.completionType === "users") {

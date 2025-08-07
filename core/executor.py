@@ -5,25 +5,25 @@ import json
 from importlib import import_module
 from filesystem import fs_manager
 import inspect
+import os
 
 class CommandExecutor:
     def __init__(self):
         self.fs_manager = fs_manager
-        # The list of all migrated Python commands
-        self.commands = [
-            "date", "pwd", "echo", "printf", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
-            "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
-            "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown",
-            "chgrp", "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping",
-            "xargs", "awk", "expr", "rename", "wget", "curl", "bc", "cp", "zip", "unzip", "reboot",
-            "ps", "kill", "sync", "xor", "ocrypt", "reset", "fsck", "history", "printf"
-        ]
+        # [MODIFIED] Commands are now discovered dynamically
+        self.commands = self._discover_commands()
         self.user_context = {"name": "Guest"}
         self.users = {}
         self.user_groups = {}
         self.config = {}
         self.groups = {}
         self.jobs = {}
+
+    def _discover_commands(self):
+        """Dynamically finds all available command modules."""
+        command_dir = os.path.join(os.path.dirname(__file__), 'commands')
+        py_files = [f for f in os.listdir(command_dir) if f.endswith('.py') and not f.startswith('__')]
+        return [os.path.splitext(f)[0] for f in py_files]
 
     def set_context(self, user_context, users, user_groups, config, groups, jobs):
         self.users = users if users else {}
@@ -37,13 +37,23 @@ class CommandExecutor:
     def parse_flags_and_args(self, parts):
         """A simple flag and argument parser."""
         args = []
-        flags = []
-        for part in parts:
+        flags = {} # Changed to a dictionary for key-value pairs
+        i = 0
+        while i < len(parts):
+            part = parts[i]
             if part.startswith('-'):
-                flags.append(part)
+                flag = part
+                # Check if the next part is a value for this flag
+                if i + 1 < len(parts) and not parts[i+1].startswith('-'):
+                    flags[flag] = parts[i+1]
+                    i += 1 # Skip the next part since it's a value
+                else:
+                    flags[flag] = True # Flag without a value
             else:
                 args.append(part)
+            i += 1
         return args, flags
+
 
     def execute(self, command_string, stdin_data=None):
         """
@@ -66,7 +76,10 @@ class CommandExecutor:
 
         try:
             command_module = import_module(f"commands.{command_name}")
-            run_func = command_module.run
+            run_func = getattr(command_module, 'run', None)
+            if not run_func:
+                return json.dumps({"success": False, "error": f"Command '{command_name}' is not runnable."})
+
 
             # Build the argument list and send only what the command expects
             possible_kwargs = {
@@ -89,7 +102,10 @@ class CommandExecutor:
             result = run_func(**filtered_kwargs)
 
             if isinstance(result, dict):
-                return json.dumps({"success": True, **result})
+                # Ensure success is explicitly part of the dictionary for consistency
+                if 'success' not in result:
+                    result['success'] = True
+                return json.dumps(result)
             else:
                 return json.dumps({"success": True, "output": str(result)})
 
@@ -98,6 +114,8 @@ class CommandExecutor:
         except FileNotFoundError as e:
             return json.dumps({"success": False, "error": str(e)})
         except Exception as e:
-            return json.dumps({"success": False, "error": f"Error executing '{command_name}': {repr(e)}"})
+            import traceback
+            tb_str = traceback.format_exc()
+            return json.dumps({"success": False, "error": f"Error executing '{command_name}': {repr(e)}\n{tb_str}"})
 
 command_executor = CommandExecutor()

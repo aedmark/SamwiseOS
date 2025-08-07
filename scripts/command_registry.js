@@ -38,6 +38,8 @@ class CommandRegistry {
     register(commandInstance) {
         if (commandInstance && commandInstance.commandName) {
             this.commandDefinitions[commandInstance.commandName] = commandInstance;
+            // [MODIFIED] Automatically add to the manifest upon registration
+            this.addCommandToManifest(commandInstance.commandName);
         } else {
             console.error(
                 "Attempted to register an invalid command instance:",
@@ -52,7 +54,7 @@ class CommandRegistry {
      */
     addCommandToManifest(commandName) {
         const { Config } = this.dependencies;
-        if (!Config.COMMANDS_MANIFEST.includes(commandName)) {
+        if (Config && Config.COMMANDS_MANIFEST && !Config.COMMANDS_MANIFEST.includes(commandName)) {
             Config.COMMANDS_MANIFEST.push(commandName);
             Config.COMMANDS_MANIFEST.sort(); // Keep it tidy!
         }
@@ -64,11 +66,14 @@ class CommandRegistry {
      */
     removeCommandFromManifest(commandName) {
         const { Config } = this.dependencies;
-        const index = Config.COMMANDS_MANIFEST.indexOf(commandName);
-        if (index > -1) {
-            Config.COMMANDS_MANIFEST.splice(index, 1);
+        if (Config && Config.COMMANDS_MANIFEST) {
+            const index = Config.COMMANDS_MANIFEST.indexOf(commandName);
+            if (index > -1) {
+                Config.COMMANDS_MANIFEST.splice(index, 1);
+            }
         }
     }
+
 
     /**
      * Unregisters a command, removing it from the registry and manifest.

@@ -12,7 +12,7 @@ const OopisOS_Kernel = {
 
     async initialize(dependencies) {
         this.dependencies = dependencies;
-        const { OutputManager, Config } = this.dependencies;
+        const { OutputManager, Config, CommandRegistry } = this.dependencies;
         try {
             await OutputManager.appendToOutput("Initializing Python runtime via Pyodide...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
             this.pyodide = await loadPyodide();
@@ -101,6 +101,11 @@ const OopisOS_Kernel = {
 
             this.kernel = this.pyodide.pyimport("kernel");
             this.kernel.initialize_kernel(this.saveFileSystem);
+
+            // [MODIFIED] Register Python commands with the central JS registry
+            const pythonCommands = this.kernel.command_executor.commands.toJs();
+            pythonCommands.forEach(cmd => CommandRegistry.addCommandToManifest(cmd));
+
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
         } catch (error) {

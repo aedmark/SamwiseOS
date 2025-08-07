@@ -4,6 +4,13 @@ from executor import command_executor
 from filesystem import fs_manager
 import json
 
+# Make the command_executor instance globally accessible from Pyodide
+__all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
+           "get_node_json", "check_permission", "get_node_size",
+           "validate_path_json", "write_file", "create_directory",
+           "rename_node", "execute_command", "command_executor"]
+
+
 def initialize_kernel(save_function):
     """Initializes the kernel by setting up the filesystem save function."""
     fs_manager.set_save_function(save_function)
