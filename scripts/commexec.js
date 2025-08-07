@@ -503,7 +503,7 @@ class CommandExecutor {
      * @returns {Promise<object>} A promise that resolves to the final result of the pipeline.
      */
     async _executePipeline(pipeline, options) {
-        const { FileSystemManager, UserManager, OutputManager, Config, ErrorHandler, Utils } = this.dependencies;
+        const { FileSystemManager, UserManager, OutputManager, Config, ErrorHandler, Utils, SessionManager } = this.dependencies;
         const { isInteractive, signal, scriptingContext, suppressOutput } = options;
         let currentStdin = null;
         let lastResult = ErrorHandler.createSuccess("");
@@ -626,6 +626,8 @@ class CommandExecutor {
                     await OutputManager.appendToOutput("Rebooting...");
                     // A short delay to allow the message to be seen
                     setTimeout(() => window.location.reload(), 1000);
+                } else if (lastResult.effect === "full_reset") {
+                    await SessionManager.performFullReset();
                 } else if (lastResult.effect === "signal_job") {
                     const { job_id, signal } = lastResult;
                     this.sendSignalToJob(job_id, signal);

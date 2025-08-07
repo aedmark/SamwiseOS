@@ -110,18 +110,29 @@ const OopisOS_Kernel = {
         }
     },
 
-    execute_command(commandString, jsContextJson) {
+    execute_command(commandString, jsContextJson, stdinContent = null) {
         if (!this.isReady || !this.kernel) {
             return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
         }
         try {
-            return this.kernel.execute_command(commandString, jsContextJson);
+            return this.kernel.execute_command(commandString, jsContextJson, stdinContent);
         } catch (error) {
             return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
         }
     },
 
     // --- NEW FILESYSTEM BRIDGE FUNCTIONS ---
+
+    writeFile(path, content, jsContextJson) {
+        if (!this.isReady || !this.kernel) {
+            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
+        }
+        try {
+            return this.kernel.write_file(path, content, jsContextJson);
+        } catch (error) {
+            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
+        }
+    },
 
     createDirectory(path, jsContextJson) {
         if (!this.isReady || !this.kernel) {
@@ -134,12 +145,12 @@ const OopisOS_Kernel = {
         }
     },
 
-    renameNode(oldPath, newPath) {
+    renameNode(oldPath, newPath, jsContextJson) {
         if (!this.isReady || !this.kernel) {
             return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
         }
         try {
-            return this.kernel.rename_node(oldPath, newPath);
+            return this.kernel.rename_node(oldPath, newPath, jsContextJson);
         } catch (error) {
             return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
         }

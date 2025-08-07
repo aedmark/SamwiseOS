@@ -1,17 +1,11 @@
 # gem/core/commands/reset.py
 
-from filesystem import fs_manager
-
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
     """
-    Resets the filesystem and signals for a reboot.
+    Signals the JavaScript front end to perform a full factory reset.
     """
-    try:
-        fs_manager.reset()
-        # After a reset, the session is invalid, so we must reboot.
-        return {"effect": "reboot"}
-    except Exception as e:
-        return f"reset: an error occurred during filesystem reset: {repr(e)}"
+    # This effect will be caught by the JavaScript command executor.
+    return {"effect": "full_reset"}
 
 def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
     return """
@@ -22,8 +16,11 @@ SYNOPSIS
     reset
 
 DESCRIPTION
-    The reset command completely wipes the current filesystem and restores
-    it to the default, initial state. This is a destructive operation.
+    The reset command completely wipes all system data from the browser,
+    including the filesystem, user accounts, and all session data,
+    restoring it to the default, initial state. This is a destructive
+    factory reset operation.
+
     The system will automatically reboot after a successful reset.
 """
 

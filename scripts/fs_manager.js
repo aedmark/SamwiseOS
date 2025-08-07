@@ -43,6 +43,7 @@ class FileSystemManager {
 
     _createKernelContext() {
         const user = this.userManager.getCurrentUser();
+        const primaryGroup = this.userManager.getPrimaryGroupForUser(user.name);
         const allGroups = this.groupManager.groups;
         const userGroups = {};
         // Pass all group memberships to Python for permission checks
@@ -57,7 +58,7 @@ class FileSystemManager {
 
         return JSON.stringify({
             current_path: this.currentPath,
-            user_context: { name: user.name, group: user.primaryGroup },
+            user_context: { name: user.name, group: primaryGroup },
             user_groups: userGroups
         });
     }
@@ -259,28 +260,31 @@ class FileSystemManager {
     }
 
     async createOrUpdateFile(absolutePath, content, context) {
-        const { CommandExecutor } = this.dependencies;
+        const { ErrorHandler } = this.dependencies;
         const { isDirectory = false } = context;
 
-        if (isDirectory) {
-            return await CommandExecutor.processSingleCommand(`mkdir -p "${absolutePath}"`, { isInteractive: false });
+        if (!OopisOS_Kernel.isReady) {
+            return ErrorHandler.createError("Filesystem kernel not ready for write operation.");
         }
 
-        // Using touch for empty files, printf for content
-        if (content === null || content === undefined || content === '') {
-            return await CommandExecutor.processSingleCommand(`touch "${absolutePath}"`, { isInteractive: false });
-        } else {
-            // Escape for shell command, not for direct write
-            const escapedContent = content
-                .replace(/\\/g, '\\\\')
-                .replace(/"/g, '\\"')
-                .replace(/`/g, '\\`')
-                .replace(/\$/g, '\\$')
-                .replace(/\n/g, '\\n');
-            return await CommandExecutor.processSingleCommand(
-                `printf "%b" "${escapedContent}" > "${absolutePath}"`,
-                { isInteractive: false }
-            );
+        try {
+            const kernelContext = this._createKernelContext();
+            let resultJson;
+
+            if (isDirectory) {
+                resultJson = OopisOS_Kernel.createDirectory(absolutePath, kernelContext);
+            } else {
+                resultJson = OopisOS_Kernel.writeFile(absolutePath, content, kernelContext);
+            }
+
+            const result = JSON.parse(resultJson);
+            if (result.success) {
+                return ErrorHandler.createSuccess();
+            } else {
+                return ErrorHandler.createError(result.error || "An unknown kernel error occurred.");
+            }
+        } catch (e) {
+            return ErrorHandler.createError(`File operation failed: ${e.message}`);
         }
     }
 
