@@ -306,7 +306,10 @@ window.EditorManager = class EditorManager extends App {
               ),
             }
         );
-        if (saveResult.success && (await FileSystemManager.save())) {
+        const fsSaveResult = saveResult.success
+            ? await FileSystemManager.save()
+            : { success: false };
+        if (saveResult.success && fsSaveResult.success) {
           this.state.originalContent = currentContent;
           this.state.isDirty = false;
           this.ui.updateDirtyStatus(false);
@@ -315,9 +318,11 @@ window.EditorManager = class EditorManager extends App {
             await this.state.onSaveCallback(savePath);
           }
         } else {
-          this.ui.updateStatusMessage(
-              `Error: ${saveResult.error || "Failed to save file system."}`
-          );
+          const errorMessage =
+              saveResult.error?.message ||
+              fsSaveResult.error?.message ||
+              "Failed to save file system.";
+          this.ui.updateStatusMessage(`Error: ${errorMessage}`);
         }
       },
       onExitRequest: this.exit.bind(this),
