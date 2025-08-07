@@ -1,4 +1,4 @@
-// scripts/main.js
+// gem/main.js
 
 /**
  * @file This is the main entry point for the OopisOS application. It handles the
@@ -256,61 +256,51 @@ window.onload = async () => {
 
 
     try {
-        // Initialization sequence
+        // [MODIFIED] Reordered Initialization Sequence
+        // 1. Initialize core UI and storage components that have no dependencies on Python
         outputManager.initialize(domElements);
         terminalUI.initialize(domElements);
         modalManager.initialize(domElements);
         appLayerManager.initialize(domElements);
         await storageHAL.init();
-        aliasManager.initialize();
         outputManager.initializeConsoleOverrides();
 
-        // Initialize the Python Kernel Bridge
+        // 2. CRITICAL: Initialize the Python Kernel Bridge. This must happen BEFORE managers that depend on it are initialized.
         await OopisOS_Kernel.initialize(dependencies);
 
+        // 3. Initialize filesystem and sync with Python kernel
         const fsJsonFromStorage = await storageHAL.load();
         if (OopisOS_Kernel.isReady) {
-            // [MODIFIED] This section is now much simpler.
-            // The command manifest is now handled by the bridge and registry.
             if (fsJsonFromStorage) {
-                // Normal boot: Load existing state from storage into Python
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
                 OopisOS_Kernel.kernel.load_fs_from_json(fsJsonString);
-                // Also load it into the JS manager for path utilities and legacy command support
                 fsManager.setFsData(fsJsonFromStorage);
             } else {
-                // First boot: Initialize in JS, then send to Python and save.
                 await outputManager.appendToOutput(
                     "No file system found. Initializing new one.",
                     { typeClass: configManager.CSS_CLASSES.CONSOLE_LOG_MSG }
                 );
-                // 1. JS fsManager creates the default structure
                 await fsManager.initialize(configManager.USER.DEFAULT_NAME);
-
-                // 2. Get the new structure
                 const initialFsData = fsManager.getFsData();
                 const initialFsJsonString = JSON.stringify(initialFsData);
-
-                // 3. Send it to Python to become the source of truth
                 OopisOS_Kernel.kernel.load_fs_from_json(initialFsJsonString);
-
-                // 4. Save this initial state for the next boot
                 await storageHAL.save(initialFsData);
             }
         } else {
-            // Fallback if kernel failed to load
-            await fsManager.load();
+            await fsManager.load(); // Fallback if kernel failed
         }
 
+        // 4. Now that the kernel is ready, initialize all managers that depend on it
         await userManager.initializeDefaultUsers();
         await configManager.loadFromFile();
         await configManager.loadPackageManifest();
         groupManager.initialize();
         environmentManager.initialize();
+        aliasManager.initialize(); // This was the source of the error
         sessionManager.initializeStack();
         await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
 
-        // After loading state, clear the screen and show a fresh welcome message for a clean boot experience.
+        // 5. Final setup
         outputManager.clearOutput();
         await outputManager.appendToOutput(
             `${configManager.MESSAGES.WELCOME_PREFIX} ${userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`

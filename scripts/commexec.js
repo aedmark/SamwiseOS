@@ -390,7 +390,8 @@ class CommandExecutor {
             "diff", "df", "beep", "chmod", "chown", "chgrp", "tree", "cut", "du", "nl", "ln",
             "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
             "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
-            "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su"
+            "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su",
+            "useradd", "usermod", "passwd", "removeuser"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&
@@ -429,7 +430,15 @@ class CommandExecutor {
                 try {
                     const result = JSON.parse(resultJson);
                     if (result.success) {
-                        // [MODIFIED] Handle new session effects from Python
+                        if (result.effect === 'useradd') {
+                            return await UserManager.registerWithPrompt(result.username, execCtxOpts);
+                        }
+                        if (result.effect === 'passwd') {
+                            return await UserManager.changePasswordWithPrompt(result.username, execCtxOpts);
+                        }
+                        if (result.effect === 'removeuser') {
+                            return await UserManager.removeUserWithPrompt(result.username, result.remove_home, execCtxOpts);
+                        }
                         if (result.effect === 'login') {
                             return await UserManager.login(result.username, result.password, execCtxOpts);
                         }

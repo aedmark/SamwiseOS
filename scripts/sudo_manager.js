@@ -1,201 +1,68 @@
-// scripts/sudo_manager.js
+// gem/scripts/sudo_manager.js
 
 /**
  * @class SudoManager
- * @classdesc Manages sudo privileges, parsing the /etc/sudoers file to determine
- * which users can run which commands as root. It also handles timestamp-based
- * authentication to avoid repeated password prompts.
+ * @classdesc An API client for the OopisOS Python Sudo Manager kernel.
+ * All core logic for parsing /etc/sudoers and checking permissions is now handled by `core/sudo.py`.
+ * This JS class manages sudo session timestamps.
  */
 class SudoManager {
-  /**
-   * Creates an instance of SudoManager.
-   */
-  constructor() {
-    /**
-     * The parsed configuration from the /etc/sudoers file.
-     * @type {object|null}
-     */
-    this.sudoersConfig = null;
-    /**
-     * A map of usernames to the timestamp of their last successful sudo authentication.
-     * @type {object.<string, number>}
-     */
-    this.userSudoTimestamps = {};
-    /**
-     * A reference to the FileSystemManager instance.
-     * @type {FileSystemManager|null}
-     */
-    this.fsManager = null;
-    /**
-     * A reference to the GroupManager instance.
-     * @type {GroupManager|null}
-     */
-    this.groupManager = null;
-    /**
-     * A reference to the global ConfigManager instance.
-     * @type {ConfigManager|null}
-     */
-    this.config = null;
-  }
-
-  /**
-   * Sets the dependencies for the SudoManager.
-   * @param {FileSystemManager} fsManager - The file system manager instance.
-   * @param {GroupManager} groupManager - The group manager instance.
-   * @param {ConfigManager} config - The global configuration manager instance.
-   */
-  setDependencies(fsManager, groupManager, config) {
-    this.fsManager = fsManager;
-    this.groupManager = groupManager;
-    this.config = config;
-  }
-
-  /**
-   * Parses the /etc/sudoers file and caches the configuration.
-   * @private
-   */
-  _parseSudoers() {
-    const sudoersNode = this.fsManager.getNodeByPath(
-        this.config.SUDO.SUDOERS_PATH
-    );
-    if (!sudoersNode || sudoersNode.type !== "file") {
-      this.sudoersConfig = {
-        users: {},
-        groups: {},
-        timeout: this.config.SUDO.DEFAULT_TIMEOUT,
-      };
-      return;
+    constructor() {
+        this.userSudoTimestamps = {};
+        this.dependencies = {};
+        this.config = null;
+        this.groupManager = null;
     }
 
-    const content = sudoersNode.content || "";
-    const lines = content.split("\n");
-    const config = {
-      users: {},
-      groups: {},
-      timeout: this.config.SUDO.DEFAULT_TIMEOUT,
-    };
-
-    lines.forEach((line) => {
-      line = line.trim();
-      if (line.startsWith("#") || line === "") return;
-
-      if (line.toLowerCase().startsWith("defaults timestamp_timeout=")) {
-        const timeoutValue = parseInt(line.split("=")[1], 10);
-        if (!isNaN(timeoutValue) && timeoutValue >= 0) {
-          config.timeout = timeoutValue;
+    _getManager() {
+        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
+            return OopisOS_Kernel.sudoManager;
         }
-        return;
-      }
-
-      const parts = line.split(/\s+/);
-      if (parts.length < 2) {
-        console.warn(
-            `SudoManager: Malformed line in /etc/sudoers: "${line}". Ignoring.`
-        );
-        return;
-      }
-
-      const entity = parts[0];
-      const permissions = parts.slice(1).join(" ");
-
-      if (entity.startsWith("%")) {
-        config.groups[entity.substring(1)] = permissions;
-      } else {
-        config.users[entity] = permissions;
-      }
-    });
-    this.sudoersConfig = config;
-  }
-
-  /**
-   * Retrieves the sudoers configuration, parsing it if not already cached.
-   * @private
-   * @returns {object} The parsed sudoers configuration.
-   */
-  _getSudoersConfig() {
-    if (!this.sudoersConfig) {
-      this._parseSudoers();
+        throw new Error("Python kernel for SudoManager is not available.");
     }
-    return this.sudoersConfig;
-  }
 
-  /**
-   * Invalidates the cached sudoers configuration, forcing a re-parse on the next check.
-   */
-  invalidateSudoersCache() {
-    this.sudoersConfig = null;
-  }
-
-  /**
-   * Checks if a user's sudo timestamp is still valid.
-   * @param {string} username - The name of the user to check.
-   * @returns {boolean} True if the timestamp is valid, false otherwise.
-   */
-  isUserTimestampValid(username) {
-    const timestamp = this.userSudoTimestamps[username];
-    if (!timestamp) return false;
-
-    const config = this._getSudoersConfig();
-    const timeoutMinutes = config.timeout || 0;
-    if (timeoutMinutes <= 0) return false;
-
-    const now = new Date().getTime();
-    const elapsedMinutes = (now - timestamp) / (1000 * 60);
-
-    return elapsedMinutes < timeoutMinutes;
-  }
-
-  /**
-   * Updates a user's sudo timestamp to the current time.
-   * @param {string} username - The name of the user to update.
-   */
-  updateUserTimestamp(username) {
-    this.userSudoTimestamps[username] = new Date().getTime();
-  }
-
-  /**
-   * Clears a user's sudo timestamp, forcing a password prompt on the next sudo attempt.
-   * @param {string} username - The name of the user whose timestamp to clear.
-   */
-  clearUserTimestamp(username) {
-    if (this.userSudoTimestamps[username]) {
-      delete this.userSudoTimestamps[username];
+    setDependencies(fsManager, groupManager, config) {
+        this.dependencies = { fsManager, groupManager, config };
+        this.config = config;
+        this.groupManager = groupManager;
     }
-  }
 
-  /**
-   * Determines if a user has permission to run a specific command via sudo.
-   * @param {string} username - The name of the user.
-   * @param {string} commandToRun - The command the user is attempting to run.
-   * @returns {boolean} True if the user is permitted, false otherwise.
-   */
-  canUserRunCommand(username, commandToRun) {
-    if (username === "root") return true;
+    isUserTimestampValid(username) {
+        const timestamp = this.userSudoTimestamps[username];
+        if (!timestamp) return false;
 
-    const config = this._getSudoersConfig();
-    let userPermissions = config.users[username];
+        // For now, we'll keep timeout logic in JS side, but it could be moved to Python.
+        // We'll read the timeout from the JS config for simplicity.
+        const timeoutMinutes = this.config.SUDO.DEFAULT_TIMEOUT || 15;
+        if (timeoutMinutes <= 0) return false;
 
-    if (!userPermissions) {
-      const userGroups = this.groupManager.getGroupsForUser(username);
-      for (const group of userGroups) {
-        if (config.groups[group]) {
-          userPermissions = config.groups[group];
-          break;
+        const now = new Date().getTime();
+        const elapsedMinutes = (now - timestamp) / (1000 * 60);
+
+        return elapsedMinutes < timeoutMinutes;
+    }
+
+    updateUserTimestamp(username) {
+        this.userSudoTimestamps[username] = new Date().getTime();
+    }
+
+    clearUserTimestamp(username) {
+        if (this.userSudoTimestamps[username]) {
+            delete this.userSudoTimestamps[username];
         }
-      }
     }
 
-    if (!userPermissions) return false;
-    if (userPermissions.trim() === "ALL") return true;
-
-    const allowedCommands = userPermissions.split(",").map((cmd) => cmd.trim());
-
-    for (const allowed of allowedCommands) {
-      if (allowed === commandToRun || allowed.endsWith("/" + commandToRun)) {
-        return true;
-      }
+    canUserRunCommand(username, commandToRun) {
+        try {
+            const userGroups = this.groupManager.getGroupsForUser(username);
+            // Delegate the actual check to the Python kernel
+            return this._getManager().can_user_run_command(username, userGroups, commandToRun);
+        } catch (e) {
+            console.error("Failed to call Python SudoManager:", e);
+            return false;
+        }
     }
 
-    return false;
-  }
+    // The parseSudoers and invalidateSudoersCache methods are now obsolete in JS
+    // as this is handled entirely within the Python module.
 }

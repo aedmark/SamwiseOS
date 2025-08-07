@@ -3,16 +3,18 @@
 from executor import command_executor
 from filesystem import fs_manager
 from session import env_manager, history_manager, alias_manager, session_manager
-from users import user_manager # [MODIFIED]
+from groups import group_manager
+from users import user_manager
+from sudo import SudoManager # [MODIFIED]
 import json
-
+sudo_manager = SudoManager(fs_manager)
 # [MODIFIED] Expose the new user manager
 __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "get_node_json", "check_permission", "get_node_size",
            "validate_path_json", "write_file", "create_directory",
            "rename_node", "execute_command", "command_executor",
            "env_manager", "history_manager", "alias_manager", "session_manager",
-           "group_manager", "user_manager"]
+           "group_manager", "user_manager",  "sudo_manager"]
 
 
 def initialize_kernel(save_function):

@@ -32,6 +32,11 @@ const OopisOS_Kernel = {
                 '/core/session.py': './core/session.py',
                 '/core/groups.py': './core/groups.py',
                 '/core/users.py': './core/users.py',
+                '/core/sudo.py': './core/sudo.py',
+                '/core/commands/useradd.py': './core/commands/useradd.py',
+                '/core/commands/usermod.py': './core/commands/usermod.py',
+                '/core/commands/passwd.py': './core/commands/passwd.py',
+                '/core/commands/removeuser.py': './core/commands/removeuser.py',
                 '/core/commands/groupadd.py': './core/commands/groupadd.py',
                 '/core/commands/groupdel.py': './core/commands/groupdel.py',
                 '/core/commands/login.py': './core/commands/login.py',
@@ -126,6 +131,7 @@ const OopisOS_Kernel = {
             this.sessionManager = this.kernel.session_manager;
             this.groupManager = this.kernel.group_manager;
             this.userManager = this.kernel.user_manager;
+            this.sudoManager = this.kernel.sudo_manager;
 
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
