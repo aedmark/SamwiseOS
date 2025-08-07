@@ -16,7 +16,7 @@ class CommandExecutor:
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown",
             "chgrp", "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping",
             "xargs", "awk", "expr", "rename", "wget", "curl", "bc", "cp", "zip", "unzip", "reboot",
-            "ps", "kill", "sync", "xor", "ocrypt", "reset", "fsck", "history"
+            "ps", "kill", "sync", "xor", "ocrypt", "reset", "fsck", "history", "printf"
         ]
         self.user_context = {"name": "Guest"}
         self.users = {}

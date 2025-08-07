@@ -72,6 +72,7 @@ const OopisOS_Kernel = {
                 '/core/commands/reset.py': './core/commands/reset.py',
                 '/core/commands/fsck.py': './core/commands/fsck.py',
                 '/core/commands/history.py': './core/commands/history.py',
+                '/core/commands/printf.py': './core/commands/printf.py',
                 '/core/commands/xor.py': './core/commands/xor.py',
                 '/core/commands/wget.py': './core/commands/wget.py',
                 '/core/commands/curl.py': './core/commands/curl.py',
