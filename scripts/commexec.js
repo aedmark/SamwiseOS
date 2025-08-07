@@ -383,19 +383,18 @@ class CommandExecutor {
         const { ErrorHandler, FileSystemManager, UserManager } = this.dependencies;
         const commandName = segment.command?.toLowerCase();
 
-        // --- Python Command Bridge ---
-        const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
-            "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
-            "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
-            "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
-            "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor", "ocrypt", "reset",
-            "fsck", "history", "printf"
+        const pythonCommands = [
+            "alias", "unalias", "set", "unset", "history", "date", "pwd", "echo", "ls", "whoami", "clear",
+            "help", "man", "cat", "mkdir", "touch", "rm", "mv", "grep", "sort", "wc", "uniq",
+            "head", "tr", "base64", "cksum", "listusers", "groups", "delay", "rmdir", "tail",
+            "diff", "df", "beep", "chmod", "chown", "chgrp", "tree", "cut", "du", "nl", "ln",
+            "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
+            "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
+            "ocrypt", "reset", "fsck", "printf"
         ];
 
-        // Special condition for `tail -f`, which must be handled by JS for its async nature.
         const usePython = pythonCommands.includes(commandName) &&
-            !(commandName === 'tail' && segment.args.includes('-f')) &&
-            !(commandName === 'history' && !segment.args.includes('-c'));
+            !(commandName === 'tail' && segment.args.includes('-f'));
 
         if (usePython) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
@@ -403,7 +402,6 @@ class CommandExecutor {
                 const { FileSystemManager, UserManager, StorageManager, Config, GroupManager } = this.dependencies;
                 const allGroups = GroupManager.groups;
                 const userGroups = {};
-                // Construct the user_groups object just like we do in fs_manager.js
                 for (const groupName in allGroups) {
                     for (const member of allGroups[groupName].members) {
                         if (!userGroups[member]) {
@@ -431,7 +429,6 @@ class CommandExecutor {
                 try {
                     const result = JSON.parse(resultJson);
                     if (result.success) {
-                        // Check for special effects that need handling
                         if (result.effect === 'clear_screen') {
                             return ErrorHandler.createSuccess(null, { effect: "clear_screen" });
                         }
@@ -445,10 +442,8 @@ class CommandExecutor {
                             'reboot', 'signal_job', 'clear_history', 'full_reset'
                         ];
                         if (effectsToPassThrough.includes(result.effect)) {
-                            // Pass the entire result object through
                             return ErrorHandler.createSuccess(null, result);
                         }
-                        // Default case for simple text output
                         return ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
                     } else {
                         return ErrorHandler.createError(result.error || "An unknown Python error occurred.");
@@ -460,7 +455,6 @@ class CommandExecutor {
                 return ErrorHandler.createError("Python kernel is not yet ready. Please wait a moment and try again.");
             }
         }
-        // --- Python Command Bridge ---
 
         const cmdInstance = await this._ensureCommandLoaded(commandName);
         if (!cmdInstance) {

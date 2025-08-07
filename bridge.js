@@ -1,3 +1,5 @@
+// gem/bridge.js
+
 /**
  * @file bridge.js
  * @description Establishes the communication bridge between the JavaScript frontend
@@ -27,7 +29,12 @@ const OopisOS_Kernel = {
                 '/core/kernel.py': './core/kernel.py',
                 '/core/filesystem.py': './core/filesystem.py',
                 '/core/executor.py': './core/executor.py',
-                '/core/session.py': './core/session.py', // [MODIFIED] Load the new session module
+                '/core/session.py': './core/session.py',
+                '/core/commands/alias.py': './core/commands/alias.py',
+                '/core/commands/unalias.py': './core/commands/unalias.py',
+                '/core/commands/set.py': './core/commands/set.py',
+                '/core/commands/unset.py': './core/commands/unset.py',
+                '/core/commands/history.py': './core/commands/history.py',
                 '/core/commands/date.py': './core/commands/date.py',
                 '/core/commands/pwd.py': './core/commands/pwd.py',
                 '/core/commands/echo.py': './core/commands/echo.py',
@@ -72,7 +79,6 @@ const OopisOS_Kernel = {
                 '/core/commands/ocrypt.py': './core/commands/ocrypt.py',
                 '/core/commands/reset.py': './core/commands/reset.py',
                 '/core/commands/fsck.py': './core/commands/fsck.py',
-                '/core/commands/history.py': './core/commands/history.py',
                 '/core/commands/printf.py': './core/commands/printf.py',
                 '/core/commands/xor.py': './core/commands/xor.py',
                 '/core/commands/wget.py': './core/commands/wget.py',
