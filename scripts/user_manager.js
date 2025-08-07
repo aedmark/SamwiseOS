@@ -163,44 +163,52 @@ class UserManager {
    * @returns {Promise<object>} An ErrorHandler result object.
    */
   async register(username, password) {
-    const { Utils, ErrorHandler } = this.dependencies;
-    const formatValidation = Utils.validateUsernameFormat(username);
-    if (!formatValidation.isValid) {
-      return ErrorHandler.createError(formatValidation.error);
-    }
-    if (await this.userExists(username)) {
-      return ErrorHandler.createError(`User '${username}' already exists.`);
-    }
-    let passwordData = null;
-    if (password) {
-      passwordData = await this._secureHashPassword(password);
-      if (!passwordData) {
-        return ErrorHandler.createError("Failed to securely process password.");
+      const { Utils, ErrorHandler } = this.dependencies;
+      const formatValidation = Utils.validateUsernameFormat(username);
+      if (!formatValidation.isValid) {
+          return ErrorHandler.createError(formatValidation.error);
       }
-    }
-    this.groupManager.createGroup(username);
-    this.groupManager.addUserToGroup(username, username);
-    const users = this.storageManager.loadItem(
-        this.config.STORAGE_KEYS.USER_CREDENTIALS,
-        "User list",
-        {}
-    );
-    users[username] = { passwordData, primaryGroup: username };
-    await this.fsManager.createUserHomeDirectory(username);
-
-    if (
-        this.storageManager.saveItem(
-            this.config.STORAGE_KEYS.USER_CREDENTIALS,
-            users,
-            "User list"
-        )
-    ) {
-      return ErrorHandler.createSuccess(
-          `User '${username}' registered. Home directory created at /home/${username}.`,
-          { stateModified: true }
+      if (await this.userExists(username)) {
+          return ErrorHandler.createError(`User '${username}' already exists.`);
+      }
+      let passwordData = null;
+      if (password) {
+          passwordData = await this._secureHashPassword(password);
+          if (!passwordData) {
+              return ErrorHandler.createError("Failed to securely process password.");
+          }
+      }
+      this.groupManager.createGroup(username);
+      this.groupManager.addUserToGroup(username, username);
+      const users = this.storageManager.loadItem(
+          this.config.STORAGE_KEYS.USER_CREDENTIALS,
+          "User list",
+          {}
       );
-    }
-    return ErrorHandler.createError("Failed to save new user credentials.");
+      users[username] = { passwordData, primaryGroup: username };
+
+      // Create the user's home directory correctly
+      const homeDirPath = `/home/${username}`;
+      await this.fsManager.createOrUpdateFile(homeDirPath, null, {
+          isDirectory: true,
+          currentUser: username,
+          primaryGroup: username
+      });
+
+
+      if (
+          this.storageManager.saveItem(
+              this.config.STORAGE_KEYS.USER_CREDENTIALS,
+              users,
+              "User list"
+          )
+      ) {
+          return ErrorHandler.createSuccess(
+              `User '${username}' registered. Home directory created at /home/${username}.`,
+              { stateModified: true }
+          );
+      }
+      return ErrorHandler.createError("Failed to save new user credentials.");
   }
 
   /**
@@ -420,26 +428,21 @@ class UserManager {
    * @param {string} username - The username that has successfully logged in.
    * @returns {object} An ErrorHandler success object.
    */
-  _performLogin(username) {
-    const { ErrorHandler } = this.dependencies;
-    if (this.currentUser.name !== this.config.USER.DEFAULT_NAME) {
-      this.sessionManager.saveAutomaticState(this.currentUser.name);
-      this.sudoManager.clearUserTimestamp(this.currentUser.name);
-    }
-    this.sessionManager.clearUserStack(username);
-    this.currentUser = { name: username };
-    this.sessionManager.loadAutomaticState(username);
-    const homePath = `/home/${username}`;
-    this.fsManager.setCurrentPath(
-        this.fsManager.getNodeByPath(homePath)
-            ? homePath
-            : this.config.FILESYSTEM.ROOT_PATH
-    );
-    this.dependencies.AuditManager.log(username, 'login_success', `User logged in successfully.`);
-    return ErrorHandler.createSuccess({
-      message: `Logged in as ${username}.`,
-      isLogin: true,
-    });
+  async _performLogin(username) {
+      const { ErrorHandler } = this.dependencies;
+      if (this.currentUser.name !== this.config.USER.DEFAULT_NAME) {
+          this.sessionManager.saveAutomaticState(this.currentUser.name);
+          this.sudoManager.clearUserTimestamp(this.currentUser.name);
+      }
+      this.sessionManager.clearUserStack(username);
+      this.currentUser = { name: username };
+      await this.sessionManager.loadAutomaticState(username);
+
+      this.dependencies.AuditManager.log(username, 'login_success', `User logged in successfully.`);
+      return ErrorHandler.createSuccess({
+          message: `Logged in as ${username}.`,
+          isLogin: true,
+      });
   }
 
   /**
@@ -474,22 +477,17 @@ class UserManager {
    * @param {string} username - The username to switch to.
    * @returns {object} An ErrorHandler success object.
    */
-  _performSu(username) {
-    const { ErrorHandler } = this.dependencies;
-    this.sessionManager.saveAutomaticState(this.currentUser.name);
-    this.sessionManager.pushUserToStack(username);
-    this.currentUser = { name: username };
-    this.sessionManager.loadAutomaticState(username);
-    const homePath = `/home/${username}`;
-    this.fsManager.setCurrentPath(
-        this.fsManager.getNodeByPath(homePath)
-            ? homePath
-            : this.config.FILESYSTEM.ROOT_PATH
-    );
-    this.dependencies.AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
-    return ErrorHandler.createSuccess({
-      message: `Switched to user: ${username}.`,
-    });
+  async _performSu(username) {
+      const { ErrorHandler } = this.dependencies;
+      this.sessionManager.saveAutomaticState(this.currentUser.name);
+      this.sessionManager.pushUserToStack(username);
+      this.currentUser = { name: username };
+      await this.sessionManager.loadAutomaticState(username);
+
+      this.dependencies.AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
+      return ErrorHandler.createSuccess({
+          message: `Switched to user: ${username}.`,
+      });
   }
 
   /**

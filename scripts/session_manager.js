@@ -618,7 +618,18 @@ class SessionManager {
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
             const homePath = `/home/${username}`;
-            const homeNode = await this.fsManager.getNodeByPath(homePath);
+            let homeNode = await this.fsManager.getNodeByPath(homePath);
+
+            // If home directory doesn't exist on first load, create it.
+            if (!homeNode) {
+                await this.fsManager.createOrUpdateFile(homePath, null, {
+                    isDirectory: true,
+                    currentUser: username,
+                    primaryGroup: username,
+                });
+                homeNode = await this.fsManager.getNodeByPath(homePath);
+            }
+
             this.fsManager.setCurrentPath(
                 homeNode ? homePath : this.config.FILESYSTEM.ROOT_PATH
             );
