@@ -266,13 +266,21 @@ class FileSystemManager {
             return await CommandExecutor.processSingleCommand(`mkdir -p "${absolutePath}"`, { isInteractive: false });
         }
 
-        // Using touch for empty files, echo for content
+        // Using touch for empty files, printf for content
         if (content === null || content === undefined || content === '') {
             return await CommandExecutor.processSingleCommand(`touch "${absolutePath}"`, { isInteractive: false });
         } else {
             // Escape for shell command, not for direct write
-            const escapedContent = content.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\$/g, '\\$');
-            return await CommandExecutor.processSingleCommand(`echo "${escapedContent}" > "${absolutePath}"`, { isInteractive: false });
+            const escapedContent = content
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"')
+                .replace(/`/g, '\\`')
+                .replace(/\$/g, '\\$')
+                .replace(/\n/g, '\\n');
+            return await CommandExecutor.processSingleCommand(
+                `printf "%b" "${escapedContent}" > "${absolutePath}"`,
+                { isInteractive: false }
+            );
         }
     }
 
