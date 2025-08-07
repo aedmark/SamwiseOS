@@ -304,26 +304,13 @@ window.onload = async () => {
         groupManager.initialize();
         environmentManager.initialize();
         sessionManager.initializeStack();
-        sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
+        await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
 
         // After loading state, clear the screen and show a fresh welcome message for a clean boot experience.
         outputManager.clearOutput();
         await outputManager.appendToOutput(
             `${configManager.MESSAGES.WELCOME_PREFIX} ${userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`
         );
-
-
-        const guestHome = `/home/${configManager.USER.DEFAULT_NAME}`;
-        const node = await fsManager.getNodeByPath(fsManager.getCurrentPath());
-        if (!node) {
-            const guestHomeNode = await fsManager.getNodeByPath(guestHome);
-            fsManager.setCurrentPath(
-                guestHomeNode
-                    ? guestHome
-                    : configManager.FILESYSTEM.ROOT_PATH
-            );
-        }
-
 
         initializeTerminalEventListeners(domElements, commandExecutor, dependencies);
 

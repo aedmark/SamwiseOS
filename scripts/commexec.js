@@ -1132,7 +1132,7 @@ class CommandExecutor {
         }
 
         if (isInteractive && !scriptingContext) {
-            await this._finalizeInteractiveModeUI(originalCommandText);
+            await this._finalizeInteractiveModeUI(rawCommandText);
         }
 
         return {

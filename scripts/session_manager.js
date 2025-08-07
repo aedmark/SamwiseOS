@@ -575,7 +575,7 @@ class SessionManager {
      * @param {string} username - The username whose state to load.
      * @returns {boolean} True if a state was loaded, false otherwise.
      */
-    loadAutomaticState(username) {
+    async loadAutomaticState(username) {
         if (!username) {
             console.warn(
                 "loadAutomaticState: No username provided. Cannot load state."
@@ -618,11 +618,10 @@ class SessionManager {
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
             const homePath = `/home/${username}`;
-            if (this.fsManager.getNodeByPath(homePath)) {
-                this.fsManager.setCurrentPath(homePath);
-            } else {
-                this.fsManager.setCurrentPath(this.config.FILESYSTEM.ROOT_PATH);
-            }
+            const homeNode = await this.fsManager.getNodeByPath(homePath);
+            this.fsManager.setCurrentPath(
+                homeNode ? homePath : this.config.FILESYSTEM.ROOT_PATH
+            );
             this.dependencies.HistoryManager.clearHistory();
 
             const newEnv = {};
