@@ -1,4 +1,4 @@
-// scripts/commands/upload.js
+// gem/scripts/commands/upload.js
 
 /**
  * @fileoverview This file defines the 'upload' command, a utility that allows
@@ -123,7 +123,39 @@ window.UploadCommand = class UploadCommand extends Command {
                 for (const file of files) {
                     const relativePath = flags.directory ? (file.webkitRelativePath || file.name) : file.name;
                     const newFilePath = `${currentPath === "/" ? "" : currentPath}/${relativePath}`;
-                    const existingNode = FileSystemManager.getNodeByPath(newFilePath);
+
+                    // Create parent directories if they don't exist
+                    if (newFilePath.includes('/')) {
+                        const parentPath = newFilePath.substring(0, newFilePath.lastIndexOf('/')) || '/';
+                        const pathParts = parentPath.split('/').filter(Boolean);
+                        let cumulativePath = '';
+                        let parentDirCreationError = false;
+                        for (const part of pathParts) {
+                            cumulativePath += `/${part}`;
+                            const dirNode = await FileSystemManager.getNodeByPath(cumulativePath);
+                            if (!dirNode) {
+                                const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
+                                const mkdirResult = await FileSystemManager.createOrUpdateFile(
+                                    cumulativePath, null, { isDirectory: true, currentUser, primaryGroup }
+                                );
+                                if (!mkdirResult.success) {
+                                    await OutputManager.appendToOutput(`Error creating directory '${cumulativePath}': ${mkdirResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                                    parentDirCreationError = true;
+                                    break;
+                                }
+                            } else if (dirNode.type !== 'directory') {
+                                await OutputManager.appendToOutput(`Upload failed: A file exists where a directory is needed: '${cumulativePath}'.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                                parentDirCreationError = true;
+                                break;
+                            }
+                        }
+                        if (parentDirCreationError) {
+                            errorOccurred = true;
+                            continue;
+                        }
+                    }
+
+                    const existingNode = await FileSystemManager.getNodeByPath(newFilePath);
 
                     if (existingNode) {
                         const confirmed = await new Promise((confirmResolve) => {
