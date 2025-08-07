@@ -45,25 +45,104 @@ class FileSystemManager:
                 }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso,
             }
         }
+        # Ensure root home exists on init
+        self.create_directory("/home/root", {"name": "root", "group": "root"})
+
 
     def reset(self):
         """Resets the filesystem to a default state."""
         self._initialize_default_filesystem()
-        # In a real system, you might want to re-create default users' home directories here
         self._save_state()
 
-    def get_node(self, path):
+    def get_node(self, path, resolve_symlink=True):
         abs_path = self.get_absolute_path(path)
+
+        # Fast path for root
         if abs_path == '/':
             return self.fs_data.get('/')
+
         parts = [part for part in abs_path.split('/') if part]
         node = self.fs_data.get('/')
-        for part in parts:
-            if node and node.get('type') == 'directory' and part in node.get('children', {}):
-                node = node['children'][part]
-            else:
+
+        for i, part in enumerate(parts):
+            if not node or node.get('type') != 'directory' or 'children' not in node or part not in node['children']:
                 return None
+
+            node = node['children'][part]
+
+            # Resolve symlink if it's not the last part of the path, or if resolve_symlink is true
+            if node.get('type') == 'symlink' and (resolve_symlink or i < len(parts) - 1):
+                target_path = node.get('target', '')
+                # To handle nested symlinks, we can recursively call get_node
+                # This is a simplified implementation; a real one would need loop detection
+                base_dir = os.path.dirname(self.get_absolute_path(os.path.join(abs_path, '..', part)))
+                resolved_target = self.get_absolute_path(os.path.join(base_dir, target_path))
+                node = self.get_node(resolved_target)
+
         return node
+
+    def fsck(self, users, groups, repair=False):
+        """Checks and optionally repairs the filesystem integrity."""
+        report = []
+        changes_made = False
+        all_nodes = []
+
+        def traverse(node, path):
+            all_nodes.append((path, node))
+            if node.get('type') == 'directory':
+                for name, child in node.get('children', {}).items():
+                    traverse(child, os.path.join(path, name))
+
+        traverse(self.fs_data['/'], '/')
+
+        existing_users = set(users.keys())
+        existing_groups = set(groups.keys())
+
+        for path, node in all_nodes:
+            # Check 1: Orphaned files/dirs
+            if node.get('owner') not in existing_users:
+                report.append(f"Orphaned node found at {path} (owner '{node.get('owner')}' does not exist).")
+                if repair:
+                    node['owner'] = 'root'
+                    report.append(f" -> Repaired: Set owner to 'root'.")
+                    changes_made = True
+
+            if node.get('group') not in existing_groups:
+                report.append(f"Orphaned node found at {path} (group '{node.get('group')}' does not exist).")
+                if repair:
+                    node['group'] = 'root'
+                    report.append(f" -> Repaired: Set group to 'root'.")
+                    changes_made = True
+
+            # Check 2: Dangling symlinks
+            if node.get('type') == 'symlink':
+                target_path = self.get_absolute_path(os.path.join(os.path.dirname(path), node.get('target')))
+                if self.get_node(target_path) is None:
+                    report.append(f"Dangling symlink found at {path} pointing to '{node.get('target')}'")
+                    if repair:
+                        # Simple repair: remove dangling link
+                        parent_path = os.path.dirname(path)
+                        parent_node = self.get_node(parent_path)
+                        del parent_node['children'][os.path.basename(path)]
+                        report.append(f" -> Repaired: Removed dangling link.")
+                        changes_made = True
+
+        # Check 3: User home directories
+        home_dir_node = self.get_node("/home")
+        for user in existing_users:
+            if user not in home_dir_node.get('children', {}):
+                report.append(f"User '{user}' is missing a home directory.")
+                if repair:
+                    self.create_directory(f"/home/{user}", {"name": user, "group": users[user].get('primaryGroup', user)})
+                    self.chown(f"/home/{user}", user)
+                    report.append(f" -> Repaired: Created /home/{user}.")
+                    changes_made = True
+
+        if changes_made:
+            self._save_state()
+
+        return report, changes_made
+
 
     def load_state_from_json(self, json_string):
         try:

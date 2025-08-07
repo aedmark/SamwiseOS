@@ -387,12 +387,15 @@ class CommandExecutor {
         const pythonCommands = ["date", "pwd", "echo", "ls", "whoami", "clear", "help", "man", "cat", "mkdir",
             "touch", "rm", "mv", "grep", "sort", "wc", "uniq", "head", "tr", "base64", "cksum",
             "listusers", "groups", "delay", "rmdir", "tail", "diff", "df", "beep", "chmod", "chown", "chgrp",
-        "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
-        "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor", "ocrypt", "reset",
+            "tree", "cut", "du", "nl", "ln", "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
+            "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor", "ocrypt", "reset",
+            "fsck", "history"
         ];
 
         // Special condition for `tail -f`, which must be handled by JS for its async nature.
-        const usePython = pythonCommands.includes(commandName) && !(commandName === 'tail' && segment.args.includes('-f'));
+        const usePython = pythonCommands.includes(commandName) &&
+            !(commandName === 'tail' && segment.args.includes('-f')) &&
+            !(commandName === 'history' && !segment.args.includes('-c'));
 
         if (usePython) {
             if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
@@ -437,7 +440,7 @@ class CommandExecutor {
                             SoundManager.beep();
                             return ErrorHandler.createSuccess("");
                         }
-                        if (['execute_commands', 'write_binary_file', 'extract_archive', 'reboot', 'signal_job'].includes(result.effect)) {
+                        if (['execute_commands', 'write_binary_file', 'extract_archive', 'reboot', 'signal_job', 'clear_history'].includes(result.effect)) {
                             // Pass the entire result object through
                             return ErrorHandler.createSuccess(null, result);
                         }
@@ -626,6 +629,9 @@ class CommandExecutor {
                 } else if (lastResult.effect === "signal_job") {
                     const { job_id, signal } = lastResult;
                     this.sendSignalToJob(job_id, signal);
+                } else if (lastResult.effect === "clear_history") {
+                    const { HistoryManager } = this.dependencies;
+                    HistoryManager.clear();
                 } else if (lastResult.effect === "backup") {
                     const { content, fileName } = lastResult.effectData;
                     const blob = new Blob([content], { type: "application/json" });
