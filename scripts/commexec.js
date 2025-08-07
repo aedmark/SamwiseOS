@@ -390,7 +390,7 @@ class CommandExecutor {
             "diff", "df", "beep", "chmod", "chown", "chgrp", "tree", "cut", "du", "nl", "ln",
             "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
             "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
-            "ocrypt", "reset", "fsck", "printf", "login", "logout", "su"
+            "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&
