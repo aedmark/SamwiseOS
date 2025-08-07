@@ -1,141 +1,54 @@
-# SamwiseOS : **An OS for LLMs, by LLMs.**
+# SamwiseOS: An OS for Humans & AI
 
-Welcome, friend, to SamwiseOS! You're about to embark on an incredible journey into a world of productivity, creativity, and cutting-edge technology, all running right here in your browser. This guide is your trusted companion, your roadmap to becoming an SamwiseOS power-user. Let's dive in!
-## Recent Changes
-- **SamwiseOS Desktop Enhancement:** Enhanced the desktop app with functional file management, context menus, keyboard shortcuts, and proper windowed app support
-- **Brace Expansion Implementation:** Added shell brace expansion functionality supporting comma expansion and sequence expansion in the command preprocessing pipeline
-- **JSDoc Documentation:** Added comprehensive JSDoc comments to multiple SamwiseOS application files for better code documentation
-- **Modal Apps in Desktop Environment:** Fixed integration issues to allow modal apps (Paint, Editor, Basic) to run properly inside desktop windows
-- **File Content Loading Fix:** Resolved issue where files opened in desktop environment showed blank content due to incorrect data passing
+Welcome, collaborator, to SamwiseOS! You're about to dive into a unique, browser-based operating system designed from the ground up to be a shared environment where humans and AI can work together safely, creatively, and efficiently. Whether you're a developer, a writer, an artist, or just curious about the future of human-AI interaction, you've come to the right place.
 
-## Chapter 1: What is SamwiseOS?
+## Chapter 1: The Mission
 
-SamwiseOS is a complete, simulated operating system designed for the modern web. It's a love letter to the classic command-line interfaces of Unix-like systems, supercharged with a suite of powerful graphical applications and groundbreaking AI tools. Whether you're here to learn the ropes of the command line, write code, create art, play games, or collaborate on a project, SamwiseOS has something for you.
-## Chapter 2: Your First Steps - The Terminal
+SamwiseOS is more than just a simulated OS; it's an experiment in collaboration. Our core mission is to create a sandboxed framework where the strengths of human ingenuity and artificial intelligence can complement each other. We're in the process of migrating our core functionalities to Python, a language that AI understands as a native tongue, to enhance modularity, expand our feature set, and create a truly seamless bridge between user and machine.
 
-The heart of SamwiseOS is the **Terminal**. This is where you'll interact with the system by typing commands.
-### The Prompt
-When you first arrive, you'll see a line of text ending in `>`. This is the command prompt. It tells you who you are and where you are. By default, you are the `Guest` user in your home directory.
+## Chapter 2: The Command Line Interface
 
-`Guest@SamwiseOS:~$ >`
+The heart of SamwiseOS is its powerful and familiar **Terminal**. This is your primary interface for interacting with the system.
 
-- `Guest`: Your current username.
-- `SamwiseOS`: The system's hostname.
-- `~`: A shortcut for your home directory (`/home/Guest`).
-- `>`: The prompt symbol. If you were the `root` user, this would be a `#`.
+### Core Commands
 
-### Entering Commands
+-   **File & Directory Management:** `ls`, `cd`, `pwd`, `mkdir`, `touch`, `cp`, `mv`, `rm`, `rmdir`
+-   **User & Session Management:** `login`, `logout`, `su`, `passwd`, `useradd`, `removeuser`, `whoami`, `sudo`
+-   **System Utilities:** `help`, `man`, `history`, `ps`, `jobs`, `kill`, `clear`, `date`, `reboot`, `reset`
+-   **Text & Data Manipulation:** `cat`, `echo`, `grep`, `sort`, `uniq`, `wc`, `head`, `tail`, `diff`, `sed`, `awk`, `cut`, `tr`, `base64`, `cksum`, `xargs`, `printf`, `xor`
 
-Simply type a command and press **Enter**. For example, try this:
+## Chapter 3: The Application Suite
 
-```
-echo Hello, SamwiseOS!
-```
+SamwiseOS features a rich set of graphical and command-line applications designed to enhance your productivity and creativity.
 
-The system will respond by printing "Hello, SamwiseOS!" to the screen. Congratulations, you've just run your first command!
-### Getting Help
+### Graphical Applications
 
-Two essential commands will be your best friends:
+-   **`explore`**: A two-pane graphical file explorer with a directory tree and file view.
+-   **`edit [file]`**: A powerful text editor with live previews for Markdown and HTML, plus syntax highlighting for code.
+-   **`paint [file.oopic]`**: A full-screen, grid-based editor for creating ASCII and ANSI art.
+-   **`log ["entry"]`**: A personal, timestamped journal application with both a quick-add feature and a full UI.
+-   **`basic [file.bas]`**: A complete IDE for the Oopis Basic programming language.
+-   **`top`**: A real-time, dynamic view of all running background processes.
+-   **`adventure`**: An interactive text adventure game engine and creation tool.
 
-- `help`: Displays a list of all available commands.
-- `man <command>`: Shows the "manual page" for a specific command, giving you a detailed description and a list of all its options (e.g., `man ls`).
+### AI-Powered Tools
 
-## Chapter 3: The File System - Your Digital World
+-   **`gemini "<prompt>"`**: Your primary AI assistant. It can understand your files, use other OS commands to gather information, and answer your questions. Launch the interactive chat with `gemini -c`.
+-   **`chidi [path]`**: An AI-powered document and code analyst that can summarize, answer questions, and provide study suggestions for your files.
+-   **`remix <file1> <file2>`**: A creative AI tool that reads two documents and synthesizes a brand new article blending the key ideas from both.
+-   **`storyboard [path]`**: Analyzes a set of files to describe their collective purpose and structure in a narrative format.
+-   **`forge "<description>"`**: An AI-powered scaffolding tool that generates file content from a natural language description.
 
-SamwiseOS has its own virtual file system, just like any other OS. It's a tree-like structure of files and directories.
-### Key Concepts
+## Chapter 4: The Python Kernel 🐍
 
-- **Files**: Contain data, like text, code, or even art.
-- **Directories**: Containers that hold files and other directories.
-- **Path**: The address of a file or directory.
-    - **Absolute Path**: Starts from the root of the file system, `/`. Example: `/home/Guest/documents`.
-    - **Relative Path**: Starts from your current location. Example: `documents`.
-- **Special Directories**:
-    - `.` (dot): Represents your current directory.
-    - `..` (dot-dot): Represents the parent directory (one level up).
+To create a more robust and AI-friendly environment, we are transitioning many of our core commands and filesystem operations to a **Python-powered kernel**. This allows for:
 
-### Navigating the File System
+-   **Improved Modularity:** Cleaner, more maintainable code.
+-   **Expanded Feature Set:** Easily add powerful new commands.
+-   **Natural Language Synergy:** Leverage a language that AI models inherently understand, paving the way for more sophisticated tool-use and collaboration.
 
-These are the three most fundamental commands for moving around:
-- `pwd` (Print Working Directory): Shows you where you are right now.
-- `ls` (List): Lists the contents of the current directory. Try `ls -l` for a more detailed "long" view.
-- `cd` (Change Directory): Moves you to a different directory. `cd documents` moves you into the `documents` directory. `cd ..` moves you up one level. `cd /` takes you to the very top, the root directory.
-## Chapter 4: Core Commands - Your Toolkit
-
-Here is a categorized list of essential commands you'll use every day. Remember to use `man <command>` for more details!
-### File & Directory Management
-
-- `mkdir <name>`: Creates a new directory.
-- `touch <file>`: Creates a new, empty file or updates the timestamp of an existing one.
-- `cp <source> <destination>`: Copies a file or directory. Use `cp -r` for directories.
-- `mv <source> <destination>`: Moves or renames a file or directory.
-- `rm <file>`: Deletes a file. Use `rm -r` to delete a directory and all its contents (use with caution!).
-- `cat <file>`: Displays the entire content of a file.
-- `head <file>` / `tail <file>`: Displays the beginning or end of a file.
-### User & System Management
-
-- `whoami`: Shows your current username.
-- `login <user>`: Logs in as a different user, starting a fresh session.
-- `su <user>`: Switches to another user, stacking the session. Use `logout` to return.
-- `passwd`: Change your password.
-- `useradd <name>` / `removeuser <name>`: Create or delete user accounts (root only).
-- `ps` / `jobs`: List currently running background processes.
-- `kill <job_id>`: Stop a running background process.
-- `oopis-get`: The SamwiseOS package manager. Use `oopis-get install <package>` to add new commands and features to your system!
-- `reboot`: Restarts the SamwiseOS system.
-- `reset`: A powerful command to reset the _entire_ OS to its factory state. **Warning: This erases everything!**
-### Text Manipulation & Pipelines
-
-One of the most powerful features of a command line is the ability to chain commands together using the "pipe" (`|`) operator. The output of the first command becomes the input for the second!
-
-- `grep <pattern> <file>`: Searches for a pattern within a file.
-- `sort`: Sorts lines of text alphabetically or numerically.
-- `uniq`: Filters out repeated adjacent lines.
-- `wc`: Counts lines, words, and characters.
-- `cut`: Extracts sections from each line.
-- `sed`: A "stream editor" for find-and-replace operations.
-
-**Example Pipeline:** Find all unique error lines in a log file and count them.
-```
-cat system.log | grep "ERROR" | sort | uniq | wc -l
-```
-
-## Chapter 5: The Application Suite
-
-SamwiseOS isn't just a command line! Launch these powerful graphical applications by typing their name in the terminal.
-
-- `explore`: A two-pane graphical file explorer. Navigate with ease, and right-click on items for context-sensitive actions like creating, renaming, and deleting.
-- `edit [file]`: A powerful, context-aware text editor. It automatically enables live previews for Markdown (`.md`) and HTML (`.html`) files, and features syntax highlighting for code.
-- `paint [file.oopic]`: Unleash your creativity! `paint` is a full-screen, grid-based editor for creating amazing ASCII and ANSI art.
-- `adventure [file.json]`: Start an interactive text adventure game! Play the built-in game or use `adventure --create <file>` to build your own.
-- `log ["entry"]`: Your personal journal. Run it without arguments to open the full app, or pass a quick note in quotes to log it instantly.
-- `basic [file.bas]`: A complete IDE for the Oopis Basic programming language, with advanced functions that can interact with the OS itself.
-- `top`: A real-time, dynamic view of all running background processes.
-## Chapter 6: The OopisX Desktop Environment
-
-Ready to move beyond the command line? SamwiseOS features a full graphical user interface (GUI) called OopisX.
-
-To start it, simply type: `x`
-
-This will launch you into a familiar desktop environment complete with draggable application windows, a taskbar to manage them, and icons on your desktop for quick access to your files. Double-click an icon to open it with its default application. This is the perfect way to manage multiple tasks and enjoy a more visual workflow. To exit the GUI, simply close the "Desktop Manager" window.
-## Chapter 7: The AI Revolution in SamwiseOS
-
-SamwiseOS integrates next-generation AI to make you more productive and creative.
-
-- `gemini "<prompt>"`: This is your primary AI assistant. It can understand your files and use other OS commands to gather information and answer your questions.
-    - **Example**: `gemini "Summarize my README.md and list any scripts in this directory"`
-    - **Chat Mode**: Use `gemini -c` to launch a full-screen, interactive chat application.
-- `chidi [path]`: The AI-powered document analyst. Launch it on a file or directory to get summaries, ask questions about the content, and get study suggestions. It's like having a research assistant built right into your OS.
-- `remix <file1> <file2>`: A creative AI tool that reads two documents and synthesizes a brand new article blending the key ideas from both sources.
+This migration is a key step toward our goal of making SamwiseOS the premier platform for human-AI teamwork.
 
 ---
-# Closing
 
-This guide is just the beginning. The best way to learn is by doing. Explore the file system, try out the commands, write a script, create some art, and build an adventure.
-
-SamwiseOS is your oyster.
-
-We're so excited to see what you'll create!
-
-Welcome to the committee.
-Welcome to SamwiseOS.
+Welcome to the committee. **Welcome to SamwiseOS.**
