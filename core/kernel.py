@@ -3,16 +3,16 @@
 from executor import command_executor
 from filesystem import fs_manager
 from session import env_manager, history_manager, alias_manager, session_manager
-from groups import group_manager
+from users import user_manager # [MODIFIED]
 import json
 
-# Expose the new group manager
+# [MODIFIED] Expose the new user manager
 __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "get_node_json", "check_permission", "get_node_size",
            "validate_path_json", "write_file", "create_directory",
            "rename_node", "execute_command", "command_executor",
            "env_manager", "history_manager", "alias_manager", "session_manager",
-           "group_manager"]
+           "group_manager", "user_manager"]
 
 
 def initialize_kernel(save_function):
