@@ -194,7 +194,7 @@ class Command {
             }
 
             const pathArg = args[index];
-            const pathValidationResult = FileSystemManager.validatePath(pathArg, rule.options || {});
+            const pathValidationResult = await FileSystemManager.validatePath(pathArg, rule.options || {});
 
             if (!pathValidationResult.success) {
                 return ErrorHandler.createError(pathValidationResult.error);
