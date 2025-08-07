@@ -390,7 +390,7 @@ class CommandExecutor {
             "diff", "df", "beep", "chmod", "chown", "chgrp", "tree", "cut", "du", "nl", "ln",
             "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
             "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
-            "ocrypt", "reset", "fsck", "printf"
+            "ocrypt", "reset", "fsck", "printf", "login", "logout", "su"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&
@@ -429,6 +429,31 @@ class CommandExecutor {
                 try {
                     const result = JSON.parse(resultJson);
                     if (result.success) {
+                        // [MODIFIED] Handle new session effects from Python
+                        if (result.effect === 'login') {
+                            return await UserManager.login(result.username, result.password, execCtxOpts);
+                        }
+                        if (result.effect === 'logout') {
+                            const logoutResult = await UserManager.logout();
+                            if (logoutResult.success && logoutResult.data?.isLogout) {
+                                return ErrorHandler.createSuccess(
+                                    `${Config.MESSAGES.WELCOME_PREFIX} ${logoutResult.data.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`,
+                                    { effect: "clear_screen" }
+                                );
+                            }
+                            return logoutResult;
+                        }
+                        if (result.effect === 'su') {
+                            const suResult = await UserManager.su(result.username, result.password, execCtxOpts);
+                            if (suResult.success && !suResult.data?.noAction) {
+                                return ErrorHandler.createSuccess(
+                                    `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`,
+                                    { effect: "clear_screen" }
+                                );
+                            }
+                            return suResult;
+                        }
+
                         if (result.effect === 'clear_screen') {
                             return ErrorHandler.createSuccess(null, { effect: "clear_screen" });
                         }
