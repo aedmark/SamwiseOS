@@ -440,7 +440,11 @@ class CommandExecutor {
                             SoundManager.beep();
                             return ErrorHandler.createSuccess("");
                         }
-                        if (['execute_commands', 'write_binary_file', 'extract_archive', 'reboot', 'signal_job', 'clear_history'].includes(result.effect)) {
+                        const effectsToPassThrough = [
+                            'execute_commands', 'write_binary_file', 'extract_archive',
+                            'reboot', 'signal_job', 'clear_history', 'full_reset'
+                        ];
+                        if (effectsToPassThrough.includes(result.effect)) {
                             // Pass the entire result object through
                             return ErrorHandler.createSuccess(null, result);
                         }
@@ -1128,7 +1132,7 @@ class CommandExecutor {
         }
 
         if (isInteractive && !scriptingContext) {
-            await this._finalizeInteractiveModeUI(rawCommandText);
+            await this._finalizeInteractiveModeUI(originalCommandText);
         }
 
         return {
