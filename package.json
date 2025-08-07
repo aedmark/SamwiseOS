@@ -20,7 +20,7 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
+    "dist": "electron-builder"
   },
   "build": {
     "appId": "com.samwiseos.app",
@@ -46,10 +46,11 @@
     "@eslint/js": "^9.31.0",
     "electron": "^37.2.0",
     "electron-builder": "^26.0.12",
-    "globals": "^16.3.0",
+    "globals": "^16.3.0"
   },
   "dependencies": {
     "pyodide": "^0.28.1",
+    "pytest": "^1.0.0",
     "ws": "^8.18.3"
   }
 }
