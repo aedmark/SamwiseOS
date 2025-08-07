@@ -273,27 +273,15 @@ class AliasManager {
 
 /**
  * @class SessionManager
- * @classdesc Manages user sessions, including login, logout, su, and state persistence.
+ * @classdesc [MODIFIED] Manages user sessions, delegating stack management to Python.
+ * State persistence (saving/loading screen state) remains in JavaScript.
  */
 class SessionManager {
     /**
      * Initializes the SessionManager.
      */
     constructor() {
-        /**
-         * A stack of usernames to manage 'su' sessions.
-         * @type {string[]}
-         */
-        this.userSessionStack = [];
-        /**
-         * A cache of key DOM elements.
-         * @type {object}
-         */
         this.elements = {};
-        /**
-         * A container for dependency injection.
-         * @type {object}
-         */
         this.dependencies = {};
         this.config = null;
         this.fsManager = null;
@@ -302,6 +290,13 @@ class SessionManager {
         this.outputManager = null;
         this.terminalUI = null;
         this.storageManager = null;
+    }
+
+    _getManager() {
+        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
+            return OopisOS_Kernel.sessionManager;
+        }
+        throw new Error("Python kernel for SessionManager is not available.");
     }
 
     /**
@@ -320,74 +315,65 @@ class SessionManager {
         this.storageManager = dependencies.StorageManager;
     }
 
-    /**
-     * Initializes the user session stack with the default user.
-     */
     initializeStack() {
-        this.userSessionStack = [this.config.USER.DEFAULT_NAME];
-    }
-
-    /**
-     * Gets the current user session stack.
-     * @returns {string[]} The session stack.
-     */
-    getStack() {
-        return this.userSessionStack;
-    }
-
-    /**
-     * Pushes a new user onto the session stack (for 'su').
-     * @param {string} username - The username to push.
-     */
-    pushUserToStack(username) {
-        this.userSessionStack.push(username);
-    }
-
-    /**
-     * Pops a user from the session stack (for 'logout').
-     * @returns {string|null} The popped username, or null if it's the base session.
-     */
-    popUserFromStack() {
-        if (this.userSessionStack.length > 1) {
-            return this.userSessionStack.pop();
+        try {
+            this._getManager().clear(this.config.USER.DEFAULT_NAME);
+        } catch (e) {
+            console.error("Failed to initialize session stack in Python:", e);
         }
-        return null;
     }
 
-    /**
-     * Gets the current user from the top of the session stack.
-     * @returns {string} The current username.
-     */
+    getStack() {
+        try {
+            const pyProxy = this._getManager().get_stack();
+            const jsArray = pyProxy.toJs();
+            pyProxy.destroy();
+            return jsArray;
+        } catch (e) {
+            console.error("Failed to get session stack from Python:", e);
+            return [];
+        }
+    }
+
+    pushUserToStack(username) {
+        try {
+            this._getManager().push(username);
+        } catch (e) {
+            console.error("Failed to push user to session stack in Python:", e);
+        }
+    }
+
+    popUserFromStack() {
+        try {
+            return this._getManager().pop();
+        } catch (e) {
+            console.error("Failed to pop user from session stack in Python:", e);
+            return null;
+        }
+    }
+
     getCurrentUserFromStack() {
-        return this.userSessionStack.length > 0
-            ? this.userSessionStack[this.userSessionStack.length - 1]
-            : this.config.USER.DEFAULT_NAME;
+        try {
+            return this._getManager().get_current_user();
+        } catch (e) {
+            console.error("Failed to get current user from session stack in Python:", e);
+            return this.config.USER.DEFAULT_NAME;
+        }
     }
 
-    /**
-     * Clears the session stack and starts a new one with the given user (for 'login').
-     * @param {string} username - The username for the new session.
-     */
     clearUserStack(username) {
-        this.userSessionStack = [username];
+        try {
+            this._getManager().clear(username);
+        } catch (e) {
+            console.error("Failed to clear session stack in Python:", e);
+        }
     }
 
-    /**
-     * Gets the storage key for a user's automatic session state.
-     * @private
-     * @param {string} user - The username.
-     * @returns {string} The storage key.
-     */
+    // ... (All save/load state methods like saveAutomaticState, loadAutomaticState, etc., remain unchanged) ...
     _getAutomaticSessionStateKey(user) {
         return `${this.config.STORAGE_KEYS.USER_TERMINAL_STATE_PREFIX}${user}`;
     }
 
-    /**
-     * Gets the storage key for a user's manually saved state.
-     * @private
-     * @param {string|object} user - The username or user object.
-     * @returns {string} The storage key.
-     */
     _getManualUserTerminalStateKey(user) {
         const userName =
             typeof user === "object" && user !== null && user.name
@@ -396,10 +382,6 @@ class SessionManager {
         return `${this.config.STORAGE_KEYS.MANUAL_TERMINAL_STATE_PREFIX}${userName}`;
     }
 
-    /**
-     * Saves the current terminal state (output, input, history, env vars) for a user.
-     * @param {string} username - The username for which to save the state.
-     */
     saveAutomaticState(username) {
         if (!username) {
             console.warn(
@@ -425,11 +407,6 @@ class SessionManager {
         );
     }
 
-    /**
-     * Loads a user's automatic session state into the terminal.
-     * @param {string} username - The username whose state to load.
-     * @returns {boolean} True if a state was loaded, false otherwise.
-     */
     async loadAutomaticState(username) {
         if (!username) {
             console.warn(
@@ -508,10 +485,6 @@ class SessionManager {
         return !!autoState;
     }
 
-    /**
-     * Manually saves the entire system state, including the filesystem.
-     * @returns {Promise<object>} A promise that resolves with a success or error object.
-     */
     async saveManualState() {
         const currentUser = this.userManager.getCurrentUser();
         const currentInput = this.terminalUI.getCurrentInputValue();
@@ -547,11 +520,6 @@ class SessionManager {
             };
     }
 
-    /**
-     * Loads a manually saved system state, prompting the user for confirmation.
-     * @param {object} [options={}] - Command execution options.
-     * @returns {Promise<object>} A promise that resolves with a result object.
-     */
     async loadManualState(options = {}) {
         const currentUser = this.userManager.getCurrentUser();
         const manualStateData = this.storageManager.loadItem(
@@ -645,11 +613,6 @@ class SessionManager {
         });
     }
 
-    /**
-     * Clears all session and credential data for a specific user from storage.
-     * @param {string} username - The username whose data to clear.
-     * @returns {boolean} True if clearing was successful, false otherwise.
-     */
     clearUserSessionStates(username) {
         if (!username || typeof username !== "string") {
             console.warn(
@@ -681,10 +644,6 @@ class SessionManager {
         }
     }
 
-    /**
-     * Performs a full system reset, clearing all local storage and IndexedDB data.
-     * @returns {Promise<void>}
-     */
     async performFullReset() {
         const { IndexedDBManager } = this.dependencies;
         this.outputManager.clearOutput();

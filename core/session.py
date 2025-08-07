@@ -87,7 +87,32 @@ class AliasManager:
     def load_aliases(self, alias_dict):
         self.aliases = alias_dict.copy()
 
+class SessionManager:
+    """Manages the user session stack."""
+    def __init__(self):
+        self.user_session_stack = ["Guest"] # Start with default user
+
+    def get_stack(self):
+        return self.user_session_stack
+
+    def push(self, username):
+        self.user_session_stack.append(username)
+        return self.user_session_stack
+
+    def pop(self):
+        if len(self.user_session_stack) > 1:
+            return self.user_session_stack.pop()
+        return None
+
+    def get_current_user(self):
+        return self.user_session_stack[-1] if self.user_session_stack else "Guest"
+
+    def clear(self, username):
+        self.user_session_stack = [username]
+        return self.user_session_stack
+
 # Instantiate singletons that will be exposed to JavaScript
 env_manager = EnvironmentManager()
 history_manager = HistoryManager()
 alias_manager = AliasManager()
+session_manager = SessionManager() # Create an instance of the new manager

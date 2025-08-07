@@ -116,6 +116,7 @@ const OopisOS_Kernel = {
             this.envManager = this.kernel.env_manager;
             this.historyManager = this.kernel.history_manager;
             this.aliasManager = this.kernel.alias_manager;
+            this.sessionManager = this.kernel.session_manager;
 
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
