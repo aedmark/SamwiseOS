@@ -392,7 +392,7 @@ class CommandExecutor {
             "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
             "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su",
             "useradd", "usermod", "passwd", "removeuser", "sudo", "visudo", "gemini", "chidi", "remix",
-            "storyboard"
+            "storyboard", "forge"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&

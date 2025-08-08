@@ -85,6 +85,7 @@ const OopisOS_Kernel = {
                 '/core/commands/comm.py': './core/commands/comm.py',
                 '/core/commands/shuf.py': './core/commands/shuf.py',
                 '/core/commands/storyboard.py': './core/commands/storyboard.py',
+                '/core/commands/forge.py': './core/commands/forge.py',
                 '/core/commands/csplit.py': './core/commands/csplit.py',
                 '/core/commands/awk.py': './core/commands/awk.py',
                 '/core/commands/expr.py': './core/commands/expr.py',
@@ -177,6 +178,17 @@ const OopisOS_Kernel = {
         }
         try {
             return this.kernel.create_directory(path, jsContextJson);
+        } catch (error) {
+            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
+        }
+    },
+
+    chidi_analysis(jsContextJson, filesContext, analysisType, question = null) {
+        if (!this.isReady || !this.kernel) {
+            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
+        }
+        try {
+            return this.kernel.chidi_analysis(jsContextJson, filesContext, analysisType, question);
         } catch (error) {
             return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
         }

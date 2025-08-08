@@ -118,3 +118,18 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
         return command_executor.execute(command_string, stdin_data)
     except Exception as e:
         return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}"})
+
+def chidi_analysis(js_context_json: str, files_context: str, analysis_type: str, question: str = None) -> str:
+    """Handles AI analysis requests from the Chidi JS app."""
+    try:
+        js_context = json.loads(js_context_json)
+        api_key = js_context.get("api_key")
+        provider = js_context.get("provider", "gemini")
+        model = js_context.get("model")
+
+        result = ai_manager.perform_chidi_analysis(
+            files_context, analysis_type, question, provider, model, api_key
+        )
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": f"Python Kernel Error in Chidi analysis: {repr(e)}"})

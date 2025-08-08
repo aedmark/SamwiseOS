@@ -200,3 +200,29 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             return {"success": True, "data": result.get("answer", "")}
         else:
             return result
+
+    def perform_chidi_analysis(self, files_context, analysis_type, question=None, provider="gemini", model=None, api_key=None):
+        """
+        Performs a specific analysis (summarize, study, ask) on a set of files.
+        """
+        CHIDI_SYSTEM_PROMPT = "You are Chidi, an AI-powered document analyst. Your answers MUST be based *only* on the provided document context. If the answer is not in the documents, state that clearly. Be concise and helpful."
+
+        if analysis_type == 'summarize':
+            user_prompt = f"Please provide a concise summary of the following document:\n\n---\n\n{files_context}"
+        elif analysis_type == 'study':
+            user_prompt = f"Based on the following document, what are some insightful questions a user might ask?\n\n---\n\n{files_context}"
+        elif analysis_type == 'ask':
+            full_prompt = f"Based on the provided document context, answer the following question: \"{question}\"\n\n--- DOCUMENT CONTEXT ---\n{files_context}\n--- END DOCUMENT CONTEXT ---"
+        else:
+            return {"success": False, "error": "Invalid analysis type specified."}
+
+        if analysis_type != 'ask':
+            full_prompt = f"{user_prompt}"
+
+        conversation = [{"role": "user", "parts": [{"text": full_prompt}]}]
+        result = self._call_llm_api(provider, model, conversation, api_key, CHIDI_SYSTEM_PROMPT)
+
+        if result.get("success"):
+            return {"success": True, "data": result.get("answer", "No analysis generated.")}
+        else:
+            return result
