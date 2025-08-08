@@ -26,11 +26,15 @@ class AIManager:
 --- TOOL MANIFEST ---
 ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -type [f|d], tree, pwd, head [-n], tail [-n], wc, touch, xargs, shuf, tail, csplit, awk, sort, echo, man, help, set, history, mkdir, forge,
 --- END MANIFEST ---"""
+
+        self.FORGE_SYSTEM_PROMPT = "You are an expert file generator. Your task is to generate the raw content for a file based on the user's description. Respond ONLY with the raw file content itself. Do not include explanations, apologies, or any surrounding text like ```language ...``` or 'Here is the content you requested:'."
+
         self.SYNTHESIZER_SYSTEM_PROMPT = """You are a helpful digital librarian. Your task is to synthesize a final, natural-language answer for the user based on their original prompt and the provided output from a series of commands.
 
 **Rules:**
 - Formulate a comprehensive answer using only the provided command outputs.
 - If the tool context is insufficient to answer the question, state that you don't know enough to answer."""
+
         self.COMMAND_WHITELIST = [
             "ls", "cat", "cd", "grep", "find", "tree", "pwd", "head", "shuf",
             "xargs", "echo", "tail", "csplit", "wc", "awk", "sort", "touch",
@@ -182,5 +186,17 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         if result.get("success"):
             return {"success": True, "data": result.get("answer", "No summary generated.")}
+        else:
+            return result
+
+    def perform_forge(self, description, provider, model, api_key):
+        """
+        Generates file content from a description using an LLM.
+        """
+        conversation = [{"role": "user", "parts": [{"text": description}]}]
+        result = self._call_llm_api(provider, model, conversation, api_key, self.FORGE_SYSTEM_PROMPT)
+
+        if result.get("success"):
+            return {"success": True, "data": result.get("answer", "")}
         else:
             return result

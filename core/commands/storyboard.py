@@ -49,35 +49,50 @@ def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=Non
         return {"success": False, "error": "AI Manager is not available."}
 
     files_to_analyze = []
-    # ... (Logic to gather files from args or stdin_data will go here) ...
 
-    # For now, let's assume we gather files correctly.
-    # The main part is calling the new AI Manager function.
-
-    # This is a simplified stand-in for file gathering for now.
-    start_path_arg = args[0] if args else "."
-    start_path = fs_manager.get_absolute_path(start_path_arg)
-    files_to_analyze = _get_files_for_analysis(start_path, user_context)
+    if stdin_data:
+        # Piped Mode
+        paths_from_pipe = stdin_data.strip().splitlines()
+        for path in paths_from_pipe:
+            if not path.strip(): continue
+            node = fs_manager.get_node(path)
+            if not node or node.get('type') != 'file': continue # Skip invalid paths
+            _, ext = os.path.splitext(path)
+            if ext.lower() in SUPPORTED_EXTENSIONS:
+                files_to_analyze.append({
+                    "name": os.path.basename(path),
+                    "path": path,
+                    "content": node.get('content', '')
+                })
+    elif args:
+        # Path Argument Mode
+        start_path_arg = args[0]
+        start_path = fs_manager.get_absolute_path(start_path_arg)
+        files_to_analyze = _get_files_for_analysis(start_path, user_context)
+    else:
+        # Default to current directory if no args and no pipe
+        start_path = fs_manager.get_absolute_path(".")
+        files_to_analyze = _get_files_for_analysis(start_path, user_context)
+    # --- END CORRECTION ---
 
     if not files_to_analyze:
         return "No supported files found to analyze."
 
-    # Calling the new, dedicated function in our Python AI Manager
     result = ai_manager.perform_storyboard(
         files_to_analyze,
-        flags.get('--mode', 'code'),
-        flags.get('--summary', False),
-        flags.get('--ask'),
-        flags.get('--provider', 'gemini'),
-        flags.get('--model'),
-        api_key
+        mode=flags.get('--mode', 'code'),
+        is_summary=flags.get('--summary', False),
+        question=flags.get('--ask'),
+        provider=flags.get('--provider', 'gemini'),
+        model=flags.get('--model'),
+        api_key=api_key
     )
 
-    if result["success"]:
+    if result.get("success"):
         return {
             "effect": "display_prose",
             "header": "### Project Storyboard",
-            "content": result["data"]
+            "content": result.get("data")
         }
     else:
         return result
