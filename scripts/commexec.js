@@ -393,7 +393,7 @@ class CommandExecutor {
             "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su",
             "useradd", "usermod", "passwd", "removeuser", "sudo", "visudo", "gemini", "chidi", "remix",
             "storyboard", "forge", "edit", "explore", "log", "paint", "top", "basic", "adventure", "find",
-            "sort"
+            "sort", "cd", "jobs"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&

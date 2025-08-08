@@ -124,6 +124,8 @@ const OopisOS_Kernel = {
                 '/core/commands/adventure.py': './core/commands/adventure.py',
                 '/core/commands/find.py': './core/commands/find.py',
                 '/core/commands/sort.py': './core/commands/sort.py',
+                '/core/commands/cd.py': './core/commands/cd.py',
+                '/core/commands/jobs.py': './core/commands/jobs.py',
                 '/core/commands/__init__.py': null
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
