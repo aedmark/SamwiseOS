@@ -1,6 +1,6 @@
 # gem/core/commands/gemini.py
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None, ai_manager=None):
+def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     """
     Engages in a context-aware conversation with a configured AI model.
     """
@@ -25,7 +25,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     # For now, we'll just pass through. The real logic will be in AIManager.
     # We'll need to pass conversation history and other context from JS.
-    result = ai_manager.perform_agentic_search(user_prompt, [], flags.get('--provider', 'gemini'), flags.get('--model'), {})
+    result = ai_manager.perform_agentic_search(user_prompt, [], flags.get('--provider', 'gemini'), flags.get('--model'), {"apiKey": api_key})
 
     if result["success"]:
         return result["data"]

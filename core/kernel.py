@@ -1,20 +1,24 @@
-# gem/core/kernel.py
+# /core/kernel.py
 
 from executor import command_executor
 from filesystem import fs_manager
 from session import env_manager, history_manager, alias_manager, session_manager
 from groups import group_manager
 from users import user_manager
-from sudo import SudoManager # [MODIFIED]
+from sudo import SudoManager
+from ai_manager import AIManager
 import json
+
 sudo_manager = SudoManager(fs_manager)
-# [MODIFIED] Expose the new user manager
+ai_manager = AIManager(fs_manager, command_executor)
+
+# Expose the new managers
 __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "get_node_json", "check_permission", "get_node_size",
            "validate_path_json", "write_file", "create_directory",
            "rename_node", "execute_command", "command_executor",
            "env_manager", "history_manager", "alias_manager", "session_manager",
-           "group_manager", "user_manager",  "sudo_manager"]
+           "group_manager", "user_manager",  "sudo_manager", "ai_manager"]
 
 
 def initialize_kernel(save_function):
@@ -100,7 +104,17 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
-        command_executor.set_context(js_context.get("user_context"), js_context.get("users"), js_context.get("user_groups"), js_context.get("config"), js_context.get("groups"), js_context.get("jobs"))
+        # Pass the ai_manager instance to the executor
+        command_executor.set_context(
+            js_context.get("user_context"),
+            js_context.get("users"),
+            js_context.get("user_groups"),
+            js_context.get("config"),
+            js_context.get("groups"),
+            js_context.get("jobs"),
+            ai_manager,
+        js_context.get("api_key")
+        )
         return command_executor.execute(command_string, stdin_data)
     except Exception as e:
         return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}"})

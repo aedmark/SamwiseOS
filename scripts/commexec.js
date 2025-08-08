@@ -391,7 +391,7 @@ class CommandExecutor {
             "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
             "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
             "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su",
-            "useradd", "usermod", "passwd", "removeuser", "sudo", "visudo"
+            "useradd", "usermod", "passwd", "removeuser", "sudo", "visudo", "gemini", "chidi"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&
@@ -412,16 +412,17 @@ class CommandExecutor {
                     }
                 }
 
+                const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+
                 const jsContext = {
                     current_path: FileSystemManager.getCurrentPath(),
                     user_context: { name: UserManager.getCurrentUser().name },
                     users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}),
-                    user_groups: userGroups,
-                    groups: GroupManager.groups,
+                    user_groups: {}, // This will be populated by the loop below
+                    groups: GroupManager.getAllGroups(),
                     jobs: this.activeJobs,
-                    config: {
-                        MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE
-                    }
+                    config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+                    api_key: apiKey
                 };
                 const jsContextJson = JSON.stringify(jsContext);
 
@@ -482,6 +483,15 @@ class CommandExecutor {
                             const { SoundManager } = this.dependencies;
                             SoundManager.beep();
                             return ErrorHandler.createSuccess("");
+                        }
+                        if (result.effect === 'display_prose') {
+                            const { header = '', content = '' } = result;
+                            const finalHtml = DOMPurify.sanitize(marked.parse(content));
+                            const fullOutput = header ? `${header}${finalHtml}` : finalHtml;
+                            return this.dependencies.ErrorHandler.createSuccess(
+                                fullOutput,
+                                { asBlock: true, messageType: 'prose-output' }
+                            );
                         }
                         const effectsToPassThrough = [
                             'execute_commands', 'write_binary_file', 'extract_archive',

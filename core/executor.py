@@ -10,7 +10,6 @@ import os
 class CommandExecutor:
     def __init__(self):
         self.fs_manager = fs_manager
-        # [MODIFIED] Commands are now discovered dynamically
         self.commands = self._discover_commands()
         self.user_context = {"name": "Guest"}
         self.users = {}
@@ -18,6 +17,8 @@ class CommandExecutor:
         self.config = {}
         self.groups = {}
         self.jobs = {}
+        self.ai_manager = None
+        self.api_key = None
 
     def _discover_commands(self):
         """Dynamically finds all available command modules."""
@@ -31,6 +32,8 @@ class CommandExecutor:
         self.config = config if config else {}
         self.groups = groups if groups else {}
         self.jobs = jobs if jobs else {}
+        self.ai_manager = ai_manager
+        self.api_key = api_key
         """Sets the current user context from the JS side."""
         self.user_context = user_context if user_context else {"name": "Guest"}
 
@@ -92,6 +95,8 @@ class CommandExecutor:
                 "config": self.config,
                 "groups": self.groups,
                 "jobs": self.jobs,
+                "ai_manager": self.ai_manager,
+                "api_key": self.api_key
             }
 
             sig = inspect.signature(run_func)
