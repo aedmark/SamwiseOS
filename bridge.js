@@ -119,6 +119,9 @@ const OopisOS_Kernel = {
                 '/core/commands/explore.py': './core/commands/explore.py',
                 '/core/commands/log.py': './core/commands/log.py',
                 '/core/commands/paint.py': './core/commands/paint.py',
+                '/core/commands/top.py': './core/commands/top.py',
+                '/core/commands/basic.py': './core/commands/basic.py',
+                '/core/commands/adventure.py': './core/commands/adventure.py',
                 '/core/commands/__init__.py': null
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
