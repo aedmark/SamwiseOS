@@ -33,7 +33,6 @@ class EnvironmentManager:
         return self._get_active_env()
 
     def load(self, vars_dict):
-        # [MODIFIED] Convert incoming JsProxy to a native Python dictionary
         native_dict = vars_dict.to_py() if hasattr(vars_dict, 'to_py') else vars_dict
         self.env_stack[-1] = native_dict.copy()
 
@@ -41,7 +40,7 @@ class HistoryManager:
     """Manages command history."""
     def __init__(self):
         self.command_history = []
-        self.max_history_size = 50 # Default, can be configured from JS
+        self.max_history_size = 50
 
     def add(self, command):
         trimmed = command.strip()
@@ -59,8 +58,8 @@ class HistoryManager:
         return True
 
     def set_history(self, new_history):
+        # The object from JS might be a PyProxy, so we convert it to a Python list
         self.command_history = list(new_history)
-        # Apply truncation if needed
         if len(self.command_history) > self.max_history_size:
             self.command_history = self.command_history[-self.max_history_size:]
         return True
@@ -87,14 +86,13 @@ class AliasManager:
         return self.aliases
 
     def load_aliases(self, alias_dict):
-        # [MODIFIED] Convert incoming JsProxy to a native Python dictionary
         native_dict = alias_dict.to_py() if hasattr(alias_dict, 'to_py') else alias_dict
         self.aliases = native_dict.copy()
 
 class SessionManager:
-    """Manages the user session stack."""
+    """Manages the user session stack and orchestrates saving/loading session state."""
     def __init__(self):
-        self.user_session_stack = ["Guest"] # Start with default user
+        self.user_session_stack = ["Guest"]
 
     def get_stack(self):
         return self.user_session_stack
@@ -114,6 +112,35 @@ class SessionManager:
     def clear(self, username):
         self.user_session_stack = [username]
         return self.user_session_stack
+
+    def get_session_state_for_saving(self):
+        """
+        Gathers all relevant session state from the Python managers
+        and returns it as a JSON string, ready to be saved by the JS side.
+        """
+        state = {
+            "commandHistory": history_manager.get_full_history(),
+            "environmentVariables": env_manager.get_all(),
+            "aliases": alias_manager.get_all_aliases(),
+        }
+        return json.dumps(state)
+
+    def load_session_state(self, state_json):
+        """
+        Takes a JSON string of session state from the JS side
+        and loads it into the appropriate Python managers.
+        """
+        try:
+            state = json.loads(state_json)
+            history_manager.set_history(state.get("commandHistory", []))
+            env_manager.load(state.get("environmentVariables", {}))
+            alias_manager.load_aliases(state.get("aliases", {}))
+            return True
+        except (json.JSONDecodeError, TypeError):
+            history_manager.clear_history()
+            env_manager.load({})
+            alias_manager.load_aliases({})
+            return False
 
 # Instantiate singletons that will be exposed to JavaScript
 env_manager = EnvironmentManager()

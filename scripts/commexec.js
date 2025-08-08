@@ -1,10 +1,10 @@
-// scripts/commexec.js
+// gem/scripts/commexec.js
 
 /**
- * The central nervous system of OopisOS. This class is responsible for taking a raw
- * command string, parsing it, resolving aliases and variables, and executing
- * the resulting command pipeline, managing everything from input redirection
- * to background jobs. It's the director, producer, and craft services all in one.
+ * [REFACTORED] The central nervous system of OopisOS. This class has been refactored
+ * to act as a bridge to the Python kernel's command executor. It is now responsible for
+ * gathering context, passing the raw command string to Python, and handling any UI/session
+ * "effects" returned by the Python kernel.
  * @class CommandExecutor
  */
 class CommandExecutor {
@@ -49,13 +49,8 @@ class CommandExecutor {
         this.dependencies = dependencies;
     }
 
-    /**
-     * Dynamically loads a JavaScript script from the filesystem.
-     * This is how we get all our cool new commands!
-     * @private
-     * @param {string} scriptPath - The path to the script file.
-     * @returns {Promise<boolean>} A promise that resolves to true on success.
-     */
+    // _loadScript and _ensureCommandLoaded are kept to support any JS commands
+    // that have not yet been migrated to Python.
     _loadScript(scriptPath) {
         if (this.loadedScripts.has(scriptPath)) {
             return Promise.resolve(true);
@@ -75,13 +70,6 @@ class CommandExecutor {
         });
     }
 
-    /**
-     * Ensures that a command is loaded and ready to be executed.
-     * If a command isn't already in memory, it fetches its script and any declared dependencies.
-     * @private
-     * @param {string} commandName - The name of the command.
-     * @returns {Promise<Command|null>} A promise that resolves to the command instance or null if it fails to load.
-     */
     async _ensureCommandLoaded(commandName) {
         const { Config, OutputManager, CommandRegistry, FileSystemManager } = this.dependencies;
         if (!commandName || typeof commandName !== "string") return null;
@@ -152,127 +140,6 @@ class CommandExecutor {
     }
 
     /**
-     * Creates a command handler function from a command definition.
-     * This is like a movie director who plans out every shot before filming begins.
-     * @private
-     * @param {object} definition - The command's definition object.
-     * @returns {Function} An async function that handles command execution.
-     */
-    _createCommandHandler(definition) {
-        const handler = async (args, options) => {
-            const { Utils, ErrorHandler, FileSystemManager, UserManager } = this.dependencies;
-            const { flags, remainingArgs } = Utils.parseFlags(
-                args,
-                definition.flagDefinitions || []
-            );
-            const currentUser = UserManager.getCurrentUser().name;
-
-            if (definition.validations) {
-                if (definition.validations.args) {
-                    const argValidation = Utils.validateArguments(
-                        remainingArgs,
-                        definition.validations.args
-                    );
-                    if (!argValidation.isValid) {
-                        return ErrorHandler.createError(
-                            `${definition.commandName}: ${argValidation.errorDetail}`
-                        );
-                    }
-                }
-
-                if (definition.validations.paths) {
-                    const validatedPaths = [];
-                    for (const rule of definition.validations.paths) {
-                        const indices =
-                            rule.argIndex === "all"
-                                ? remainingArgs.map((_, i) => i)
-                                : [rule.argIndex];
-
-                        for (const index of indices) {
-                            if (index >= remainingArgs.length) {
-                                if (rule.options?.required !== false) {
-                                    return ErrorHandler.createError(
-                                        `${definition.commandName}: missing path argument.`
-                                    );
-                                }
-                                continue;
-                            }
-                            const pathArg = remainingArgs[index];
-                            const pathValidationResult = await FileSystemManager.validatePath(
-                                pathArg,
-                                rule.options || {}
-                            );
-
-                            if (!pathValidationResult.success) {
-                                if (definition.commandName === 'cd' && pathValidationResult.error.includes('Is not a directory')) {
-                                    return ErrorHandler.createError({
-                                        message: `cd: ${pathValidationResult.error}`,
-                                        suggestion: "Use 'cat' or 'edit' to view or modify file contents."
-                                    });
-                                }
-                                return ErrorHandler.createError(
-                                    `${definition.commandName}: ${pathValidationResult.error}`
-                                );
-                            }
-
-                            const { node, resolvedPath } = pathValidationResult.data;
-
-                            if (rule.permissionsOnParent) {
-                                const parentPath =
-                                    resolvedPath.substring(0, resolvedPath.lastIndexOf("/")) ||
-                                    "/";
-                                const parentValidation = await FileSystemManager.validatePath(
-                                    parentPath,
-                                    { permissions: rule.permissionsOnParent }
-                                );
-                                if (!parentValidation.success) {
-                                    return ErrorHandler.createError(
-                                        `${definition.commandName}: ${parentValidation.error}`
-                                    );
-                                }
-                            }
-
-                            if (rule.options && rule.options.ownershipRequired && node) {
-                                if (!FileSystemManager.canUserModifyNode(node, currentUser)) {
-                                    return ErrorHandler.createError(
-                                        `${definition.commandName}: changing permissions of '${pathArg}': Operation not permitted`
-                                    );
-                                }
-                            }
-
-                            validatedPaths.push({
-                                arg: pathArg,
-                                node,
-                                resolvedPath,
-                            });
-                        }
-                    }
-                    options.validatedPaths = validatedPaths;
-                }
-            }
-
-            const commandDependencies = { ...this.dependencies };
-
-            if (definition.applicationModules && Array.isArray(definition.applicationModules)) {
-                for (const moduleName of definition.applicationModules) {
-                    if (window[moduleName]) {
-                        commandDependencies[moduleName] = window[moduleName];
-                    } else {
-                        console.error(`Command '${definition.commandName}' declared a dependency on '${moduleName}', but it was not found on the window object after loading.`);
-                    }
-                }
-            }
-
-            // This part is now handled by the Command base class 'execute' method
-            const command = new Command(definition); // Assuming Command is the base class
-            return command.execute(remainingArgs, options, commandDependencies);
-        };
-        handler.definition = definition;
-        return handler;
-    }
-
-
-    /**
      * Retrieves a list of all active background jobs.
      * @returns {object} A map of active jobs.
      */
@@ -282,7 +149,6 @@ class CommandExecutor {
 
     /**
      * Sends a signal to a running background job.
-     * This is like sending a note to the actor in the middle of a take.
      * @param {number} jobId - The ID of the job to signal.
      * @param {string} signal - The signal to send ('KILL', 'TERM', 'STOP', 'CONT').
      * @returns {object} A result object indicating success or failure.
@@ -319,7 +185,6 @@ class CommandExecutor {
 
     /**
      * Executes a series of commands from a script file line by line.
-     * This is like filming a whole scene from a script.
      * @param {string[]} lines - An array of command strings from the script.
      * @param {object} [options={}] - Options for execution.
      * @returns {Promise<object>} A promise that resolves to the final result of the script.
@@ -366,477 +231,7 @@ class CommandExecutor {
     }
 
     /**
-     * Executes a single command segment.
-     * @private
-     * @param {ParsedCommandSegment} segment - The parsed command segment.
-     * @param {object} execCtxOpts - Execution context options.
-     * @param {string|null} [stdinContent=null] - Content to be used as standard input.
-     * @param {AbortSignal|null} signal - An optional signal for cancelling the command.
-     * @returns {Promise<object>} A promise that resolves to the command's result.
-     */
-    async _executeCommandHandler(
-        segment,
-        execCtxOpts,
-        stdinContent = null,
-        signal
-    ) {
-        const { ErrorHandler, FileSystemManager, UserManager } = this.dependencies;
-        const commandName = segment.command?.toLowerCase();
-
-        const pythonCommands = [
-            "alias", "unalias", "set", "unset", "history", "date", "pwd", "echo", "ls", "whoami", "clear",
-            "help", "man", "cat", "mkdir", "touch", "rm", "mv", "grep", "sort", "wc", "uniq",
-            "head", "tr", "base64", "cksum", "listusers", "groups", "delay", "rmdir", "tail",
-            "diff", "df", "beep", "chmod", "chown", "chgrp", "tree", "cut", "du", "nl", "ln",
-            "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
-            "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
-            "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su",
-            "useradd", "usermod", "passwd", "removeuser", "sudo", "visudo", "gemini", "chidi", "remix",
-            "storyboard", "forge", "edit", "explore", "log", "paint", "top", "basic", "adventure", "find",
-            "sort", "cd", "jobs"
-        ];
-
-        const usePython = pythonCommands.includes(commandName) &&
-            !(commandName === 'tail' && segment.args.includes('-f'));
-
-        if (usePython) {
-            if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-                const fullCommandString = [segment.command, ...segment.args].join(' ');
-                const { FileSystemManager, UserManager, StorageManager, Config, GroupManager } = this.dependencies;
-                const allGroups = GroupManager.groups;
-                const userGroups = {};
-                for (const groupName in allGroups) {
-                    for (const member of allGroups[groupName].members) {
-                        if (!userGroups[member]) {
-                            userGroups[member] = [];
-                        }
-                        userGroups[member].push(groupName);
-                    }
-                }
-
-                const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-
-                const jsContext = {
-                    current_path: FileSystemManager.getCurrentPath(),
-                    user_context: { name: UserManager.getCurrentUser().name },
-                    users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}),
-                    user_groups: {}, // This will be populated by the loop below
-                    groups: GroupManager.getAllGroups(),
-                    jobs: this.activeJobs,
-                    config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
-                    api_key: apiKey
-                };
-                const jsContextJson = JSON.stringify(jsContext);
-
-                const resultJson = OopisOS_Kernel.execute_command(fullCommandString, jsContextJson, stdinContent);
-
-                try {
-                    const result = JSON.parse(resultJson);
-                    if (result.success) {
-                        // [MODIFIED] Handle new visudo effect
-                        if (result.effect === 'visudo') {
-                            // This triggers the EditCommand with a post-save validation hook
-                            return await this.dependencies.CommandExecutor.processSingleCommand(
-                                `edit /etc/sudoers`,
-                                { ...execCtxOpts, isVisudo: true }
-                            );
-                        }
-                        if (result.effect === 'sudo_exec') {
-                            // This effect triggers the sudo flow in the JS UserManager
-                            return await UserManager.sudoWithPrompt(result.command, execCtxOpts);
-                        }
-                        if (result.effect === 'useradd') {
-                            return await UserManager.registerWithPrompt(result.username, execCtxOpts);
-                        }
-                        if (result.effect === 'passwd') {
-                            return await UserManager.changePasswordWithPrompt(result.username, execCtxOpts);
-                        }
-                        if (result.effect === 'removeuser') {
-                            return await UserManager.removeUserWithPrompt(result.username, result.remove_home, execCtxOpts);
-                        }
-                        if (result.effect === 'login') {
-                            return await UserManager.login(result.username, result.password, execCtxOpts);
-                        }
-                        if (result.effect === 'logout') {
-                            const logoutResult = await UserManager.logout();
-                            if (logoutResult.success && logoutResult.data?.isLogout) {
-                                return ErrorHandler.createSuccess(
-                                    `${Config.MESSAGES.WELCOME_PREFIX} ${logoutResult.data.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`,
-                                    { effect: "clear_screen" }
-                                );
-                            }
-                            return logoutResult;
-                        }
-                        if (result.effect === 'su') {
-                            const suResult = await UserManager.su(result.username, result.password, execCtxOpts);
-                            if (suResult.success && !suResult.data?.noAction) {
-                                return ErrorHandler.createSuccess(
-                                    `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`,
-                                    { effect: "clear_screen" }
-                                );
-                            }
-                            return suResult;
-                        }
-
-                        if (result.effect === 'clear_screen') {
-                            return ErrorHandler.createSuccess(null, { effect: "clear_screen" });
-                        }
-                        if (result.effect === 'beep') {
-                            const { SoundManager } = this.dependencies;
-                            SoundManager.beep();
-                            return ErrorHandler.createSuccess("");
-                        }
-                        if (result.effect === 'display_prose') {
-                            const { header = '', content = '' } = result;
-                            const finalHtml = DOMPurify.sanitize(marked.parse(content));
-                            const fullOutput = header ? `${header}${finalHtml}` : finalHtml;
-                            return this.dependencies.ErrorHandler.createSuccess(
-                                fullOutput,
-                                { asBlock: true, messageType: 'prose-output' }
-                            );
-                        }
-                        const effectsToPassThrough = [
-                            'execute_commands', 'write_binary_file', 'extract_archive',
-                            'reboot', 'signal_job', 'clear_history', 'full_reset'
-                        ];
-                        if (effectsToPassThrough.includes(result.effect)) {
-                            return ErrorHandler.createSuccess(null, result);
-                        }
-                        return ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
-                    } else {
-                        return ErrorHandler.createError(result.error || "An unknown Python error occurred.");
-                    }
-                } catch (e) {
-                    return ErrorHandler.createError(`Python kernel communication error: ${resultJson}`);
-                }
-            } else {
-                return ErrorHandler.createError("Python kernel is not yet ready. Please wait a moment and try again.");
-            }
-        }
-
-        const cmdInstance = await this._ensureCommandLoaded(commandName);
-        if (!cmdInstance) {
-            return ErrorHandler.createError(`${commandName}: command not found`);
-        }
-
-        if (cmdInstance instanceof Command) {
-            try {
-                const definition = cmdInstance.definition;
-                const commandDependencies = { ...this.dependencies };
-                if (definition.applicationModules && Array.isArray(definition.applicationModules)) {
-                    for (const moduleName of definition.applicationModules) {
-                        if (window[moduleName]) {
-                            commandDependencies[moduleName] = window[moduleName];
-                        } else {
-                            console.error(`Command '${definition.commandName}' declared a dependency on '${moduleName}', but it was not found on the window object after loading.`);
-                        }
-                    }
-                }
-                return await cmdInstance.execute(segment.args, {
-                    ...execCtxOpts,
-                    stdinContent,
-                    signal,
-                }, commandDependencies);
-            } catch (e) {
-                console.error(`Error in command handler for '${segment.command}':`, e);
-                return ErrorHandler.createError(
-                    `${segment.command}: ${e.message || "Unknown error"}`
-                );
-            }
-        } else if (segment.command) {
-            return ErrorHandler.createError(`${segment.command}: command not found`);
-        }
-
-        return ErrorHandler.createSuccess("");
-    }
-
-    /**
-     * Executes a full command pipeline, handling pipes, redirection, and operators.
-     * This is like directing a movie scene with multiple actors and special effects.
-     * @private
-     * @param {ParsedPipeline} pipeline - The parsed pipeline object.
-     * @param {object} options - Execution options.
-     * @returns {Promise<object>} A promise that resolves to the final result of the pipeline.
-     */
-    async _executePipeline(pipeline, options) {
-        const { FileSystemManager, UserManager, OutputManager, Config, ErrorHandler, Utils, SessionManager } = this.dependencies;
-        const { isInteractive, signal, scriptingContext, suppressOutput } = options;
-        let currentStdin = null;
-        let lastResult = ErrorHandler.createSuccess("");
-
-        if (pipeline.inputRedirectFile) {
-            const pathValidationResult = await FileSystemManager.validatePath(
-                pipeline.inputRedirectFile,
-                { expectedType: "file" }
-            );
-            if (!pathValidationResult.success) {
-                return pathValidationResult;
-            }
-            const { node } = pathValidationResult.data;
-            if (
-                !FileSystemManager.hasPermission(
-                    node,
-                    UserManager.getCurrentUser().name,
-                    "read"
-                )
-            ) {
-                return ErrorHandler.createError(
-                    `cannot open '${pipeline.inputRedirectFile}' for reading: Permission denied`
-                );
-            }
-            currentStdin = node.content || "";
-        }
-
-        if (
-            typeof UserManager === "undefined" ||
-            typeof UserManager.getCurrentUser !== "function"
-        ) {
-            const errorMsg =
-                "FATAL: State corruption detected (UserManager is unavailable). Please refresh the page.";
-            console.error(errorMsg);
-            await OutputManager.appendToOutput(errorMsg, {
-                typeClass: Config.CSS_CLASSES.ERROR_MSG,
-            });
-            return ErrorHandler.createError(errorMsg);
-        }
-        const user = UserManager.getCurrentUser().name;
-        const nowISO = new Date().toISOString();
-        for (let i = 0; i < pipeline.segments.length; i++) {
-            const segment = pipeline.segments[i];
-            const execOptions = { isInteractive, scriptingContext };
-            if (pipeline.isBackground) {
-                const job = this.activeJobs[pipeline.jobId];
-                while (job && job.status === 'paused') {
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                }
-                execOptions.jobId = pipeline.jobId;
-            }
-            lastResult = await this._executeCommandHandler(
-                segment,
-                execOptions,
-                currentStdin,
-                signal
-            );
-            if (!lastResult) {
-                const err = `Critical: Command handler for '${segment.command}' returned an undefined result.`;
-                console.error(err, "Pipeline:", pipeline, "Segment:", segment);
-                lastResult = ErrorHandler.createError(err);
-            }
-
-            if (scriptingContext?.waitingForInput) {
-                return ErrorHandler.createSuccess("");
-            }
-
-            if (lastResult.success) {
-                const { AuditManager, UserManager } = this.dependencies;
-                const commandName = segment.command?.toLowerCase();
-                const auditableCommands = new Set([
-                    'useradd', 'removeuser', 'passwd', 'groupadd', 'groupdel',
-                    'usermod', 'chmod', 'chown', 'chgrp'
-                ]);
-
-                if (auditableCommands.has(commandName)) {
-                    const details = `${commandName} ${segment.args.join(' ')}`;
-                    AuditManager.log(UserManager.getCurrentUser().name, `CMD_${commandName}`, details);
-                }
-                if (lastResult.stateModified) {
-                    const saveResult = await FileSystemManager.save();
-                    if (!saveResult.success) {
-                        return ErrorHandler.createError(
-                            `CRITICAL: Failed to save file system state: ${saveResult.error}`
-                        );
-                    }
-                }
-
-                if (lastResult.effect === "clear_screen") {
-                    OutputManager.clearOutput();
-                } else if (lastResult.effect === "execute_commands" && lastResult.commands) {
-                    // This is the new logic for handling commands sent back from Python
-                    for (const new_command of lastResult.commands) {
-                        // We call processSingleCommand for each command requested by xargs.
-                        // We run it non-interactively and suppress its direct output,
-                        // as the final result should be handled by the shell.
-                        await this.processSingleCommand(new_command, { isInteractive: false, suppressOutput: false });
-                    }
-                } else if (lastResult.effect === "write_binary_file") {
-                    const { path, b64_content } = lastResult;
-                    // The atob function decodes a base64 string.
-                    const binary_content = atob(b64_content);
-                    const user = UserManager.getCurrentUser().name;
-                    const primaryGroup = UserManager.getPrimaryGroupForUser(user);
-                    await FileSystemManager.createOrUpdateFile(path, binary_content, { currentUser: user, primaryGroup });
-                } else if (lastResult.effect === "extract_archive") {
-                    const { files } = lastResult;
-                    const user = UserManager.getCurrentUser().name;
-                    const primaryGroup = UserManager.getPrimaryGroupForUser(user);
-                    // Process directories first to ensure paths exist
-                    for (const file of files.filter(f => f.is_dir)) {
-                        await FileSystemManager.createOrUpdateFile(file.path, null, { currentUser: user, primaryGroup, isDirectory: true });
-                    }
-                    // Then create the files
-                    for (const file of files.filter(f => !f.is_dir)) {
-                        await FileSystemManager.createOrUpdateFile(file.path, file.content, { currentUser: user, primaryGroup });
-                    }
-                } else if (lastResult.effect === "reboot") {
-                    // Display a message and then reload the page
-                    await OutputManager.appendToOutput("Rebooting...");
-                    // A short delay to allow the message to be seen
-                    setTimeout(() => window.location.reload(), 1000);
-                } else if (lastResult.effect === "full_reset") {
-                    await SessionManager.performFullReset();
-                } else if (lastResult.effect === "signal_job") {
-                    const { job_id, signal } = lastResult;
-                    this.sendSignalToJob(job_id, signal);
-                } else if (lastResult.effect === "clear_history") {
-                    const { HistoryManager } = this.dependencies;
-                    HistoryManager.clear();
-                } else if (lastResult.effect === "backup") {
-                    const { content, fileName } = lastResult.effectData;
-                    const blob = new Blob([content], { type: "application/json" });
-                    const url = URL.createObjectURL(blob);
-                    const a = Utils.createElement("a", { href: url, download: fileName });
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                }
-
-                currentStdin = lastResult.data;
-            } else {
-                let errorMessage = "Unknown error";
-                if (typeof lastResult.error === 'string') {
-                    errorMessage = lastResult.error;
-                } else if (lastResult.error && typeof lastResult.error.message === 'string') {
-                    errorMessage = lastResult.error.message;
-                    if (lastResult.error.suggestion) {
-                        errorMessage += `\nSuggestion: ${lastResult.error.suggestion}`;
-                    }
-                }
-
-                const err = `${Config.MESSAGES.PIPELINE_ERROR_PREFIX}'${segment.command}': ${errorMessage}`;
-                if (!pipeline.isBackground) {
-                    await OutputManager.appendToOutput(err, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                } else {
-                    console.log(`Background job pipeline error: ${err}`);
-                }
-                return lastResult;
-            }
-        }
-        if (pipeline.redirection && lastResult.success) {
-            const { type: redirType, file: redirFile } = pipeline.redirection;
-
-            let outputToWrite = lastResult.data || "";
-            if (!lastResult.suppressNewline) {
-                outputToWrite += "\n";
-            }
-            const redirValResult = await FileSystemManager.validatePath(redirFile, {
-                allowMissing: true,
-                disallowRoot: true,
-                defaultToCurrentIfEmpty: false,
-            });
-
-            if (!redirValResult.success && !(redirValResult.data?.node === null)) {
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(redirValResult.error, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                return redirValResult;
-            }
-
-            const { resolvedPath: absRedirPath } = redirValResult.data;
-
-            const existingNode = await FileSystemManager.getNodeByPath(absRedirPath);
-            if (
-                existingNode &&
-                existingNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE
-            ) {
-                const errorMsg = `Redir err: '${redirFile}' is dir.`;
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(errorMsg, {
-                        typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                    });
-                return ErrorHandler.createError(`'${redirFile}' is dir.`);
-            }
-
-            let finalFileContent;
-            if (redirType === "append" && existingNode) {
-                const existingContent = existingNode.content || "";
-                finalFileContent = existingContent + outputToWrite;
-            } else {
-                finalFileContent = outputToWrite;
-            }
-
-            const saveResult = await FileSystemManager.createOrUpdateFile(
-                absRedirPath,
-                finalFileContent,
-                {
-                    currentUser: user,
-                    primaryGroup: UserManager.getPrimaryGroupForUser(user),
-                }
-            );
-
-            if (!saveResult.success) {
-                if (!pipeline.isBackground) {
-                    await OutputManager.appendToOutput(
-                        `Redir err: ${saveResult.error}`,
-                        { typeClass: Config.CSS_CLASSES.ERROR_MSG }
-                    );
-                }
-                return saveResult;
-            }
-
-            const fsSaveResult = await FileSystemManager.save();
-            if (!fsSaveResult.success) {
-                if (!pipeline.isBackground)
-                    await OutputManager.appendToOutput(
-                        `Failed to save redir to '${redirFile}': ${fsSaveResult.error}`,
-                        {
-                            typeClass: Config.CSS_CLASSES.ERROR_MSG,
-                        }
-                    );
-                return ErrorHandler.createError(
-                    `save redir fail: ${fsSaveResult.error}`
-                );
-            }
-            lastResult.data = "";
-        }
-
-
-        if (
-            !pipeline.redirection &&
-            lastResult.success &&
-            lastResult.data !== null &&
-            lastResult.data !== undefined &&
-            !lastResult.suppressNewline
-        ) {
-            if (pipeline.isBackground) {
-                if (lastResult.data) {
-                    await OutputManager.appendToOutput(
-                        `${Config.MESSAGES.BACKGROUND_PROCESS_OUTPUT_SUPPRESSED} (Job ${pipeline.jobId})`,
-                        {
-                            typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG,
-                            isBackground: true,
-                        }
-                    );
-                }
-            } else {
-                if (lastResult.data && !suppressOutput) {
-                    if (typeof lastResult.data === "string") {
-                        lastResult.data = lastResult.data.replace(/\\n/g, "\n");
-                    }
-                    const { data, success, ...outputOptions } = lastResult;
-                    await OutputManager.appendToOutput(data, outputOptions);
-                }
-            }
-        }
-        return lastResult;
-    }
-
-    /**
      * Expands a command string using brace expansion.
-     * This is like finding all the different toy cars in the toy box.
      * @private
      * @param {string} commandString - The command string to expand.
      * @returns {string} The expanded command string.
@@ -1003,71 +398,30 @@ class CommandExecutor {
 
     /**
      * The main entry point for executing a single command string.
-     * This function orchestrates the entire command lifecycle.
+     * [REFACTORED] This function now delegates all parsing and execution to the Python kernel.
      * @param {string} rawCommandText - The raw command string to execute.
      * @param {object} [options={}] - Options for the command execution.
-     * @returns {Promise<object>} A promise that resolves to a result object with `success`, `output`, and `error` properties.
+     * @returns {Promise<object>} A promise that resolves to a result object.
      */
     async processSingleCommand(rawCommandText, options = {}) {
+        const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
+        const {
+            ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager,
+            Config, ErrorHandler, FileSystemManager, UserManager, StorageManager,
+            GroupManager, SoundManager, SessionManager
+        } = this.dependencies;
+
         if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
             if (typeof this.dreamatoriumExitHandler === 'function') {
                 await this.dreamatoriumExitHandler();
             }
-            return this.dependencies.ErrorHandler.createSuccess("");
+            return ErrorHandler.createSuccess("");
         }
-        const {
-            isInteractive = true,
-            scriptingContext = null,
-            suppressOutput = false
-        } = options;
-        const {
-            ModalManager,
-            OutputManager,
-            TerminalUI,
-            AppLayerManager,
-            HistoryManager,
-            Config,
-            ErrorHandler,
-            Lexer,
-            Parser,
-            MessageBusManager
-        } = this.dependencies;
 
-        if (
-            options.scriptingContext &&
-            isInteractive &&
-            !ModalManager.isAwaiting()
-        ) {
-            await OutputManager.appendToOutput(
-                "Script execution in progress. Input suspended.",
-                { typeClass: Config.CSS_CLASSES.WARNING_MSG }
-            );
-            return ErrorHandler.createError("Script execution in progress.");
-        }
         if (ModalManager.isAwaiting()) {
-            await ModalManager.handleTerminalInput(
-                TerminalUI.getCurrentInputValue()
-            );
+            await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
             if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
             return ErrorHandler.createSuccess("");
-        }
-
-        if (AppLayerManager.isActive() && options.isInteractive) {
-            return ErrorHandler.createSuccess("");
-        }
-
-        let commandToParse;
-        try {
-            commandToParse = await this._preprocessCommandString(
-                rawCommandText,
-                scriptingContext
-            );
-        } catch (e) {
-            await OutputManager.appendToOutput(e.message, {
-                typeClass: Config.CSS_CLASSES.ERROR_MSG,
-            });
-            if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
-            return ErrorHandler.createError(e.message);
         }
 
         const cmdToEcho = rawCommandText.trim();
@@ -1081,105 +435,75 @@ class CommandExecutor {
             return ErrorHandler.createSuccess("");
         }
         if (isInteractive) HistoryManager.add(cmdToEcho);
-        if (isInteractive && !TerminalUI.getIsNavigatingHistory())
-            HistoryManager.resetIndex();
 
-        let commandSequence;
+        let finalResult;
         try {
-            commandSequence = new Parser(
-                new Lexer(commandToParse, this.dependencies).tokenize(),
-                this.dependencies
-            ).parse();
-        } catch (e) {
-            await OutputManager.appendToOutput(
-                e.message || "Command parse error.",
-                { typeClass: Config.CSS_CLASSES.ERROR_MSG }
+            // 1. Preprocess the string in JS (variable expansion, aliases, etc.)
+            const commandToExecute = await this._preprocessCommandString(rawCommandText, scriptingContext);
+
+            // 2. Gather all necessary context for the Python kernel
+            const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+            const jsContext = {
+                current_path: FileSystemManager.getCurrentPath(),
+                user_context: { name: UserManager.getCurrentUser().name },
+                users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}),
+                user_groups: GroupManager.getGroupsForUser(UserManager.getCurrentUser().name),
+                groups: GroupManager.getAllGroups(),
+                jobs: this.activeJobs,
+                config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+                api_key: apiKey
+            };
+
+            // 3. Call the Python kernel's unified execute method
+            const resultJson = OopisOS_Kernel.execute_command(
+                commandToExecute,
+                JSON.stringify(jsContext),
+                stdinContent
             );
-            if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
-            return ErrorHandler.createError(e.message || "Command parse error.");
+
+            const result = JSON.parse(resultJson);
+
+            // 4. Handle the result and any "effects"
+            if (result.success) {
+                // This is where we handle UI changes requested by Python
+                if (result.effect) {
+                    await this._handleEffect(result, options);
+                }
+
+                // Special case for JS-only commands that need to be piped from Python
+                if (result.effect === 'fallback_to_js') {
+                    await OutputManager.appendToOutput(`Note: ${result.reason}`, { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                    finalResult = await this._executeLegacyJsCommand(commandToExecute, options);
+                } else {
+                    finalResult = ErrorHandler.createSuccess(result.output, {
+                        suppressNewline: result.suppress_newline
+                    });
+                }
+            } else {
+                finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
+            }
+
+        } catch (e) {
+            finalResult = ErrorHandler.createError({ message: e.message || "JavaScript execution error." });
         }
 
-        let lastPipelineSuccess = true;
-        let finalResult = ErrorHandler.createSuccess("");
-
-        for (let i = 0; i < commandSequence.length; i++) {
-            const { pipeline, operator } = commandSequence[i];
-
-            if (i > 0) {
-                const prevOperator = commandSequence[i - 1].operator;
-                if (prevOperator === "&&" && !lastPipelineSuccess) continue;
-                if (prevOperator === "||" && lastPipelineSuccess) continue;
-            }
-
-            let result;
-            if (operator === "&") {
-                pipeline.isBackground = true;
-                const jobId = ++this.backgroundProcessIdCounter;
-                pipeline.jobId = jobId;
-                MessageBusManager.registerJob(jobId);
-                const abortController = new AbortController();
-
-                const job = {
-                    id: jobId,
-                    command: cmdToEcho,
-                    abortController,
-                    promise: null,
-                    status: 'running',
-                };
-                this.activeJobs[jobId] = job;
-
-                const jobPromise = new Promise(resolve => {
-                    setTimeout(() => {
-                        this._executePipeline(pipeline, {
-                            isInteractive: false,
-                            signal: abortController.signal,
-                            scriptingContext,
-                            suppressOutput: true,
-                        }).then(resolve);
-                    }, 0);
-                });
-
-                job.promise = jobPromise;
-
-                jobPromise.finally(() => {
-                    delete this.activeJobs[jobId];
-                    MessageBusManager.unregisterJob(jobId);
-                }).then((bgResult) => {
-                    const statusMsg = `[Job ${jobId} ${bgResult.success ? "finished" : "finished with error"}${bgResult.success ? "" : `: ${bgResult.error || "Unknown error"}`}]`;
-                    OutputManager.appendToOutput(statusMsg, {
-                        typeClass: bgResult.success
-                            ? Config.CSS_CLASSES.CONSOLE_LOG_MSG
-                            : Config.CSS_CLASSES.WARNING_MSG,
-                        isBackground: true,
-                    });
-                });
-
-                await OutputManager.appendToOutput(
-                    `${Config.MESSAGES.BACKGROUND_PROCESS_STARTED_PREFIX}${jobId}${Config.MESSAGES.BACKGROUND_PROCESS_STARTED_SUFFIX}`,
-                    { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG }
-                );
-
-                result = ErrorHandler.createSuccess();
+        // Display final output or error
+        if (!suppressOutput) {
+            if (finalResult.success) {
+                if (finalResult.data !== null && finalResult.data !== undefined) {
+                    await OutputManager.appendToOutput(finalResult.data, finalResult);
+                }
             } else {
-                result = await this._executePipeline(pipeline, {
-                    isInteractive,
-                    signal: null,
-                    scriptingContext,
-                    suppressOutput,
-                });
-            }
-
-            if (!result) {
-                const err = `Critical: Pipeline execution returned an undefined result.`;
-                console.error(err, "Pipeline:", pipeline);
-                result = ErrorHandler.createError(err);
-            }
-
-            lastPipelineSuccess = result.success;
-            finalResult = result;
-
-            if (!lastPipelineSuccess && (!operator || operator === ";")) {
-                break;
+                let errorMessage = "Unknown error";
+                if (typeof finalResult.error === 'string') {
+                    errorMessage = finalResult.error;
+                } else if (finalResult.error && typeof finalResult.error.message === 'string') {
+                    errorMessage = finalResult.error.message;
+                    if (finalResult.error.suggestion) {
+                        errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`;
+                    }
+                }
+                await OutputManager.appendToOutput(errorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
             }
         }
 
@@ -1187,18 +511,115 @@ class CommandExecutor {
             await this._finalizeInteractiveModeUI(rawCommandText);
         }
 
-        return {
-            success: finalResult.success,
-            output: finalResult.success ? finalResult.data : null,
-            error: !finalResult.success ? finalResult.error : null,
-        };
+        return finalResult;
     }
 
     /**
-     * Retrieves the command handlers.
-     * @returns {object} An object containing the command handlers.
+     * New method to handle effects returned from the Python kernel.
+     * This keeps the main execution logic clean.
+     * @param {object} result - The result object from Python.
+     * @param {object} options - The original command options.
      */
-    getCommands() {
-        return this.commands;
+    async _handleEffect(result, options) {
+        const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager } = this.dependencies;
+
+        switch (result.effect) {
+            case 'change_directory':
+                FileSystemManager.setCurrentPath(result.path);
+                TerminalUI.updatePrompt();
+                break;
+            case 'clear_screen':
+                OutputManager.clearOutput();
+                break;
+            case 'beep':
+                SoundManager.beep();
+                break;
+            case 'reboot':
+                await OutputManager.appendToOutput("Rebooting...");
+                setTimeout(() => window.location.reload(), 1000);
+                break;
+            case 'full_reset':
+                await SessionManager.performFullReset();
+                break;
+            case 'launch_app':
+                const App = window[result.app_name + "Manager"];
+                if (App) {
+                    // This creates a new instance of the app manager (e.g., new EditorManager())
+                    const appInstance = new App();
+                    // Pass dependencies and any python-provided options to the app's enter method
+                    AppLayerManager.show(appInstance, { ...options, dependencies: this.dependencies, ...result.options });
+                } else {
+                    console.error(`Attempted to launch unknown app: ${result.app_name}`);
+                }
+                break;
+            case 'visudo':
+                await this.processSingleCommand(`edit /etc/sudoers`, { ...options, isVisudo: true });
+                break;
+            case 'useradd':
+                await UserManager.registerWithPrompt(result.username, options);
+                break;
+            case 'passwd':
+                await UserManager.changePasswordWithPrompt(result.username, options);
+                break;
+            case 'removeuser':
+                await UserManager.removeUserWithPrompt(result.username, result.remove_home, options);
+                break;
+            case 'login':
+                const loginResult = await UserManager.login(result.username, result.password, options);
+                if (loginResult.success && loginResult.data?.isLogin) {
+                    // Overwrite the output with a welcome message on successful login
+                    loginResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
+                }
+                return loginResult;
+            case 'logout':
+                const logoutResult = await UserManager.logout();
+                if (logoutResult.success && logoutResult.data?.isLogout) {
+                    logoutResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${logoutResult.data.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`;
+                }
+                return logoutResult;
+            case 'su':
+                const suResult = await UserManager.su(result.username, result.password, options);
+                if (suResult.success && !suResult.data?.noAction) {
+                    suResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
+                }
+                return suResult;
+            case 'display_prose':
+                const { header = '', content = '' } = result;
+                const finalHtml = DOMPurify.sanitize(marked.parse(content));
+                const fullOutput = header ? `${header}${finalHtml}` : finalHtml;
+                return ErrorHandler.createSuccess(fullOutput, { asBlock: true, messageType: 'prose-output' });
+        }
+    }
+
+    /**
+     * Executes a legacy JavaScript command. This is a temporary measure during migration.
+     * It uses the old Lexer/Parser to run JS commands that Python has flagged for fallback.
+     * @param {string} commandString - The command to execute.
+     * @param {object} options - The execution options.
+     * @returns {Promise<object>} The result of the command execution.
+     */
+    async _executeLegacyJsCommand(commandString, options) {
+        const { Lexer, Parser, ErrorHandler, OutputManager, Config } = this.dependencies;
+
+        // This re-introduces the old parsing logic, but ONLY for specific JS commands.
+        try {
+            const commandSequence = new Parser(new Lexer(commandString, this.dependencies).tokenize(), this.dependencies).parse();
+            const { pipeline } = commandSequence[0];
+            const segment = pipeline.segments[0];
+
+            const cmdInstance = await this._ensureCommandLoaded(segment.command.toLowerCase());
+            if (!cmdInstance) {
+                return ErrorHandler.createError({ message: `${segment.command}: command not found` });
+            }
+            if (cmdInstance instanceof Command) {
+                return await cmdInstance.execute(segment.args, {
+                    ...options,
+                    stdinContent: options.stdinContent,
+                }, this.dependencies);
+            }
+        } catch (e) {
+            await OutputManager.appendToOutput(e.message || "JS Command parse error.", { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            return ErrorHandler.createError({ message: e.message || "JS Command parse error." });
+        }
     }
 }

@@ -12,17 +12,16 @@ import json
 sudo_manager = SudoManager(fs_manager)
 ai_manager = AIManager(fs_manager, command_executor)
 
-# Expose the new managers
 __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "get_node_json", "check_permission", "get_node_size",
            "validate_path_json", "write_file", "create_directory",
            "rename_node", "execute_command", "command_executor",
            "env_manager", "history_manager", "alias_manager", "session_manager",
-           "group_manager", "user_manager",  "sudo_manager", "ai_manager"]
+           "group_manager", "user_manager",  "sudo_manager", "ai_manager",
+           "get_session_state_for_saving", "load_session_state"]
 
 
 def initialize_kernel(save_function):
-    """Initializes the kernel by setting up the filesystem save function."""
     fs_manager.set_save_function(save_function)
 
 def load_fs_from_json(json_string):
@@ -32,7 +31,6 @@ def save_fs_to_json():
     return fs_manager.save_state_to_json()
 
 def get_node_json(path, js_context_json):
-    """Gets a filesystem node and returns it as a JSON string."""
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
@@ -42,7 +40,6 @@ def get_node_json(path, js_context_json):
         return json.dumps({"success": False, "error": repr(e)})
 
 def check_permission(path, js_context_json, permission_type):
-    """Checks if a user has a specific permission for a node."""
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
@@ -52,7 +49,6 @@ def check_permission(path, js_context_json, permission_type):
         return json.dumps({"success": False, "error": repr(e)})
 
 def get_node_size(path):
-    """Calculates the size of a node (recursively for directories)."""
     try:
         size = fs_manager.calculate_node_size(path)
         return json.dumps({"success": True, "size": size})
@@ -60,7 +56,6 @@ def get_node_size(path):
         return json.dumps({"success": False, "error": repr(e)})
 
 def validate_path_json(path, js_context_json, options_json):
-    """Validates a path against a set of rules."""
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
@@ -69,9 +64,7 @@ def validate_path_json(path, js_context_json, options_json):
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
 
-
 def write_file(path, content, js_context_json):
-    """Exposes the filesystem's write_file method."""
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
@@ -81,7 +74,6 @@ def write_file(path, content, js_context_json):
         return json.dumps({"success": False, "error": repr(e)})
 
 def create_directory(path, js_context_json):
-    """Exposes the filesystem's create_directory method."""
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
@@ -91,7 +83,6 @@ def create_directory(path, js_context_json):
         return json.dumps({"success": False, "error": repr(e)})
 
 def rename_node(old_path, new_path, js_context_json):
-    """Exposes the filesystem's rename_node method."""
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
@@ -104,7 +95,6 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
     try:
         js_context = json.loads(js_context_json)
         fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
-        # Pass the ai_manager instance to the executor
         command_executor.set_context(
             js_context.get("user_context"),
             js_context.get("users"),
@@ -113,23 +103,24 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
             js_context.get("groups"),
             js_context.get("jobs"),
             ai_manager,
-        js_context.get("api_key")
+            js_context.get("api_key")
         )
         return command_executor.execute(command_string, stdin_data)
     except Exception as e:
-        return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}"})
+        import traceback
+        return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}\n{traceback.format_exc()}"})
 
-def chidi_analysis(js_context_json: str, files_context: str, analysis_type: str, question: str = None) -> str:
-    """Handles AI analysis requests from the Chidi JS app."""
+def get_session_state_for_saving():
+    """Bridge function to get the session state as a JSON string."""
     try:
-        js_context = json.loads(js_context_json)
-        api_key = js_context.get("api_key")
-        provider = js_context.get("provider", "gemini")
-        model = js_context.get("model")
+        return session_manager.get_session_state_for_saving()
+    except Exception:
+        return json.dumps({"commandHistory": [], "environmentVariables": {}, "aliases": {}})
 
-        result = ai_manager.perform_chidi_analysis(
-            files_context, analysis_type, question, provider, model, api_key
-        )
-        return json.dumps(result)
+def load_session_state(state_json):
+    """Bridge function to load session state from a JSON string."""
+    try:
+        success = session_manager.load_session_state(state_json)
+        return json.dumps({"success": success})
     except Exception as e:
-        return json.dumps({"success": False, "error": f"Python Kernel Error in Chidi analysis: {repr(e)}"})
+        return json.dumps({"success": False, "error": repr(e)})
