@@ -1,7 +1,7 @@
 // gem/scripts/commexec.js
 
 /**
- * The central nervous system of OopisOS. This class has been refactored
+ * [REFACTORED] The central nervous system of OopisOS. This class has been refactored
  * to act as a bridge to the Python kernel's command executor. It is now responsible for
  * gathering context, passing the raw command string to Python, and handling any UI/session
  * "effects" returned by the Python kernel.
@@ -255,7 +255,8 @@ class CommandExecutor {
             case 'passwd': await UserManager.changePasswordWithPrompt(result.username, options); break;
             case 'removeuser': await UserManager.removeUserWithPrompt(result.username, result.remove_home, options); break;
             case 'page_output': await PagerManager.enter(result.content, { mode: result.mode }); break;
-            case 'export_file': // <-- NEW CASE
+            case 'export_file':
+            case 'backup_data': // <-- ADD THIS CASE
                 const blob = new Blob([result.content], { type: "text/plain;charset=utf-8" });
                 const url = URL.createObjectURL(blob);
                 const a = Utils.createElement("a", { href: url, download: result.filename });
@@ -264,17 +265,13 @@ class CommandExecutor {
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
                 break;
-            case 'upload_files': // <-- NEW CASE
+            case 'upload_files':
                 const { files } = result;
                 for (const file of files) {
                     const reader = new FileReader();
                     reader.onload = (event) => {
                         const content = event.target.result;
-                        const jsContext = {
-                            current_path: FileSystemManager.getCurrentPath(),
-                            user_context: { name: UserManager.getCurrentUser().name }
-                        };
-                        // Call our new Python bridge function
+                        const jsContext = { current_path: FileSystemManager.getCurrentPath(), user_context: { name: UserManager.getCurrentUser().name } };
                         const writeResultJson = OopisOS_Kernel.write_uploaded_file(file.name, content, JSON.stringify(jsContext));
                         const writeResult = JSON.parse(writeResultJson);
                         if(writeResult.success) {
