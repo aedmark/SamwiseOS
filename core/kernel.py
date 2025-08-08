@@ -8,6 +8,7 @@ from users import user_manager
 from sudo import SudoManager
 from ai_manager import AIManager
 import json
+import os
 
 sudo_manager = SudoManager(fs_manager)
 ai_manager = AIManager(fs_manager, command_executor)
@@ -18,8 +19,8 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "rename_node", "execute_command", "command_executor",
            "env_manager", "history_manager", "alias_manager", "session_manager",
            "group_manager", "user_manager",  "sudo_manager", "ai_manager",
-           "get_session_state_for_saving", "load_session_state"]
-
+           "get_session_state_for_saving", "load_session_state",
+           "write_uploaded_file"]
 
 def initialize_kernel(save_function):
     fs_manager.set_save_function(save_function)
@@ -48,12 +49,14 @@ def check_permission(path, js_context_json, permission_type):
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
 
+
 def get_node_size(path):
     try:
         size = fs_manager.calculate_node_size(path)
         return json.dumps({"success": True, "size": size})
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
+
 
 def validate_path_json(path, js_context_json, options_json):
     try:
@@ -64,6 +67,7 @@ def validate_path_json(path, js_context_json, options_json):
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
 
+
 def write_file(path, content, js_context_json):
     try:
         js_context = json.loads(js_context_json)
@@ -72,6 +76,7 @@ def write_file(path, content, js_context_json):
         return json.dumps({"success": True})
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
+
 
 def create_directory(path, js_context_json):
     try:
@@ -91,6 +96,7 @@ def rename_node(old_path, new_path, js_context_json):
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
 
+
 def execute_command(command_string: str, js_context_json: str, stdin_data: str = None) -> str:
     try:
         js_context = json.loads(js_context_json)
@@ -108,19 +114,34 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
         return command_executor.execute(command_string, stdin_data)
     except Exception as e:
         import traceback
-        return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}\n{traceback.format_exc()}"})
+        return json.dumps({"success": False, "error": f"Python Kernel Error: {repr(e)}\\n{traceback.format_exc()}"})
 
 def get_session_state_for_saving():
-    """Bridge function to get the session state as a JSON string."""
     try:
         return session_manager.get_session_state_for_saving()
     except Exception:
         return json.dumps({"commandHistory": [], "environmentVariables": {}, "aliases": {}})
 
 def load_session_state(state_json):
-    """Bridge function to load session state from a JSON string."""
     try:
         success = session_manager.load_session_state(state_json)
         return json.dumps({"success": success})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def write_uploaded_file(filename, content, js_context_json):
+    """
+    [NEW] A dedicated bridge function to handle writing files uploaded from the browser.
+    """
+    try:
+        js_context = json.loads(js_context_json)
+        current_path = js_context.get("current_path", "/")
+        user_context = js_context.get("user_context")
+
+        # Combine the current path with the filename
+        full_path = os.path.join(current_path, filename)
+
+        fs_manager.write_file(full_path, content, user_context)
+        return json.dumps({"success": True, "path": full_path})
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
