@@ -84,6 +84,7 @@ const OopisOS_Kernel = {
                 '/core/commands/patch.py': './core/commands/patch.py',
                 '/core/commands/comm.py': './core/commands/comm.py',
                 '/core/commands/shuf.py': './core/commands/shuf.py',
+                '/core/commands/storyboard.py': './core/commands/storyboard.py',
                 '/core/commands/csplit.py': './core/commands/csplit.py',
                 '/core/commands/awk.py': './core/commands/awk.py',
                 '/core/commands/expr.py': './core/commands/expr.py',

@@ -158,3 +158,29 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             return {"success": True, "data": final_article}
         else:
             return result
+    def perform_storyboard(self, files, mode, is_summary, question, provider, model, api_key):
+        """
+        Generates a narrative summary of a collection of files.
+        """
+        STORYBOARD_SYSTEM_PROMPT = "You are a helpful AI Project Historian. Your task is to analyze a collection of files and explain their collective story, structure, and purpose based ONLY on the provided content."
+
+        file_context_string = "\\n\\n".join(
+            [f"--- START FILE: {f['path']} ---\\n{f['content']}\\n--- END FILE: {f['path']} ---" for f in files]
+        )
+
+        if question:
+            user_prompt = f'Using the provided file contents as context, answer the following question: "{question}"'
+        elif is_summary:
+            user_prompt = "Provide a single, concise paragraph summarizing the entire structure and purpose of the provided files."
+        else:
+            user_prompt = f"Based on the following files and their content, describe the story and relationship between them. Analyze them in '{mode}' mode to explain the project's architecture and purpose. Present your findings in clear, well-structured Markdown."
+
+        full_prompt = f"{user_prompt}\\n\\nFILE CONTEXT:\\n{file_context_string[:15000]}" # Truncate for safety
+
+        conversation = [{"role": "user", "parts": [{"text": full_prompt}]}]
+        result = self._call_llm_api(provider, model, conversation, api_key, STORYBOARD_SYSTEM_PROMPT)
+
+        if result.get("success"):
+            return {"success": True, "data": result.get("answer", "No summary generated.")}
+        else:
+            return result
