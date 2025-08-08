@@ -21,7 +21,8 @@ class GroupManager:
 
     def load_groups(self, groups_dict):
         """Loads groups from a dictionary, typically from storage."""
-        self.groups = groups_dict
+        # [MODIFIED] Convert the incoming JsProxy to a native Python dictionary
+        self.groups = groups_dict.to_py() if hasattr(groups_dict, 'to_py') else groups_dict
         # Ensure default groups are present after loading
         if "root" not in self.groups:
             self.groups["root"] = {"members": ["root"]}

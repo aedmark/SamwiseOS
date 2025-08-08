@@ -33,7 +33,9 @@ class EnvironmentManager:
         return self._get_active_env()
 
     def load(self, vars_dict):
-        self.env_stack[-1] = vars_dict.copy()
+        # [MODIFIED] Convert incoming JsProxy to a native Python dictionary
+        native_dict = vars_dict.to_py() if hasattr(vars_dict, 'to_py') else vars_dict
+        self.env_stack[-1] = native_dict.copy()
 
 class HistoryManager:
     """Manages command history."""
@@ -85,7 +87,9 @@ class AliasManager:
         return self.aliases
 
     def load_aliases(self, alias_dict):
-        self.aliases = alias_dict.copy()
+        # [MODIFIED] Convert incoming JsProxy to a native Python dictionary
+        native_dict = alias_dict.to_py() if hasattr(alias_dict, 'to_py') else alias_dict
+        self.aliases = native_dict.copy()
 
 class SessionManager:
     """Manages the user session stack."""
@@ -115,4 +119,4 @@ class SessionManager:
 env_manager = EnvironmentManager()
 history_manager = HistoryManager()
 alias_manager = AliasManager()
-session_manager = SessionManager() # Create an instance of the new manager
+session_manager = SessionManager()

@@ -391,7 +391,7 @@ class CommandExecutor {
             "patch", "comm", "shuf", "csplit", "sed", "ping", "xargs", "awk", "expr", "rename",
             "wget", "curl", "bc", "cp", "zip", "unzip", "reboot", "ps", "kill", "sync", "xor",
             "ocrypt", "reset", "fsck", "printf", "login", "logout", "groupadd", "groupdel", "su",
-            "useradd", "usermod", "passwd", "removeuser"
+            "useradd", "usermod", "passwd", "removeuser", "sudo", "visudo"
         ];
 
         const usePython = pythonCommands.includes(commandName) &&
@@ -430,6 +430,18 @@ class CommandExecutor {
                 try {
                     const result = JSON.parse(resultJson);
                     if (result.success) {
+                        // [MODIFIED] Handle new visudo effect
+                        if (result.effect === 'visudo') {
+                            // This triggers the EditCommand with a post-save validation hook
+                            return await this.dependencies.CommandExecutor.processSingleCommand(
+                                `edit /etc/sudoers`,
+                                { ...execCtxOpts, isVisudo: true }
+                            );
+                        }
+                        if (result.effect === 'sudo_exec') {
+                            // This effect triggers the sudo flow in the JS UserManager
+                            return await UserManager.sudoWithPrompt(result.command, execCtxOpts);
+                        }
                         if (result.effect === 'useradd') {
                             return await UserManager.registerWithPrompt(result.username, execCtxOpts);
                         }

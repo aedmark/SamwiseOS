@@ -292,7 +292,7 @@ class UserManager {
     }
 
     async initializeDefaultUsers() {
-        const { OutputManager, Config, Utils } = this.dependencies;
+        const { OutputManager, Config } = this.dependencies;
         const usersFromStorage = this.storageManager.loadItem(
             this.config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}
         );
@@ -308,12 +308,9 @@ class UserManager {
         let changesMade = false;
         if (rootNeedsPassword) {
             const randomPassword = Math.random().toString(36).slice(-8);
-            const { salt, hash } = await this._secureHashPassword(randomPassword);
-            const passwordData = { salt, hash };
 
-            const users = this._getManager().get_all_users().toJs({ dict_converter: Object.fromEntries });
-            users['root']['passwordData'] = passwordData;
-            this._getManager().load_users(users);
+            // [MODIFIED] Delegate password setting to the Python kernel
+            this._getManager().change_password('root', randomPassword);
 
             setTimeout(() => {
                 OutputManager.appendToOutput(
@@ -328,7 +325,9 @@ class UserManager {
             changesMade = true;
         }
 
-        const allUsers = this._getManager().get_all_users().toJs({ dict_converter: Object.fromEntries });
+        const allUsersPy = this._getManager().get_all_users();
+        const allUsers = allUsersPy.toJs({ dict_converter: Object.fromEntries });
+        allUsersPy.destroy();
         const userCount = Object.keys(allUsers).length;
         const storageCount = Object.keys(usersFromStorage).length;
         if (userCount > storageCount) {

@@ -33,6 +33,8 @@ const OopisOS_Kernel = {
                 '/core/groups.py': './core/groups.py',
                 '/core/users.py': './core/users.py',
                 '/core/sudo.py': './core/sudo.py',
+                '/core/commands/sudo.py': './core/commands/sudo.py',
+                '/core/commands/visudo.py': './core/commands/visudo.py',
                 '/core/commands/useradd.py': './core/commands/useradd.py',
                 '/core/commands/usermod.py': './core/commands/usermod.py',
                 '/core/commands/passwd.py': './core/commands/passwd.py',

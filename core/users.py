@@ -24,7 +24,9 @@ class UserManager:
 
     def load_users(self, users_dict):
         """Loads user data from a dictionary (from storage)."""
-        self.users = users_dict
+        # [MODIFIED] Convert the incoming JsProxy to a native Python dictionary
+        self.users = users_dict.to_py() if hasattr(users_dict, 'to_py') else users_dict
+
 
     def user_exists(self, username):
         """Checks if a user exists."""
