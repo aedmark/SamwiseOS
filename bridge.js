@@ -115,6 +115,9 @@ const OopisOS_Kernel = {
                 '/core/commands/tr.py': './core/commands/tr.py',
                 '/core/commands/base64.py': './core/commands/base64.py',
                 '/core/commands/cksum.py': './core/commands/cksum.py',
+                '/core/commands/edit.py': './core/commands/edit.py',
+                '/core/commands/explore.py': './core/commands/explore.py',
+            '/core/commands/log.py': './core/commands/log.py',
                 '/core/commands/__init__.py': null
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
