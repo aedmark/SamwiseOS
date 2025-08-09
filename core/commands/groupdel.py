@@ -2,7 +2,7 @@
 
 from groups import group_manager
 
-def run(args, flags, user_context, users=None):
+def run(args, flags, user_context, users=None, **kwargs):
     if user_context.get('name') != 'root':
         return "groupdel: only root can delete groups."
 

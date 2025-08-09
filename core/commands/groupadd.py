@@ -2,7 +2,7 @@
 
 from groups import group_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
         return "groupadd: only root can add groups."
 

@@ -5,10 +5,9 @@ from session import env_manager
 
 def run(args, flags, user_context, stdin_data=None):
     if not args:
+        # The 'all_vars' object is already a Python dictionary
         all_vars = env_manager.get_all()
-        # The .items() method on PyProxy is not standard, convert to dict first
-        vars_dict = dict(all_vars.toJs())
-        output = [f"{key}={value}" for key, value in sorted(vars_dict.items())]
+        output = [f"{key}={value}" for key, value in sorted(all_vars.items())]
         return "\n".join(output)
 
     arg_string = " ".join(args)

@@ -2,7 +2,7 @@
 
 from users import user_manager
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
         return {"success": False, "error": "useradd: only root can add users."}
 

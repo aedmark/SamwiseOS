@@ -5,13 +5,12 @@ from session import alias_manager
 
 def run(args, flags, user_context, stdin_data=None):
     if not args:
+        # The 'aliases' object is already a Python dictionary
         aliases = alias_manager.get_all_aliases()
         if not aliases:
             return ""
         output = []
-        # The .items() method on PyProxy is not standard, convert to dict first
-        alias_dict = dict(aliases.toJs())
-        for name, value in sorted(alias_dict.items()):
+        for name, value in sorted(aliases.items()):
             output.append(f"alias {name}='{value}'")
         return "\n".join(output)
 

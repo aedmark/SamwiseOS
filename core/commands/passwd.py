@@ -1,6 +1,6 @@
 # gem/core/commands/passwd.py
 
-def run(args, flags, user_context):
+def run(args, flags, user_context, **kwargs):
     if len(args) > 1:
         return {"success": False, "error": "Usage: passwd [username]"}
 

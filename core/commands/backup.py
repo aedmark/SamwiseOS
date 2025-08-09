@@ -16,8 +16,9 @@ def run(args, flags, user_context, **kwargs):
         fs_data_str = fs_manager.save_state_to_json()
         fs_data = json.loads(fs_data_str)
 
-        all_users = user_manager.get_all_users().to_py()
-        all_groups = group_manager.get_all_groups().to_py()
+        # These functions return native Python dicts, no conversion needed.
+        all_users = user_manager.get_all_users()
+        all_groups = group_manager.get_all_groups()
 
         # This assumes the session_manager can provide all session data needed
         session_state_str = session_manager.get_session_state_for_saving()
@@ -57,7 +58,7 @@ def run(args, flags, user_context, **kwargs):
 
     except Exception as e:
         import traceback
-        return {"success": False, "error": f"Backup failed in Python kernel: {repr(e)}\n{traceback.format_exc()}"}
+        return {"success": False, "error": f"Backup failed in Python kernel: {repr(e)}\\n{traceback.format_exc()}"}
 
 
 def man(args, flags, user_context, **kwargs):
