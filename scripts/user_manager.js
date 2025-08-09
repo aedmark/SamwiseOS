@@ -177,11 +177,14 @@ class UserManager {
         this.sessionManager.clearUserStack(username);
         this.currentUser = { name: username };
         await this.sessionManager.loadAutomaticState(username);
+        const sessionStatus = await this.sessionManager.loadAutomaticState(username);
 
         this.dependencies.AuditManager.log(username, 'login_success', `User logged in successfully.`);
-        return ErrorHandler.createSuccess({
+        return this.dependencies.ErrorHandler.createSuccess({
             message: `Logged in as ${username}.`,
             isLogin: true,
+            // [MODIFIED] Pass the crucial flag upwards
+            shouldWelcome: sessionStatus.newStateCreated,
         });
     }
 
@@ -209,11 +212,13 @@ class UserManager {
         this.sessionManager.saveAutomaticState(this.currentUser.name);
         this.sessionManager.pushUserToStack(username);
         this.currentUser = { name: username };
-        await this.sessionManager.loadAutomaticState(username);
+        const sessionStatus = await this.sessionManager.loadAutomaticState(username);
 
         this.dependencies.AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
-        return ErrorHandler.createSuccess({
+        return this.dependencies.ErrorHandler.createSuccess({
             message: `Switched to user: ${username}.`,
+            // Pass the crucial flag upwards
+            shouldWelcome: sessionStatus.newStateCreated,
         });
     }
 

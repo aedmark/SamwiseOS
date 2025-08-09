@@ -568,7 +568,9 @@ class CommandExecutor {
                 break;
             case 'login':
                 const loginResult = await UserManager.login(result.username, result.password, options);
-                if (loginResult.success && loginResult.data?.isLogin) { loginResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`; }
+                if (loginResult.success && loginResult.data?.isLogin && loginResult.data?.shouldWelcome) {
+                    loginResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
+                }
                 return loginResult;
             case 'logout':
                 const logoutResult = await UserManager.logout();
@@ -576,7 +578,10 @@ class CommandExecutor {
                 return logoutResult;
             case 'su':
                 const suResult = await UserManager.su(result.username, result.password, options);
-                if (suResult.success && !suResult.data?.noAction) { suResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`; }
+                // Check our new shouldWelcome flag here too!
+                if (suResult.success && !suResult.data?.noAction && suResult.data?.shouldWelcome) {
+                    suResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
+                }
                 return suResult;
             case 'display_prose':
                 const { header = '', content = '' } = result;

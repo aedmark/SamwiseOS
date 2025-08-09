@@ -319,10 +319,15 @@ window.onload = async () => {
         await configManager.loadPackageManifest();
 
         // Finally, load the state for the now-initialized session.
-        await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
+        const sessionStatus = await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
 
         // 5. Final setup
         outputManager.clearOutput();
+        if (sessionStatus.newStateCreated) {
+            await outputManager.appendToOutput(
+                `${configManager.MESSAGES.WELCOME_PREFIX} ${userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`
+            );
+        }
 
         initializeTerminalEventListeners(domElements, commandExecutor, dependencies);
 

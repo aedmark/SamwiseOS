@@ -135,29 +135,27 @@ class SessionManager {
     }
 
     async loadAutomaticState(username) {
-        if (!username) { return false; }
+        if (!username) { return { success: false, newStateCreated: false }; }
         const loadedState = this.storageManager.loadItem(this._getAutomaticSessionStateKey(username), `Auto session for ${username}`);
         if (loadedState) {
-            const sessionStateToLoad = {
-                commandHistory: loadedState.commandHistory || [],
-                environmentVariables: loadedState.environmentVariables || {},
-                aliases: loadedState.aliases || {},
-            };
-            OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify(sessionStateToLoad)]);
             this.fsManager.setCurrentPath(loadedState.currentPath || this.config.FILESYSTEM.ROOT_PATH);
             if (this.elements.outputDiv) { this.elements.outputDiv.innerHTML = loadedState.outputHTML || ""; }
             this.terminalUI.setCurrentInputValue(loadedState.currentInput || "");
+            this.terminalUI.updatePrompt();
+            if (this.elements.outputDiv) this.elements.outputDiv.scrollTop = this.elements.outputDiv.scrollHeight;
+            // Return that we successfully loaded an existing state
+            return { success: true, newStateCreated: false };
         } else {
+            // This is a new session for this user.
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
             OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify({})]);
             const homePath = `/home/${username}`;
             this.fsManager.setCurrentPath(homePath);
-            await this.outputManager.appendToOutput(`${this.config.MESSAGES.WELCOME_PREFIX} ${username}${this.config.MESSAGES.WELCOME_SUFFIX}`);
+            this.terminalUI.updatePrompt();
+            // Return that we created a new state. DO NOT print a welcome message here.
+            return { success: true, newStateCreated: true };
         }
-        this.terminalUI.updatePrompt();
-        if (this.elements.outputDiv) this.elements.outputDiv.scrollTop = this.elements.outputDiv.scrollHeight;
-        return !!loadedState;
     }
 
     async performFullReset() {
