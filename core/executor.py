@@ -138,10 +138,23 @@ class CommandExecutor:
                 "session_stack": self.session_stack,
             }
 
+            # --- THIS IS THE FIX! ---
             sig = inspect.signature(run_func)
-            filtered_kwargs = {k: v for k, v in possible_kwargs.items() if k in sig.parameters}
+            params = sig.parameters
+            has_kwargs = any(p.kind == p.VAR_KEYWORD for p in params.values())
 
-            result = run_func(**filtered_kwargs)
+            final_kwargs = {}
+            if has_kwargs:
+                # If the function has **kwargs, it's open to all context!
+                final_kwargs = possible_kwargs
+            else:
+                # Otherwise, only give it what it explicitly asks for.
+                for k, v in possible_kwargs.items():
+                    if k in params:
+                        final_kwargs[k] = v
+
+            result = run_func(**final_kwargs)
+            # --- END OF FIX ---
 
             if isinstance(result, dict):
                 if 'success' not in result:
