@@ -284,6 +284,67 @@ class CommandExecutor {
             case 'beep': SoundManager.beep(); break;
             case 'reboot': await OutputManager.appendToOutput("Rebooting..."); setTimeout(() => window.location.reload(), 1000); break;
             case 'full_reset': await SessionManager.performFullReset(); break;
+            case 'confirm':
+                return new Promise(async (resolve) => {
+                    const { ModalManager } = this.dependencies;
+                    const confirmed = await new Promise(r => ModalManager.request({
+                        context: 'terminal',
+                        type: 'confirm',
+                        messageLines: result.message,
+                        onConfirm: () => r(true),
+                        onCancel: () => r(false),
+                        options,
+                    }));
+
+                    if (confirmed) {
+                        if (result.on_confirm_command) {
+                            const confirmResult = await this.processSingleCommand(result.on_confirm_command, { ...options, isInteractive: false });
+                            resolve(confirmResult);
+                        } else if (result.on_confirm) {
+                            const confirmResult = await this._handleEffect(result.on_confirm, options);
+                            resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || ""));
+                        } else {
+                            resolve(ErrorHandler.createSuccess("Confirmed."));
+                        }
+                    } else {
+                        resolve(ErrorHandler.createSuccess("Operation cancelled."));
+                    }
+                });
+            case 'trigger_upload_dialog': // Our new effect!
+                return new Promise((resolve) => {
+                    const input = Utils.createElement("input", { type: "file", multiple: true });
+                    input.style.display = 'none';
+                    document.body.appendChild(input);
+
+                    input.onchange = (e) => {
+                        const files = e.target.files;
+                        if (document.body.contains(input)) document.body.removeChild(input);
+                        if (!files || files.length === 0) {
+                            resolve(ErrorHandler.createSuccess("Upload cancelled."));
+                            return;
+                        }
+                        // This triggers the *next* effect to process the files.
+                        const uploadEffectResult = {
+                            effect: "upload_files",
+                            files: Array.from(files)
+                        };
+                        // We recursively call _handleEffect to process the upload_files action
+                        resolve(this._handleEffect(uploadEffectResult, options));
+                    };
+
+                    const onFocus = () => {
+                        setTimeout(() => {
+                            if (input.files.length === 0) {
+                                if (document.body.contains(input)) document.body.removeChild(input);
+                                resolve(ErrorHandler.createSuccess("Upload cancelled."));
+                            }
+                            window.removeEventListener('focus', onFocus);
+                        }, 500);
+                    };
+                    window.addEventListener('focus', onFocus);
+
+                    input.click();
+                });
             case 'launch_app':
                 const App = window[result.app_name + "Manager"];
                 if (App) { const appInstance = new App(); AppLayerManager.show(appInstance, { ...options, dependencies: this.dependencies, ...result.options }); }
@@ -334,7 +395,7 @@ class CommandExecutor {
                 const signalResult = this.sendSignalToJob(result.job_id, result.signal);
                 if (!signalResult.success) { return ErrorHandler.createError(signalResult.error); }
                 break;
-            case 'execute_commands': // <-- NEW CASE
+            case 'execute_commands':
                 for (const cmd of result.commands) {
                     // We run these non-interactively to prevent them from appearing in history twice
                     await this.processSingleCommand(cmd, { isInteractive: false });
@@ -359,4 +420,5 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess(fullOutput, { asBlock: true, messageType: 'prose-output' });
         }
     }
+
 }

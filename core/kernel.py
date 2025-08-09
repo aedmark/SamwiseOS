@@ -13,6 +13,7 @@ from apps.paint import paint_manager
 from apps.adventure import adventure_manager
 from apps import top as top_app
 from apps import log as log_app
+from apps import basic as basic_app
 import json
 import os
 
@@ -29,7 +30,7 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "restore_system_state", "explorer_get_view", "explorer_toggle_tree",
            "explorer_create_node", "explorer_rename_node", "explorer_delete_node",
            "editor_load_file", "editor_push_undo", "editor_undo", "editor_redo",
-           "editor_update_on_save",
+           "editor_update_on_save", "basic_run_program",
            "paint_get_initial_state", "paint_push_undo_state", "paint_undo",
            "paint_redo", "paint_update_on_save",
            "adventure_initialize_state", "adventure_process_command",
@@ -380,3 +381,12 @@ def log_save_entry(path, content, js_context_json):
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
+
+def basic_run_program(program_text, output_callback, input_callback):
+    """Bridge to run a BASIC program using the Python interpreter."""
+    try:
+        result = basic_app.run_program(program_text, output_callback, input_callback)
+        return json.dumps(result)
+    except Exception as e:
+        import traceback
+        return json.dumps({"success": False, "error": f"Kernel bridge error: {repr(e)}\n{traceback.format_exc()}"})

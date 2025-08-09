@@ -212,7 +212,7 @@ class ConfigManager {
         "fg", "find", "fsck", "forge", "gemini",
         "grep", "groupadd", "groupdel", "groups", "head", "help", "history", "jobs", "kill",
         "less", "listusers", "log", "login", "logout", "ls", "ln", "man", "more", "mkdir", "mv", "mxml2sh",
-        "nc", "netstat", "nl", "ocrypt", "oopis-get", "paint", "passwd", "patch", "ping", "play",
+        "nc", "netstat", "nl", "ocrypt", "paint", "passwd", "patch", "ping", "play",
         "planner", "printscreen",
         "ps", "pwd", "reboot", "remix", "removeuser", "rename", "reset", "restore", "rm", "rmdir",
         "run", "sed", "set", "shuf", "sort", "storyboard", "su", "sudo", "sync","tail", "top", "touch", "tr",
