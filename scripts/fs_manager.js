@@ -42,27 +42,12 @@ class FileSystemManager {
     }
 
     _createKernelContext() {
-        const user = this.userManager.getCurrentUser();
-        const primaryGroup = this.userManager.getPrimaryGroupForUser(user.name);
-        const allGroups = this.groupManager.groups;
-        const userGroups = {};
-        // Pass all group memberships to Python for permission checks
-        for (const groupName in allGroups) {
-            for (const member of allGroups[groupName].members) {
-                if (!userGroups[member]) {
-                    userGroups[member] = [];
-                }
-                userGroups[member].push(groupName);
-            }
-        }
-
-        return JSON.stringify({
-            current_path: this.currentPath,
-            user_context: { name: user.name, group: primaryGroup },
-            user_groups: userGroups
-        });
+        // This helper ensures the kernel gets the right user context for permission checks.
+        // It duplicates some logic from bridge.js, a small price for security and order!
+        const { UserManager, GroupManager, StorageManager, Config } = this.dependencies;
+        const user = UserManager.getCurrentUser();
+        return { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) };
     }
-
 
     /**
      * Initializes a default filesystem structure in-memory for the first boot sequence.
@@ -199,11 +184,10 @@ class FileSystemManager {
     async getNodeByPath(absolutePath) {
         if (!OopisOS_Kernel.isReady) return null;
         try {
-            const context = this._createKernelContext();
-            const resultJson = OopisOS_Kernel.kernel.get_node_json(absolutePath, context);
+            // Use the new, unified syscall. No context needed for this call.
+            const resultJson = OopisOS_Kernel.syscall("filesystem", "get_node", [absolutePath]);
             const result = JSON.parse(resultJson);
-            if (result.success) return result.node;
-            return null;
+            return result.success ? result.data : null;
         } catch (e) {
             console.error(`JS->getNodeByPath error: ${e}`);
             return null;
@@ -216,9 +200,10 @@ class FileSystemManager {
             return ErrorHandler.createError("Filesystem kernel not ready.");
         }
         try {
+            // Use the new, unified syscall and provide the necessary user context.
             const context = this._createKernelContext();
             const optionsJson = JSON.stringify(options);
-            const resultJson = OopisOS_Kernel.kernel.validate_path_json(pathArg, context, optionsJson);
+            const resultJson = OopisOS_Kernel.syscall("filesystem", "validate_path", [pathArg, context, optionsJson]);
             const result = JSON.parse(resultJson);
             if (result.success) {
                 return ErrorHandler.createSuccess({ node: result.node, resolvedPath: result.resolvedPath });

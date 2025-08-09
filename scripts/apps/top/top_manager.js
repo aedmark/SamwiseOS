@@ -88,12 +88,12 @@ window.TopManager = class TopManager extends App {
      * Fetches the current list of running processes from the Python kernel and updates the UI.
      * @private
      */
+
     _updateProcessList() {
         if (!OopisOS_Kernel || !OopisOS_Kernel.isReady) return;
 
-        // The jobs are passed directly to the Python function contextually
         const jobs = this.dependencies.CommandExecutor.getActiveJobs();
-        const resultJson = OopisOS_Kernel.top_get_process_list(jobs);
+        const resultJson = OopisOS_Kernel.syscall("top", "get_process_list", [jobs]);
         const result = JSON.parse(resultJson);
 
         if (this.ui && result.success) {

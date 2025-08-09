@@ -29,47 +29,30 @@ window.AdventureManager = class AdventureManager extends App {
      * @param {Object} options.adventureData - Adventure game data
      * @param {Object} [options.scriptingContext] - Scripting context for automated play
      */
+
     async enter(appLayer, options = {}) {
         if (this.isActive) return;
-
         this.dependencies = options.dependencies;
         const { TextAdventureModal } = this.dependencies;
-
-        this.callbacks = {
-            processCommand: this.processCommand.bind(this),
-            onExitRequest: this.exit.bind(this),
-        };
-
+        this.callbacks = { processCommand: this.processCommand.bind(this), onExitRequest: this.exit.bind(this), };
         this.isActive = true;
 
-        // Initialize state via Python kernel
         const initialStateResult = JSON.parse(
-            OopisOS_Kernel.adventureInitializeState(
+            OopisOS_Kernel.syscall("adventure", "initialize_state", [
                 JSON.stringify(options.adventureData),
                 options.scriptingContext ? JSON.stringify(options.scriptingContext) : null
-            )
+            ])
         );
 
-        this.ui = new TextAdventureModal(
-            this.callbacks,
-            this.dependencies,
-            options.scriptingContext
-        );
+        this.ui = new TextAdventureModal(this.callbacks, this.dependencies, options.scriptingContext);
         this.container = this.ui.getContainer();
         appLayer.appendChild(this.container);
 
-        // Apply initial updates from Python
-        if (initialStateResult.success) {
-            this._applyUiUpdates(initialStateResult.updates);
-        } else {
-            this.ui.appendOutput(initialStateResult.error, "error");
-        }
+        if (initialStateResult.success) this._applyUiUpdates(initialStateResult.updates);
+        else this.ui.appendOutput(initialStateResult.error, "error");
 
-        if (options.scriptingContext?.isScripting) {
-            await this._runScript(options.scriptingContext);
-        } else {
-            setTimeout(() => this.container.focus(), 0);
-        }
+        if (options.scriptingContext?.isScripting) await this._runScript(options.scriptingContext);
+        else setTimeout(() => this.container.focus(), 0);
     }
 
     _applyUiUpdates(updates) {
@@ -132,17 +115,17 @@ window.AdventureManager = class AdventureManager extends App {
      * Process a command through the Python game engine
      * @param {string} command - Player command
      */
+
     processCommand(command) {
-        const result = JSON.parse(OopisOS_Kernel.adventureProcessCommand(command));
+        const result = JSON.parse(OopisOS_Kernel.syscall("adventure", "process_command", [command]));
         if (result.success) {
             this._applyUiUpdates(result.updates);
             if (result.gameOver) {
                 this.ui.elements.input.disabled = true;
-                // Add a small delay before exiting so the user can see the final message.
                 setTimeout(() => this.exit(), 1200);
             }
         } else {
             this.ui.appendOutput(result.error, "error");
         }
     }
-}
+};

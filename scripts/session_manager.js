@@ -1,46 +1,38 @@
-// scripts/session_manager.js
+// gem/scripts/session_manager.js
 
 class EnvironmentManager {
     constructor() { this.dependencies = {}; }
     setDependencies(userManager, fsManager, config) { this.dependencies = { userManager, fsManager, config }; }
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) return OopisOS_Kernel.envManager;
-        throw new Error("Python kernel for EnvironmentManager is not available.");
-    }
-    push() { this._getManager().push(); }
-    pop() { this._getManager().pop(); }
+    push() { OopisOS_Kernel.syscall("env", "push"); }
+    pop() { OopisOS_Kernel.syscall("env", "pop"); }
     initialize() {
         const { userManager, config } = this.dependencies;
         const currentUser = userManager.getCurrentUser().name;
         const baseEnv = { "USER": currentUser, "HOME": `/home/${currentUser}`, "HOST": config.OS.DEFAULT_HOST_NAME, "PATH": "/bin:/usr/bin" };
         this.load(baseEnv);
     }
-    get(varName) { try { return this._getManager().get(varName); } catch (e) { console.error(e); return ""; } }
+    get(varName) {
+        const result = JSON.parse(OopisOS_Kernel.syscall("env", "get", [varName]));
+        return result.success ? result.data : "";
+    }
     set(varName, value) {
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(varName)) return { success: false, error: `Invalid variable name: '${varName}'.` };
-        try { this._getManager().set(varName, value); return { success: true }; } catch (e) { console.error(e); return { success: false, error: e.message }; }
+        const result = JSON.parse(OopisOS_Kernel.syscall("env", "set", [varName, value]));
+        return result.success ? { success: true } : { success: false, error: result.error };
     }
-    unset(varName) { try { this._getManager().unset(varName); } catch (e) { console.error(e); } }
+    unset(varName) { OopisOS_Kernel.syscall("env", "unset", [varName]); }
     getAll() {
-        try {
-            const pyProxy = this._getManager().get_all();
-            const jsObject = pyProxy.toJs({ dict_converter: Object.fromEntries });
-            pyProxy.destroy();
-            return jsObject;
-        } catch (e) { console.error(e); return {}; }
+        const result = JSON.parse(OopisOS_Kernel.syscall("env", "get_all"));
+        return result.success ? result.data : {};
     }
-    load(vars) { try { this._getManager().load(vars); } catch (e) { console.error(e); } }
+    load(vars) { OopisOS_Kernel.syscall("env", "load", [vars]); }
 }
 
 class HistoryManager {
     constructor() { this.dependencies = {}; this.historyIndex = 0; this.jsHistoryCache = []; }
     setDependencies(injectedDependencies) { this.dependencies = injectedDependencies; }
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) return OopisOS_Kernel.historyManager;
-        throw new Error("Python kernel for HistoryManager is not available.");
-    }
     _syncCache() { this.jsHistoryCache = this.getFullHistory(); this.historyIndex = this.jsHistoryCache.length; }
-    add(command) { try { this._getManager().add(command); this._syncCache(); } catch (e) { console.error(e); } }
+    add(command) { OopisOS_Kernel.syscall("history", "add", [command]); this._syncCache(); }
     getPrevious() {
         if (this.jsHistoryCache.length > 0 && this.historyIndex > 0) { this.historyIndex--; return this.jsHistoryCache[this.historyIndex]; }
         return null;
@@ -51,52 +43,44 @@ class HistoryManager {
     }
     resetIndex() { this.historyIndex = this.jsHistoryCache.length; }
     getFullHistory() {
-        try {
-            const pyProxy = this._getManager().get_full_history();
-            const jsArray = pyProxy.toJs();
-            pyProxy.destroy();
-            return jsArray;
-        } catch (e) { console.error(e); return []; }
+        const result = JSON.parse(OopisOS_Kernel.syscall("history", "get_full_history"));
+        return result.success ? result.data : [];
     }
-    clearHistory() { try { this._getManager().clear_history(); this._syncCache(); } catch (e) { console.error(e); } }
-    setHistory(newHistory) { try { this._getManager().set_history(newHistory); this._syncCache(); } catch (e) { console.error(e); } }
+    clearHistory() { OopisOS_Kernel.syscall("history", "clear_history"); this._syncCache(); }
+    setHistory(newHistory) { OopisOS_Kernel.syscall("history", "set_history", [newHistory]); this._syncCache(); }
 }
 
 class AliasManager {
     constructor() { this.dependencies = {}; }
     setDependencies(injectedDependencies) { this.dependencies = injectedDependencies; }
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) return OopisOS_Kernel.aliasManager;
-        throw new Error("Python kernel for AliasManager is not available.");
-    }
     initialize() {
         const allAliases = this.getAllAliases();
         if (Object.keys(allAliases).length === 0) {
             const defaultAliases = { 'll': 'ls -la', 'la': 'ls -a', '..': 'cd ..', '...': 'cd ../..', 'h': 'history', 'c': 'clear', 'q': 'exit', 'e': 'edit', 'ex': 'explore' };
-            this._getManager().load_aliases(defaultAliases);
+            OopisOS_Kernel.syscall("alias", "load_aliases", [defaultAliases]);
         }
     }
-    setAlias(name, value) { try { return this._getManager().set_alias(name, value); } catch (e) { console.error(e); return false; } }
-    removeAlias(name) { try { return this._getManager().remove_alias(name); } catch (e) { console.error(e); return false; } }
-    getAlias(name) { try { return this._getManager().get_alias(name); } catch (e) { console.error(e); return null; } }
+    setAlias(name, value) { return JSON.parse(OopisOS_Kernel.syscall("alias", "set_alias", [name, value])).success; }
+    removeAlias(name) { return JSON.parse(OopisOS_Kernel.syscall("alias", "remove_alias", [name])).success; }
+    getAlias(name) {
+        const result = JSON.parse(OopisOS_Kernel.syscall("alias", "get_alias", [name]));
+        return result.success ? result.data : null;
+    }
     getAllAliases() {
-        try {
-            const pyProxy = this._getManager().get_all_aliases();
-            const jsObject = pyProxy.toJs({ dict_converter: Object.fromEntries });
-            pyProxy.destroy();
-            return jsObject;
-        } catch (e) { console.error(e); return {}; }
+        const result = JSON.parse(OopisOS_Kernel.syscall("alias", "get_all_aliases"));
+        return result.success ? result.data : {};
     }
     resolveAlias(commandString) {
+        // This logic is pure JS and doesn't need to change as it calls the public API above.
         const { AliasManager } = this.dependencies;
         const parts = commandString.split(/\s+/); let commandName = parts[0];
         const remainingArgs = parts.slice(1).join(" "); const MAX_RECURSION = 10; let count = 0;
-        let aliasValue = AliasManager.getAlias(commandName);
+        let aliasValue = this.getAlias(commandName);
         while (aliasValue && count < MAX_RECURSION) {
             const aliasParts = aliasValue.split(/\s+/); commandName = aliasParts[0];
             const aliasArgs = aliasParts.slice(1).join(" ");
             commandString = `${commandName} ${aliasArgs} ${remainingArgs}`.trim();
-            count++; aliasValue = AliasManager.getAlias(commandName);
+            count++; aliasValue = this.getAlias(commandName);
         }
         if (count === MAX_RECURSION) return { error: `Alias loop detected for '${parts[0]}'` };
         return { newCommand: commandString };
@@ -110,11 +94,6 @@ class SessionManager {
         this.terminalUI = null; this.storageManager = null;
     }
 
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) return OopisOS_Kernel.sessionManager;
-        throw new Error("Python kernel for SessionManager is not available.");
-    }
-
     setDependencies(dependencies) {
         this.dependencies = dependencies; this.config = dependencies.Config;
         this.fsManager = dependencies.FileSystemManager; this.userManager = dependencies.UserManager;
@@ -123,20 +102,29 @@ class SessionManager {
         this.storageManager = dependencies.StorageManager;
     }
 
-    initializeStack() { try { this._getManager().clear(this.config.USER.DEFAULT_NAME); } catch (e) { console.error("Failed to initialize session stack in Python:", e); } }
-    getStack() { try { const pyProxy = this._getManager().get_stack(); const jsArray = pyProxy.toJs(); pyProxy.destroy(); return jsArray; } catch (e) { console.error("Failed to get session stack from Python:", e); return []; } }
-    pushUserToStack(username) { try { this._getManager().push(username); } catch (e) { console.error("Failed to push user to session stack in Python:", e); } }
-    popUserFromStack() { try { return this._getManager().pop(); } catch (e) { console.error("Failed to pop user from session stack in Python:", e); return null; } }
-    getCurrentUserFromStack() { try { return this._getManager().get_current_user(); } catch (e) { console.error("Failed to get current user from session stack in Python:", e); return this.config.USER.DEFAULT_NAME; } }
-    clearUserStack(username) { try { this._getManager().clear(username); } catch (e) { console.error("Failed to clear session stack in Python:", e); } }
+    initializeStack() { OopisOS_Kernel.syscall("session", "clear", [this.config.USER.DEFAULT_NAME]); }
+    getStack() {
+        const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_stack"));
+        return result.success ? result.data : [];
+    }
+    pushUserToStack(username) { OopisOS_Kernel.syscall("session", "push", [username]); }
+    popUserFromStack() {
+        const result = JSON.parse(OopisOS_Kernel.syscall("session", "pop"));
+        return result.success ? result.data : null;
+    }
+    getCurrentUserFromStack() {
+        const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_current_user"));
+        return result.success ? result.data : this.config.USER.DEFAULT_NAME;
+    }
+    clearUserStack(username) { OopisOS_Kernel.syscall("session", "clear", [username]); }
 
     _getAutomaticSessionStateKey(user) { return `${this.config.STORAGE_KEYS.USER_TERMINAL_STATE_PREFIX}${user}`; }
     _getManualUserTerminalStateKey(user) { const userName = typeof user === "object" && user !== null && user.name ? user.name : String(user); return `${this.config.STORAGE_KEYS.MANUAL_TERMINAL_STATE_PREFIX}${userName}`; }
 
     saveAutomaticState(username) {
         if (!username) { console.warn("saveAutomaticState: No username provided."); return; }
-        const sessionStateJson = OopisOS_Kernel.kernel.get_session_state_for_saving();
-        const sessionState = JSON.parse(sessionStateJson);
+        const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_session_state_for_saving"));
+        const sessionState = result.success ? JSON.parse(result.data) : {};
         const uiState = {
             currentPath: this.fsManager.getCurrentPath(),
             outputHTML: this.elements.outputDiv ? this.elements.outputDiv.innerHTML : "",
@@ -155,14 +143,14 @@ class SessionManager {
                 environmentVariables: loadedState.environmentVariables || {},
                 aliases: loadedState.aliases || {},
             };
-            OopisOS_Kernel.kernel.load_session_state(JSON.stringify(sessionStateToLoad));
+            OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify(sessionStateToLoad)]);
             this.fsManager.setCurrentPath(loadedState.currentPath || this.config.FILESYSTEM.ROOT_PATH);
             if (this.elements.outputDiv) { this.elements.outputDiv.innerHTML = loadedState.outputHTML || ""; }
             this.terminalUI.setCurrentInputValue(loadedState.currentInput || "");
         } else {
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
-            OopisOS_Kernel.kernel.load_session_state(JSON.stringify({}));
+            OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify({})]);
             const homePath = `/home/${username}`;
             this.fsManager.setCurrentPath(homePath);
             await this.outputManager.appendToOutput(`${this.config.MESSAGES.WELCOME_PREFIX} ${username}${this.config.MESSAGES.WELCOME_SUFFIX}`);

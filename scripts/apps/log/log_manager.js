@@ -4,10 +4,8 @@
  * @class LogManager
  * @extends App
  */
+
 window.LogManager = class LogManager extends App {
-    /**
-     * Constructs a new LogManager instance.
-     */
     constructor() {
         super();
         this.state = {};
@@ -16,31 +14,18 @@ window.LogManager = class LogManager extends App {
         this.ui = null;
     }
 
-    /**
-     * Initializes and displays the Log application.
-     * @param {HTMLElement} appLayer - The DOM element to append the app's UI to.
-     * @param {object} [options={}] - Options for entering the application.
-     * @returns {Promise<void>}
-     */
     async enter(appLayer, options = {}) {
         if (this.isActive) return;
         this.dependencies = options.dependencies;
         this.callbacks = this._createCallbacks();
 
         this.isActive = true;
-        this.state = {
-            allEntries: [],
-            filteredEntries: [],
-            selectedPath: null,
-            isDirty: false,
-        };
-
+        this.state = { allEntries: [], filteredEntries: [], selectedPath: null, isDirty: false, };
         this.ui = new this.dependencies.LogUI(this.callbacks, this.dependencies);
         this.container = this.ui.getContainer();
         appLayer.appendChild(this.container);
 
-        // Call Python to ensure the directory exists, then load entries
-        const ensureResult = JSON.parse(OopisOS_Kernel.log_ensure_dir());
+        const ensureResult = JSON.parse(OopisOS_Kernel.syscall("log", "ensure_log_dir", [this._getContext()]));
         if (!ensureResult.success) {
             console.error("Log App Error:", ensureResult.error);
             this.exit();
@@ -48,9 +33,12 @@ window.LogManager = class LogManager extends App {
         }
 
         await this._loadEntries();
-
         this.ui.renderEntries(this.state.filteredEntries, null);
         this.ui.renderContent(null);
+    }
+
+    _getContext() {
+        return { name: this.dependencies.UserManager.getCurrentUser().name };
     }
 
     exit() {
@@ -155,20 +143,17 @@ window.LogManager = class LogManager extends App {
                     }
                 }
             },
+
             onSave: async () => {
                 if (!this.state.selectedPath || !this.state.isDirty) return;
                 const newContent = this.ui.getContent();
 
-                const resultJson = OopisOS_Kernel.log_save_entry(this.state.selectedPath, newContent);
+                const resultJson = OopisOS_Kernel.syscall("log", "save_entry", [this.state.selectedPath, newContent, this._getContext()]);
                 const result = JSON.parse(resultJson);
 
                 if (result.success) {
-                    const entryIndex = this.state.allEntries.findIndex(
-                        (e) => e.path === this.state.selectedPath
-                    );
-                    if (entryIndex > -1) {
-                        this.state.allEntries[entryIndex].content = newContent;
-                    }
+                    const entryIndex = this.state.allEntries.findIndex((e) => e.path === this.state.selectedPath);
+                    if (entryIndex > -1) this.state.allEntries[entryIndex].content = newContent;
                     this.state.isDirty = false;
                     this.ui.updateSaveButton(false);
                 } else {
@@ -188,7 +173,7 @@ window.LogManager = class LogManager extends App {
     }
 
     async _loadEntries() {
-        const resultJson = OopisOS_Kernel.log_load_entries();
+        const resultJson = OopisOS_Kernel.syscall("log", "load_entries", [this._getContext()]);
         const result = JSON.parse(resultJson);
         if (result.success) {
             this.state.allEntries = result.data;

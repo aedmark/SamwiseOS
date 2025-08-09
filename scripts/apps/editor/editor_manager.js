@@ -1,9 +1,5 @@
-/**
- * Text editor application manager. All state logic is now
- * delegated to the Python kernel's EditorManager. This class acts as a
- * bridge between the UI and the Python backend.
- * @extends App
- */
+// gem/scripts/apps/editor/editor_manager.js
+
 window.EditorManager = class EditorManager extends App {
     constructor() {
         super();
@@ -21,23 +17,17 @@ window.EditorManager = class EditorManager extends App {
 
         this._debouncedPushUndo = this.dependencies.Utils.debounce((content) => {
             if (!this.isActive) return;
-            const resultJson = OopisOS_Kernel.editorPushUndo(content);
-            this._updateStateFromPython(JSON.parse(resultJson));
+            const result = JSON.parse(OopisOS_Kernel.syscall("editor", "push_undo_state", [content]));
+            this._updateStateFromPython(result);
         }, 500);
 
         const normalizedContent = (fileContent || "").replace(/\r\n|\r/g, "\n");
-
-        const loadResultJson = OopisOS_Kernel.editorLoadFile(filePath, normalizedContent);
-        const loadResult = JSON.parse(loadResultJson);
+        const loadResult = JSON.parse(OopisOS_Kernel.syscall("editor", "load_file", [filePath, normalizedContent]));
 
         if (!loadResult.success) {
             const errorMessage = `Failed to initialize editor: ${loadResult.error}`;
             console.error(errorMessage);
-            this.dependencies.ModalManager.request({
-                context: "graphical",
-                type: "alert",
-                messageLines: [errorMessage]
-            });
+            this.dependencies.ModalManager.request({ context: "graphical", type: "alert", messageLines: [errorMessage] });
             return;
         }
 
@@ -48,31 +38,24 @@ window.EditorManager = class EditorManager extends App {
             isDirty: false,
             fileMode: this._getFileMode(filePath),
             viewMode: "split",
-            wordWrap: this.dependencies.StorageManager.loadItem(
-                this.dependencies.Config.STORAGE_KEYS.EDITOR_WORD_WRAP_ENABLED,
-                "Editor Word Wrap",
-                false
-            ),
+            wordWrap: this.dependencies.StorageManager.loadItem(this.dependencies.Config.STORAGE_KEYS.EDITOR_WORD_WRAP_ENABLED, "Editor Word Wrap", false),
             onSaveCallback: onSaveCallback || null,
         };
 
         this.isActive = true;
-        this.ui = new EditorUI(this.state, this.callbacks, this.dependencies); // Corrected this line
+        this.ui = new EditorUI(this.state, this.callbacks, this.dependencies);
         this.container = this.ui.elements.container;
         appLayer.appendChild(this.container);
         this.container.focus();
-
         this._updateContent(this.ui.elements.textarea);
         this._updateButtonStates();
     }
 
-    // ... rest of file is unchanged
     _updateStateFromPython(pyResult) {
         if (pyResult.success && pyResult.data) {
             this.state.canUndo = pyResult.data.canUndo;
             this.state.canRedo = pyResult.data.canRedo;
             this._updateButtonStates();
-
             if (pyResult.data.content !== undefined) {
                 this.ui.setContent(pyResult.data.content);
                 this.state.currentContent = pyResult.data.content;
@@ -84,19 +67,9 @@ window.EditorManager = class EditorManager extends App {
         }
     }
 
-    _checkDirty() {
-        const newContent = this.ui.elements.textarea.textContent || "";
-        this.state.isDirty = newContent !== this.state.originalContent;
-        this.ui.updateDirtyStatus(this.state.isDirty);
-    }
-
-    _updateButtonStates() {
-        this.ui.elements.undoBtn.disabled = !this.state.canUndo;
-        this.ui.elements.redoBtn.disabled = !this.state.canRedo;
-    }
-
     _createCallbacks() {
         return {
+            // ... (rest of callbacks remain the same, they call the public methods below)
             onContentChange: (element) => {
                 const newContent = element.textContent || "";
                 this.state.currentContent = newContent;
@@ -111,39 +84,26 @@ window.EditorManager = class EditorManager extends App {
                 if (!savePath) {
                     savePath = await new Promise((resolve) => {
                         ModalManager.request({
-                            context: "graphical",
-                            type: "input",
-                            messageLines: ["Save New File"],
-                            placeholder: "/home/Guest/untitled.txt",
-                            onConfirm: (value) => resolve(value),
-                            onCancel: () => resolve(null),
+                            context: "graphical", type: "input", messageLines: ["Save New File"], placeholder: "/home/Guest/untitled.txt",
+                            onConfirm: (value) => resolve(value), onCancel: () => resolve(null),
                         });
                     });
-                    if (!savePath) {
-                        this.ui.updateStatusMessage("Save cancelled.");
-                        return;
-                    }
+                    if (!savePath) { this.ui.updateStatusMessage("Save cancelled."); return; }
                     this.state.currentFilePath = savePath;
                     this.state.fileMode = this._getFileMode(savePath);
                     this.ui.updateWindowTitle(savePath);
                 }
 
                 const currentContent = this.ui.elements.textarea.textContent || "";
-                const saveResult = await FileSystemManager.createOrUpdateFile(
-                    savePath,
-                    currentContent,
-                    {
+                const saveResult = await FileSystemManager.createOrUpdateFile(savePath, currentContent, {
                         currentUser: UserManager.getCurrentUser().name,
-                        primaryGroup: UserManager.getPrimaryGroupForUser(
-                            UserManager.getCurrentUser().name
-                        ),
+                        primaryGroup: UserManager.getPrimaryGroupForUser(UserManager.getCurrentUser().name),
                     }
                 );
 
                 if (saveResult.success) {
                     await FileSystemManager.save();
-                    const pyResultJson = OopisOS_Kernel.editorUpdateOnSave(savePath, currentContent);
-                    const pyResult = JSON.parse(pyResultJson);
+                    const pyResult = JSON.parse(OopisOS_Kernel.syscall("editor", "update_on_save", [savePath, currentContent]));
                     this.state.originalContent = currentContent;
                     this._updateStateFromPython(pyResult);
                     this._checkDirty();
@@ -159,19 +119,15 @@ window.EditorManager = class EditorManager extends App {
             onTogglePreview: () => {
                 const modes = ["split", "edit", "preview"];
                 this.state.viewMode = modes[(modes.indexOf(this.state.viewMode) + 1) % modes.length];
-                this.ui.setViewMode(
-                    this.state.viewMode,
-                    this.state.fileMode,
-                    this.ui.elements.textarea.textContent || ""
-                );
+                this.ui.setViewMode(this.state.viewMode, this.state.fileMode, this.ui.elements.textarea.textContent || "");
             },
             onUndo: () => {
-                const resultJson = OopisOS_Kernel.editorUndo();
-                this._updateStateFromPython(JSON.parse(resultJson));
+                const result = JSON.parse(OopisOS_Kernel.syscall("editor", "undo"));
+                this._updateStateFromPython(result);
             },
             onRedo: () => {
-                const resultJson = OopisOS_Kernel.editorRedo();
-                this._updateStateFromPython(JSON.parse(resultJson));
+                const result = JSON.parse(OopisOS_Kernel.syscall("editor", "redo"));
+                this._updateStateFromPython(result);
             },
             onWordWrapToggle: () => {
                 const { StorageManager, Config } = this.dependencies;
@@ -181,7 +137,17 @@ window.EditorManager = class EditorManager extends App {
             },
         };
     }
+    // ... (rest of the file remains the same)
+    _checkDirty() {
+        const newContent = this.ui.elements.textarea.textContent || "";
+        this.state.isDirty = newContent !== this.state.originalContent;
+        this.ui.updateDirtyStatus(this.state.isDirty);
+    }
 
+    _updateButtonStates() {
+        this.elements.undoBtn.disabled = !this.state.canUndo;
+        this.elements.redoBtn.disabled = !this.state.canRedo;
+    }
     _getFileMode(filePath) {
         const { Utils } = this.dependencies;
         if (!filePath) return "text";

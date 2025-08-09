@@ -11,45 +11,29 @@ window.ExplorerManager = class ExplorerManager extends App {
 
     async enter(appLayer, options = {}) {
         this.dependencies = options.dependencies;
-
         this.isActive = true;
         this.ui = new ExplorerUI(this._createCallbacks(), this.dependencies);
         this.container = this.ui.getContainer();
         appLayer.appendChild(this.container);
-
         await this._updateView(options.startPath || "/");
     }
 
-    /**
-     * [FIX] Re-implement the exit method to properly clean up the application.
-     */
     exit() {
         if (!this.isActive) return;
         const { AppLayerManager } = this.dependencies;
-        if (this.ui) {
-            this.ui.reset();
-        }
+        if (this.ui) this.ui.reset();
         AppLayerManager.hide(this);
         this.isActive = false;
         this.ui = null;
     }
 
-    /**
-     * [FIX] Re-implement the key handler to allow exiting with the Escape key.
-     */
     handleKeyDown(event) {
-        if (event.key === "Escape") {
-            this.exit();
-        }
+        if (event.key === "Escape") this.exit();
     }
-
 
     _getContext() {
         const { UserManager } = this.dependencies;
-        return JSON.stringify({
-            user_context: { name: UserManager.getCurrentUser().name },
-            current_path: this.currentPath,
-        });
+        return { name: UserManager.getCurrentUser().name };
     }
 
     _createCallbacks() {
@@ -57,12 +41,12 @@ window.ExplorerManager = class ExplorerManager extends App {
         return {
             onExit: this.exit.bind(this),
             onTreeItemSelect: async (path) => {
-                await OopisOS_Kernel.explorerToggleTree(path);
+                OopisOS_Kernel.syscall("explorer", "toggle_tree_expansion", [path]);
                 await this._updateView(path);
             },
             onMainItemActivate: async (path, type) => {
                 if (type === "directory") {
-                    await OopisOS_Kernel.explorerToggleTree(path);
+                    OopisOS_Kernel.syscall("explorer", "toggle_tree_expansion", [path]);
                     await this._updateView(path);
                 } else {
                     this.exit();
@@ -70,11 +54,10 @@ window.ExplorerManager = class ExplorerManager extends App {
                     await this.dependencies.CommandExecutor.processSingleCommand(`edit "${path}"`, { isInteractive: true });
                 }
             },
-
             onCreateFile: async (path) => {
                 const name = await new Promise(r => ModalManager.request({ context: "graphical", type: "input", messageLines: ["Enter New File Name:"], onConfirm: val => r(val), onCancel: () => r(null)}));
                 if (name) {
-                    const result = JSON.parse(OopisOS_Kernel.explorerCreateNode(path, name, 'file', this._getContext()));
+                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "create_node", [path, name, 'file', this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -82,7 +65,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onCreateDirectory: async (path) => {
                 const name = await new Promise(r => ModalManager.request({ context: "graphical", type: "input", messageLines: ["Enter New Directory Name:"], onConfirm: val => r(val), onCancel: () => r(null)}));
                 if (name) {
-                    const result = JSON.parse(OopisOS_Kernel.explorerCreateNode(path, name, 'directory', this._getContext()));
+                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "create_node", [path, name, 'directory', this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -90,7 +73,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onRename: async (path, oldName) => {
                 const newName = await new Promise(r => ModalManager.request({ context: "graphical", type: "input", messageLines: [`Rename "${oldName}":`], placeholder: oldName, onConfirm: val => r(val), onCancel: () => r(null)}));
                 if (newName && newName !== oldName) {
-                    const result = JSON.parse(OopisOS_Kernel.explorerRenameNode(path, newName, this._getContext()));
+                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "rename_node", [path, newName, this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -98,7 +81,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onDelete: async (path, name) => {
                 const confirmed = await new Promise(r => ModalManager.request({ context: "graphical", messageLines: [`Are you sure you want to delete "${name}"?`], onConfirm: () => r(true), onCancel: () => r(false)}));
                 if (confirmed) {
-                    const result = JSON.parse(OopisOS_Kernel.explorerDeleteNode(path, this._getContext()));
+                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "delete_node", [path, this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -110,13 +93,9 @@ window.ExplorerManager = class ExplorerManager extends App {
         if (!this.ui) return;
         const { UserManager } = this.dependencies;
         this.currentPath = path;
+        const context = { name: UserManager.getCurrentUser().name };
 
-        const context = {
-            user_context: { name: UserManager.getCurrentUser().name },
-            current_path: this.currentPath,
-        };
-        const resultJson = OopisOS_Kernel.explorerGetView(path, JSON.stringify(context));
-        const result = JSON.parse(resultJson);
+        const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "get_view_data", [path, context]));
 
         if (result.success) {
             const { treeData, mainPaneItems, expandedPaths } = result.data;

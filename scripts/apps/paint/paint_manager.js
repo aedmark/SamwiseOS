@@ -4,6 +4,7 @@
  * @class PaintManager
  * @extends App
  */
+
 window.PaintManager = class PaintManager extends App {
     constructor() {
         super();
@@ -20,14 +21,14 @@ window.PaintManager = class PaintManager extends App {
         this.isWindowed = options.isWindowed || false;
 
         const { filePath, fileContent } = options;
-        const resultJson = OopisOS_Kernel.paintGetInitialState(filePath, fileContent);
+        // [REFACTORED]
+        const resultJson = OopisOS_Kernel.syscall("paint", "get_initial_state", [filePath, fileContent]);
         const result = JSON.parse(resultJson);
 
         if (!result.success) {
             console.error("Paint App Error:", result.error);
             this.dependencies.ModalManager.request({
-                context: "graphical",
-                type: "alert",
+                context: "graphical", type: "alert",
                 messageLines: [`Failed to initialize Paint: ${result.error}`]
             });
             return;
@@ -61,9 +62,7 @@ window.PaintManager = class PaintManager extends App {
     exit() {
         if (!this.isActive) return;
         const { AppLayerManager } = this.dependencies;
-        if (this.ui) {
-            this.ui.hideAndReset();
-        }
+        if (this.ui) this.ui.hideAndReset();
         AppLayerManager.hide(this);
         this.isActive = false;
         this.state = {};
@@ -71,10 +70,7 @@ window.PaintManager = class PaintManager extends App {
 
     _updateStateFromPython(pyResult) {
         if (pyResult && pyResult.success && pyResult.data) {
-            this.state.canvasData = pyResult.data.canvasData;
-            this.state.canUndo = pyResult.data.canUndo;
-            this.state.canRedo = pyResult.data.canRedo;
-            this.state.isDirty = pyResult.data.isDirty;
+            this.state = { ...this.state, ...pyResult.data };
             this.ui.renderInitialCanvas(this.state.canvasData, this.state.canvasDimensions);
             this.ui.updateToolbar(this.state);
         } else if (pyResult && !pyResult.success) {
@@ -93,8 +89,9 @@ window.PaintManager = class PaintManager extends App {
             onColorSelect: (color) => { this.state.currentColor = color; },
             onBrushSizeChange: (size) => { this.state.brushSize = size; },
             onCharChange: (char) => { this.state.currentCharacter = char || " "; },
-            onUndo: () => this._updateStateFromPython(JSON.parse(OopisOS_Kernel.paintUndo())),
-            onRedo: () => this._updateStateFromPython(JSON.parse(OopisOS_Kernel.paintRedo())),
+            // [REFACTORED]
+            onUndo: () => this._updateStateFromPython(JSON.parse(OopisOS_Kernel.syscall("paint", "undo"))),
+            onRedo: () => this._updateStateFromPython(JSON.parse(OopisOS_Kernel.syscall("paint", "redo"))),
             onToggleGrid: () => {
                 this.state.gridVisible = !this.state.gridVisible;
                 this.ui.toggleGrid(this.state.gridVisible);
@@ -118,49 +115,35 @@ window.PaintManager = class PaintManager extends App {
                 if (this.state.currentTool === 'fill') {
                     this._toolFill(coords);
                     this._pushUndoState();
-                    this.state.isDrawing = false; // Fill is a single click, not a drag
+                    this.state.isDrawing = false;
                 }
             },
             onCanvasMouseMove: (coords) => {
                 this.ui.updateStatusBar(this.state, coords);
                 if (!this.state.isDrawing) return;
-
                 const tool = this.state.currentTool;
-                if (tool === 'pencil' || tool === 'eraser') {
-                    this._toolLine(this.state.lastCoords, coords, true);
-                } else if (['line', 'rect', 'circle'].includes(tool)) {
-                    this._previewShape(this.state.startCoords, coords);
-                }
-                this.state.lastCoords = coords; // Always update the last known coordinates
+                if (tool === 'pencil' || tool === 'eraser') this._toolLine(this.state.lastCoords, coords, true);
+                else if (['line', 'rect', 'circle'].includes(tool)) this._previewShape(this.state.startCoords, coords);
+                this.state.lastCoords = coords;
             },
             onCanvasMouseUp: (coords) => {
                 if (!this.state.isDrawing) return;
                 this.state.isDrawing = false;
                 const tool = this.state.currentTool;
                 const endCoords = coords || this.state.lastCoords;
-
-                if (tool === 'fill') return; // Fill action is complete on mousedown
-
-                if (['pencil', 'eraser'].includes(tool)) {
-                    this._toolLine(this.state.lastCoords, endCoords, true);
-                } else if (tool === 'line') {
-                    this._toolLine(this.state.startCoords, endCoords);
-                } else if (tool === 'rect') {
-                    this._toolRect(this.state.startCoords, endCoords);
-                } else if (tool === 'circle') {
-                    this._toolCircle(this.state.startCoords, endCoords);
-                }
-
+                if (tool === 'fill') return;
+                if (['pencil', 'eraser'].includes(tool)) this._toolLine(this.state.lastCoords, endCoords, true);
+                else if (tool === 'line') this._toolLine(this.state.startCoords, endCoords);
+                else if (tool === 'rect') this._toolRect(this.state.startCoords, endCoords);
+                else if (tool === 'circle') this._toolCircle(this.state.startCoords, endCoords);
                 this.ui.clearPreview();
-                if (tool !== 'select') {
-                    this._pushUndoState();
-                }
+                if (tool !== 'select') this._pushUndoState();
             },
         };
     }
 
     _pushUndoState() {
-        const result = JSON.parse(OopisOS_Kernel.paintPushUndoState(JSON.stringify(this.state.canvasData)));
+        const result = JSON.parse(OopisOS_Kernel.syscall("paint", "push_undo_state", [JSON.stringify(this.state.canvasData)]));
         this._updateStateFromPython(result);
     }
 

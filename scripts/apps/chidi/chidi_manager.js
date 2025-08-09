@@ -95,25 +95,19 @@ window.ChidiManager = class ChidiManager extends App {
     }
 
     /**
-     * [REFACTORED] Call the Python Kernel for document analysis
+     * Call the Python Kernel for document analysis
      * @private
      * @param {string} analysisType - The type of analysis ('summarize', 'study', 'ask').
      * @param {string} context - The document content to analyze.
      * @param {string} [question] - The user's question for 'ask' analysis.
      * @returns {Promise<Object>} API response result
      */
+
     async _callPythonKernelForAnalysis(analysisType, context, question = null) {
         const { ErrorHandler, AIManager } = this.dependencies;
 
-        // First, we need to get the API key on the JS side.
-        const apiKeyResult = await AIManager.getApiKey(this.state.provider, {
-            isInteractive: true,
-            dependencies: this.dependencies,
-        });
-
-        if (!apiKeyResult.success) {
-            return { success: false, error: apiKeyResult.error };
-        }
+        const apiKeyResult = await AIManager.getApiKey(this.state.provider, { isInteractive: true, dependencies: this.dependencies });
+        if (!apiKeyResult.success) return { success: false, error: apiKeyResult.error };
 
         const jsContext = {
             api_key: apiKeyResult.data.key,
@@ -121,21 +115,12 @@ window.ChidiManager = class ChidiManager extends App {
             model: this.state.model
         };
 
-        // Call the new bridge function
-        const resultJson = OopisOS_Kernel.chidi_analysis(
-            JSON.stringify(jsContext),
-            context,
-            analysisType,
-            question
-        );
+        // Using the backward-compatible stub is sufficient here.
+        const resultJson = OopisOS_Kernel.chidi_analysis(JSON.stringify(jsContext), context, analysisType, question);
 
         try {
             const result = JSON.parse(resultJson);
-            if (result.success) {
-                return { success: true, answer: result.data };
-            } else {
-                return { success: false, error: result.error };
-            }
+            return result.success ? { success: true, answer: result.data } : { success: false, error: result.error };
         } catch (e) {
             return ErrorHandler.createError(`Failed to communicate with Python kernel: ${e.message}`);
         }

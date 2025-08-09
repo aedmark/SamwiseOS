@@ -89,29 +89,28 @@ def syscall_handler(request_json):
             "traceback": traceback.format_exc()
         })
 
-# --- Backward Compatibility Stubs (to be removed after JS refactor) ---
-# These are kept temporarily to prevent the system from breaking while we
-# refactor the JavaScript side to use the new syscall handler.
 def execute_command(command_string: str, js_context_json: str, stdin_data: str = None) -> str:
-    # This is a bit of a special case because the executor's context setting is complex.
-    # We'll handle it by passing the raw context to the executor via the syscall.
+    """
+    The main backward-compatibility stub for running commands.
+    It now correctly handles passing live Python objects to the executor.
+    """
     context = json.loads(js_context_json)
-    req = {
-        "module": "executor",
-        "function": "set_context",
-        "kwargs": {
-            "user_context": context.get("user_context"),
-            "users": context.get("users"),
-            "user_groups": context.get("user_groups"),
-            "config": context.get("config"),
-            "groups": context.get("groups"),
-            "jobs": context.get("jobs"),
-            "ai_manager": ai_manager, # Pass the Python instance
-            "api_key": context.get("api_key")
-        }
-    }
-    syscall_handler(json.dumps(req)) # Set context first
 
+    # [FIXED] Set the context on the executor directly.
+    # We do not pass Python objects through the JSON-based syscall_handler.
+    # This is a direct, internal hand-off of a critical system component.
+    command_executor.set_context(
+        user_context=context.get("user_context"),
+        users=context.get("users"),
+        user_groups=context.get("user_groups"),
+        config=context.get("config"),
+        groups=context.get("groups"),
+        jobs=context.get("jobs"),
+        ai_manager=ai_manager,  # Pass the live Python object instance
+        api_key=context.get("api_key")
+    )
+
+    # Now, create the request for the execution part, which IS JSON serializable.
     req_exec = {
         "module": "executor",
         "function": "execute",

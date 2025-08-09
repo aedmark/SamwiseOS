@@ -3,10 +3,8 @@
 /**
  * @class UserManager
  * @classdesc An API client for the OopisOS Python User Manager kernel.
- * All core logic and state for user accounts are now handled by `core/users.py`.
- * This JavaScript class remains as a bridge to handle UI interactions (like password prompts)
- * and to sync data between the Python kernel and browser storage.
  */
+
 class UserManager {
     constructor(dependencies) {
         this.dependencies = dependencies;
@@ -18,15 +16,7 @@ class UserManager {
         this.sudoManager = null;
         this.commandExecutor = null;
         this.modalManager = null;
-        // The JS `currentUser` is now just a lightweight reflection of the Python state.
         this.currentUser = { name: this.config.USER.DEFAULT_NAME };
-    }
-
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            return OopisOS_Kernel.userManager;
-        }
-        throw new Error("Python kernel for UserManager is not available.");
     }
 
     setDependencies(sessionManager, sudoManager, commandExecutor, modalManager) {
@@ -37,7 +27,8 @@ class UserManager {
     }
 
     _saveUsers() {
-        const allUsers = this._getManager().get_all_users().toJs({ dict_converter: Object.fromEntries });
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
+        const allUsers = result.success ? result.data : {};
         this.storageManager.saveItem(this.config.STORAGE_KEYS.USER_CREDENTIALS, allUsers, "User list");
     }
 
@@ -46,34 +37,25 @@ class UserManager {
     }
 
     getPrimaryGroupForUser(username) {
-        const user = this._getManager().get_user(username);
-        if (user) {
-            const primaryGroup = user.get('primaryGroup');
-            user.destroy();
-            return primaryGroup;
-        }
-        return null;
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
+        return (result.success && result.data) ? result.data.primaryGroup : null;
     }
 
     async userExists(username) {
-        return this._getManager().user_exists(username);
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "user_exists", [username]));
+        return result.success && result.data;
     }
 
     async register(username, password) {
         const { Utils, ErrorHandler } = this.dependencies;
         const formatValidation = Utils.validateUsernameFormat(username);
-        if (!formatValidation.isValid) {
-            return ErrorHandler.createError(formatValidation.error);
-        }
-        if (await this.userExists(username)) {
-            return ErrorHandler.createError(`User '${username}' already exists.`);
-        }
+        if (!formatValidation.isValid) return ErrorHandler.createError(formatValidation.error);
+        if (await this.userExists(username)) return ErrorHandler.createError(`User '${username}' already exists.`);
 
-        // Create group first in JS to ensure it's saved correctly
         this.groupManager.createGroup(username);
         this.groupManager.addUserToGroup(username, username);
 
-        const result = this._getManager().register_user(username, password, username).toJs({ dict_converter: Object.fromEntries });
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "register_user", [username, password, username]));
 
         if (result.success) {
             this._saveUsers();
@@ -91,28 +73,19 @@ class UserManager {
     async verifyPassword(username, password) {
         const { ErrorHandler } = this.dependencies;
         if (!await this.userExists(username)) return ErrorHandler.createError("User not found.");
-
-        const isValid = this._getManager().verify_password(username, password);
-
-        return isValid
-            ? ErrorHandler.createSuccess()
-            : ErrorHandler.createError("Incorrect password.");
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, password]));
+        return result.success && result.data ? ErrorHandler.createSuccess() : ErrorHandler.createError("Incorrect password.");
     }
 
     async sudoExecute(commandStr, options) {
+        // This is a JS-side concern, no syscall changes needed here.
         const { ErrorHandler } = this.dependencies;
         const originalUser = this.currentUser;
         try {
             this.currentUser = { name: "root" };
-            // This is a special case where we modify the JS-side currentUser for the duration of the command
-            return await this.commandExecutor.processSingleCommand(
-                commandStr,
-                options
-            );
+            return await this.commandExecutor.processSingleCommand(commandStr, options);
         } catch (e) {
-            return ErrorHandler.createError(
-                `sudo: an unexpected error occurred during execution: ${e.message}`
-            );
+            return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
         } finally {
             this.currentUser = originalUser;
         }
@@ -120,49 +93,35 @@ class UserManager {
 
     async changePassword(actorUsername, targetUsername, oldPassword, newPassword) {
         const { ErrorHandler } = this.dependencies;
-
-        if (!(await this.userExists(targetUsername))) {
-            return ErrorHandler.createError(`User '${targetUsername}' not found.`);
-        }
+        if (!(await this.userExists(targetUsername))) return ErrorHandler.createError(`User '${targetUsername}' not found.`);
         if (actorUsername !== "root") {
-            if (actorUsername !== targetUsername) {
-                return ErrorHandler.createError(
-                    "You can only change your own password."
-                );
-            }
-            const authResult = await this.verifyPassword(
-                actorUsername,
-                oldPassword
-            );
-            if (!authResult.success) {
-                return ErrorHandler.createError("Incorrect current password.");
-            }
+            if (actorUsername !== targetUsername) return ErrorHandler.createError("You can only change your own password.");
+            const authResult = await this.verifyPassword(actorUsername, oldPassword);
+            if (!authResult.success) return ErrorHandler.createError("Incorrect current password.");
         }
-        if (!newPassword || newPassword.trim() === "") {
-            return ErrorHandler.createError("New password cannot be empty.");
-        }
+        if (!newPassword || newPassword.trim() === "") return ErrorHandler.createError("New password cannot be empty.");
 
-        const result = this._getManager().change_password(targetUsername, newPassword);
-
-        if (result) {
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "change_password", [targetUsername, newPassword]));
+        if (result.success && result.data) {
             this._saveUsers();
-            return ErrorHandler.createSuccess(
-                `Password for '${targetUsername}' updated successfully.`
-            );
+            return ErrorHandler.createSuccess(`Password for '${targetUsername}' updated successfully.`);
         }
         return ErrorHandler.createError("Failed to save updated password.");
     }
 
+    // _handleAuthFlow and its callers (login, su, logout) are primarily JS-side logic
+    // orchestrating the UI and session state. They already use the public API methods
+    // that we've refactored, so no major changes are needed inside them.
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler } = this.dependencies;
 
-        const userEntry = this._getManager().get_user(username);
-        const hasPassword = userEntry && userEntry.get('passwordData');
-        if (userEntry) userEntry.destroy();
+        const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
+        const hasPassword = userResult.success && userResult.data && userResult.data.passwordData;
 
         if (hasPassword) {
             if (providedPassword !== null) {
-                if (this._getManager().verify_password(username, providedPassword)) {
+                const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
+                if (verifyResult.success && verifyResult.data) {
                     return await successCallback(username);
                 } else {
                     return ErrorHandler.createError(this.config.MESSAGES.INVALID_PASSWORD);
@@ -170,12 +129,10 @@ class UserManager {
             } else {
                 return new Promise((resolve) => {
                     this.modalManager.request({
-                        context: "terminal",
-                        type: "input",
-                        messageLines: [this.config.MESSAGES.PASSWORD_PROMPT],
-                        obscured: true,
+                        context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
                         onConfirm: async (passwordFromPrompt) => {
-                            if (this._getManager().verify_password(username, passwordFromPrompt)) {
+                            const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt]));
+                            if (verifyResult.success && verifyResult.data) {
                                 resolve(await successCallback(username));
                             } else {
                                 this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
@@ -188,16 +145,12 @@ class UserManager {
                 });
             }
         } else {
-            if (providedPassword !== null) {
-                return ErrorHandler.createError("This account does not require a password.");
-            }
+            if (providedPassword !== null) return ErrorHandler.createError("This account does not require a password.");
             return await successCallback(username);
         }
     }
 
-
     async login(username, providedPassword, options = {}) {
-        // ... (logic remains mostly the same, but now it will call the python-backed _handleAuthFlow)
         const { ErrorHandler } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
         if (username === currentUserName) {
@@ -233,7 +186,6 @@ class UserManager {
     }
 
     async su(username, providedPassword, options = {}) {
-        // ... (logic remains mostly the same, but now it will call the python-backed _handleAuthFlow)
         const { ErrorHandler } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
         if (username === currentUserName) {
@@ -266,7 +218,6 @@ class UserManager {
     }
 
     async logout() {
-        // This logic is mostly JS-side as it deals with JS session state objects
         const { ErrorHandler } = this.dependencies;
         const oldUser = this.currentUser.name;
         if (this.sessionManager.getStack().length <= 1) {
@@ -295,61 +246,38 @@ class UserManager {
 
     async initializeDefaultUsers() {
         const { OutputManager, Config } = this.dependencies;
-        const usersFromStorage = this.storageManager.loadItem(
-            this.config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}
-        );
+        const usersFromStorage = this.storageManager.loadItem(this.config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
 
-        this._getManager().load_users(usersFromStorage);
-        this._getManager().initialize_defaults(Config.USER.DEFAULT_NAME);
+        OopisOS_Kernel.syscall("users", "load_users", [usersFromStorage]);
+        OopisOS_Kernel.syscall("users", "initialize_defaults", [Config.USER.DEFAULT_NAME]);
 
-        // Ensure the Guest user's home directory exists.
         const guestHomePath = `/home/${Config.USER.DEFAULT_NAME}`;
-        // We check the filesystem directly to see if the directory exists.
         const guestHomeNode = await this.dependencies.FileSystemManager.getNodeByPath(guestHomePath);
         if (!guestHomeNode) {
-            console.log("UserManager: Guest home directory not found, creating it...");
-            // Use administrative privileges to create and configure the directory.
             await this.sudoExecute(`mkdir ${guestHomePath}`, { isInteractive: false });
             await this.sudoExecute(`chown ${Config.USER.DEFAULT_NAME} ${guestHomePath}`, { isInteractive: false });
             await this.sudoExecute(`chgrp ${Config.USER.DEFAULT_NAME} ${guestHomePath}`, { isInteractive: false });
-            console.log("UserManager: Guest home directory created.");
         }
 
-        // Check if root password needs to be set for the first time
-        const rootUser = this._getManager().get_user('root');
-        const rootNeedsPassword = !rootUser || !rootUser.get('passwordData');
-        if(rootUser) rootUser.destroy();
+        const rootResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", ['root']));
+        const rootNeedsPassword = rootResult.success && rootResult.data && !rootResult.data.passwordData;
 
         let changesMade = false;
         if (rootNeedsPassword) {
             const randomPassword = Math.random().toString(36).slice(-8);
-
-            this._getManager().change_password('root', randomPassword);
-
+            OopisOS_Kernel.syscall("users", "change_password", ['root', randomPassword]);
             setTimeout(() => {
-                OutputManager.appendToOutput(
-                    `IMPORTANT: Your one-time root password is: ${randomPassword}`,
-                    { typeClass: Config.CSS_CLASSES.WARNING_MSG }
-                );
-                OutputManager.appendToOutput(
-                    `Please save it securely or change it immediately using 'passwd'.`,
-                    { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG }
-                );
+                OutputManager.appendToOutput(`IMPORTANT: Your one-time root password is: ${randomPassword}`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+                OutputManager.appendToOutput(`Please save it securely or change it immediately using 'passwd'.`, { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
             }, 500);
             changesMade = true;
         }
 
-        const allUsersPy = this._getManager().get_all_users();
-        const allUsers = allUsersPy.toJs({ dict_converter: Object.fromEntries });
-        allUsersPy.destroy();
-        const userCount = Object.keys(allUsers).length;
-        const storageCount = Object.keys(usersFromStorage).length;
-        if (userCount > storageCount) {
+        const usersResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
+        const allUsers = usersResult.success ? usersResult.data : {};
+        if (Object.keys(allUsers).length > Object.keys(usersFromStorage).length) {
             changesMade = true;
         }
-
-        if (changesMade) {
-            this._saveUsers();
-        }
+        if (changesMade) this._saveUsers();
     }
 }
