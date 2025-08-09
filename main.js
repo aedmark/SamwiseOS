@@ -6,6 +6,9 @@
  * the primary event listeners for the terminal interface once the window has loaded.
  */
 
+// This global variable will be our session's birth certificate!
+window.sessionStartTime = new Date();
+
 function initializeTerminalEventListeners(domElements, commandExecutor, dependencies) {
     const { AppLayerManager, ModalManager, TerminalUI, TabCompletionManager, HistoryManager, SoundManager } = dependencies;
 
@@ -304,13 +307,18 @@ window.onload = async () => {
         }
 
         // 4. Now that the kernel is ready, initialize all managers that depend on it
-        await userManager.initializeDefaultUsers();
-        await configManager.loadFromFile();
-        await configManager.loadPackageManifest();
+        // FIRST, initialize the core session components that don't execute commands.
         groupManager.initialize();
         environmentManager.initialize();
-        aliasManager.initialize(); // This was the source of the error
-        sessionManager.initializeStack();
+        aliasManager.initialize();
+        sessionManager.initializeStack(); // <-- Let's open for business!
+
+        // THEN, perform actions that might execute commands.
+        await userManager.initializeDefaultUsers(); // <-- Now this will work!
+        await configManager.loadFromFile();
+        await configManager.loadPackageManifest();
+
+        // Finally, load the state for the now-initialized session.
         await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
 
         // 5. Final setup

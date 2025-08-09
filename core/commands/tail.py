@@ -4,7 +4,10 @@ from filesystem import fs_manager
 
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
     if "-f" in flags or "--follow" in flags:
-        return "tail: -f flag is not supported in this version. Falling back to JS implementation."
+        # This case should ideally not be hit if the JS command is set up correctly,
+        # but it's a good safeguard.
+        return {"success": False, "error": "tail: -f is handled by the JavaScript layer and should not reach the Python kernel."}
+
 
     lines = []
 

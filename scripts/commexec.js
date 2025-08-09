@@ -201,7 +201,7 @@ class CommandExecutor {
      * @private
      */
     _createKernelContext() {
-        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config } = this.dependencies;
+        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager } = this.dependencies;
         const user = UserManager.getCurrentUser();
 
         // Build the full user-to-groups mapping for Python-side permission checks
@@ -225,7 +225,10 @@ class CommandExecutor {
             groups: GroupManager.getAllGroups(),
             jobs: this.activeJobs,
             config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
-            api_key: apiKey
+            api_key: apiKey,
+            // Add session start time and user stack for new commands
+            session_start_time: window.sessionStartTime.toISOString(),
+            session_stack: SessionManager.getStack()
         });
     }
 
@@ -325,8 +328,30 @@ class CommandExecutor {
     }
 
     async _handleEffect(result, options) {
-        const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager } = this.dependencies;
+        const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager, NetworkManager, CommandExecutor } = this.dependencies;
         switch (result.effect) {
+            case 'play_sound':
+                if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
+                SoundManager.playNote(result.notes, result.duration);
+                // We'll add a small delay to let the note play out
+                const durationInSeconds = new Tone.Time(result.duration).toSeconds();
+                await new Promise(resolve => setTimeout(resolve, Math.ceil(durationInSeconds * 1000)));
+                break;
+            case 'netcat_listen':
+                await OutputManager.appendToOutput(`Listening for messages on instance ${NetworkManager.getInstanceId()} in '${result.execute ? 'execute' : 'print'}' mode... (Press Ctrl+C to stop)`);
+                NetworkManager.setListenCallback((payload) => {
+                    const { sourceId, data } = payload;
+                    if (result.execute) {
+                        OutputManager.appendToOutput(`[NET EXEC from ${sourceId}]> ${data}`);
+                        CommandExecutor.processSingleCommand(data, { isInteractive: false });
+                    } else {
+                        OutputManager.appendToOutput(`[NET] From ${sourceId}: ${data}`);
+                    }
+                });
+                break;
+            case 'netcat_send':
+                await NetworkManager.sendMessage(result.targetId, 'direct_message', result.message);
+                break;
             case 'change_directory': FileSystemManager.setCurrentPath(result.path); TerminalUI.updatePrompt(); break;
             case 'clear_screen': OutputManager.clearOutput(); break;
             case 'beep': SoundManager.beep(); break;

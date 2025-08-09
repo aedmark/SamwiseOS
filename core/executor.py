@@ -20,7 +20,7 @@ class CommandExecutor:
         py_files = [f for f in os.listdir(command_dir) if f.endswith('.py') and not f.startswith('__')]
         return [os.path.splitext(f)[0] for f in py_files]
 
-    def set_context(self, user_context, users, user_groups, config, groups, jobs, ai_manager, api_key):
+    def set_context(self, user_context, users, user_groups, config, groups, jobs, ai_manager, api_key, session_start_time, session_stack):
         """Sets the current user and system context from the JS side."""
         self.user_context = user_context if user_context else {"name": "Guest"}
         self.users = users if users else {}
@@ -30,6 +30,8 @@ class CommandExecutor:
         self.jobs = jobs if jobs else {}
         self.ai_manager = ai_manager
         self.api_key = api_key
+        self.session_start_time = session_start_time
+        self.session_stack = session_stack
 
     def _parse_command_string(self, command_string):
         """
@@ -131,7 +133,9 @@ class CommandExecutor:
                 "groups": self.groups,
                 "jobs": self.jobs,
                 "ai_manager": self.ai_manager,
-                "api_key": self.api_key
+                "api_key": self.api_key,
+                "session_start_time": self.session_start_time,
+                "session_stack": self.session_stack,
             }
 
             sig = inspect.signature(run_func)

@@ -213,7 +213,7 @@ class ConfigManager {
         "grep", "groupadd", "groupdel", "groups", "head", "help", "history", "jobs", "kill",
         "less", "listusers", "log", "login", "logout", "ls", "ln", "man", "more", "mkdir", "mv",
         "nc", "netstat", "nl", "ocrypt", "paint", "passwd", "patch", "ping", "play",
-        "planner", "printscreen",
+        "planner", "printscreen", "who", "uptime",
         "ps", "pwd", "reboot", "remix", "removeuser", "rename", "reset", "restore", "rm", "rmdir",
         "run", "sed", "set", "shuf", "sort", "storyboard", "su", "sudo", "sync","tail", "top", "touch", "tr",
         "tree", "unalias", "uniq", "unset", "unzip", "upload", "useradd", "usermod", "visudo",

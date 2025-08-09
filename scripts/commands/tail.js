@@ -47,8 +47,8 @@ window.TailCommand = class TailCommand extends Command {
             isInputStream: true,
             completionType: "paths",
             flagDefinitions: [
-                { name: "lines", short: "-n", long: "--lines", takesValue: true },
-                { name: "follow", short: "-f", long: "--follow" },
+                { name: "lines", short: "n", long: "lines", takesValue: true },
+                { name: "follow", short: "f", long: "follow" },
             ],
         });
     }

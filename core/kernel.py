@@ -107,7 +107,7 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
         config=context.get("config"),
         groups=context.get("groups"),
         jobs=context.get("jobs"),
-        ai_manager=ai_manager,  # Pass the live Python object instance
+        ai_manager=ai_manager,
         api_key=context.get("api_key")
     )
 
