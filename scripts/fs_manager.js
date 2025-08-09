@@ -63,7 +63,6 @@ class FileSystemManager {
                     home: { type: "directory", children: {}, owner: "root", group: "root", mode: 0o755, mtime: nowISO },
                     etc: { type: "directory", children: {
                             'sudoers': { type: "file", content: "# /etc/sudoers\n#\n# This file MUST be edited with the 'visudo' command as root.\n\nroot ALL=(ALL) ALL\n%root ALL=(ALL) ALL\n", owner: 'root', group: 'root', mode: 0o440, mtime: nowISO },
-                            'oopis.conf': { type: "file", content: "# OopisOS System Configuration File\n", owner: 'root', group: 'root', mode: 0o644, mtime: nowISO }
                         }, owner: "root", group: "root", mode: 0o755, mtime: nowISO },
                 },
                 owner: "root",

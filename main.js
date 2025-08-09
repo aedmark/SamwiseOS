@@ -1,4 +1,4 @@
-// gem/main.js
+// main.js
 
 /**
  * @file This is the main entry point for the OopisOS application. It handles the
@@ -315,7 +315,6 @@ window.onload = async () => {
 
         // THEN, perform actions that might execute commands.
         await userManager.initializeDefaultUsers();
-        await configManager.loadFromFile();
         await configManager.loadPackageManifest();
 
         // Finally, load the state for the now-initialized session.
