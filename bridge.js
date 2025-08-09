@@ -13,13 +13,34 @@ const OopisOS_Kernel = {
     dependencies: null,
 
     /**
+     * [NEW] The single, unified gateway for all JS-to-Python communication.
+     * @param {string} module - The name of the Python module to call (e.g., 'filesystem').
+     * @param {string} func - The name of the function to call within the module.
+     * @param {Array} [args=[]] - An array of positional arguments for the Python function.
+     * @param {Object} [kwargs={}] - An object of keyword arguments for the Python function.
+     * @returns {string} A JSON string representing the standardized response from the kernel.
+     */
+    syscall(module, func, args = [], kwargs = {}) {
+        if (!this.isReady || !this.kernel) {
+            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready for syscall." });
+        }
+        try {
+            const request = { module, "function": func, args, kwargs };
+            return this.kernel.syscall_handler(JSON.stringify(request));
+        } catch (error) {
+            return JSON.stringify({ "success": false, "error": `Syscall bridge error: ${error.message}` });
+        }
+    },
+
+
+    /**
      * Creates a JSON string containing the current user and path context.
      * This is passed to Python functions that need session context.
      * @private
      * @returns {string} A JSON string of the kernel context.
      */
     _createKernelContext() {
-        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config } = this.dependencies;
+        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, CommandExecutor } = this.dependencies;
         const user = UserManager.getCurrentUser();
 
         // [NEW] Build the full user-to-groups mapping for Python-side permission checks
@@ -33,10 +54,17 @@ const OopisOS_Kernel = {
             userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
         }
 
+        const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+
         return JSON.stringify({
             current_path: FileSystemManager.getCurrentPath(),
             user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) },
-            user_groups: userGroupsMap // [FIXED] Add the complete map to the context
+            users: allUsers,
+            user_groups: userGroupsMap,
+            groups: GroupManager.getAllGroups(),
+            jobs: CommandExecutor.getActiveJobs(),
+            config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+            api_key: apiKey
         });
     },
 
@@ -191,17 +219,17 @@ const OopisOS_Kernel = {
             this.kernel = this.pyodide.pyimport("kernel");
             this.kernel.initialize_kernel(this.saveFileSystem);
 
-            const pythonCommands = this.kernel.command_executor.commands.toJs();
+            const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             pythonCommands.forEach(cmd => CommandRegistry.addCommandToManifest(cmd));
 
-            // Expose the Python session managers to the JS kernel object
-            this.envManager = this.kernel.env_manager;
-            this.historyManager = this.kernel.history_manager;
-            this.aliasManager = this.kernel.alias_manager;
-            this.sessionManager = this.kernel.session_manager;
-            this.groupManager = this.kernel.group_manager;
-            this.userManager = this.kernel.user_manager;
-            this.sudoManager = this.kernel.sudo_manager;
+            // Expose the Python managers to the JS kernel object
+            this.envManager = this.kernel.MODULE_DISPATCHER["env"];
+            this.historyManager = this.kernel.MODULE_DISPATCHER["history"];
+            this.aliasManager = this.kernel.MODULE_DISPATCHER["alias"];
+            this.sessionManager = this.kernel.MODULE_DISPATCHER["session"];
+            this.groupManager = this.kernel.MODULE_DISPATCHER["groups"];
+            this.userManager = this.kernel.MODULE_DISPATCHER["users"];
+            this.sudoManager = this.kernel.MODULE_DISPATCHER["sudo"];
 
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
@@ -212,185 +240,98 @@ const OopisOS_Kernel = {
         }
     },
 
+    // --- DEPRECATED STUBS (to be removed) ---
     execute_command(commandString, jsContextJson, stdinContent = null) {
-        if (!this.isReady || !this.kernel) {
-            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
-        }
-        try {
-            return this.kernel.execute_command(commandString, jsContextJson, stdinContent);
-        } catch (error) {
-            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
-        }
+        return this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
-
     writeFile(path, content, jsContextJson) {
-        if (!this.isReady || !this.kernel) {
-            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
-        }
-        try {
-            return this.kernel.write_file(path, content, jsContextJson);
-        } catch (error) {
-            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
-        }
+        return this.kernel.write_file(path, content, jsContextJson);
     },
-
     createDirectory(path, jsContextJson) {
-        if (!this.isReady || !this.kernel) {
-            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
-        }
-        try {
-            return this.kernel.create_directory(path, jsContextJson);
-        } catch (error) {
-            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
-        }
+        return this.kernel.create_directory(path, jsContextJson);
     },
-
     chidi_analysis(jsContextJson, filesContext, analysisType, question = null) {
-        if (!this.isReady || !this.kernel) {
-            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
-        }
-        try {
-            return this.kernel.chidi_analysis(jsContextJson, filesContext, analysisType, question);
-        } catch (error) {
-            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
-        }
+        return this.kernel.chidi_analysis(jsContextJson, filesContext, analysisType, question);
     },
-
     renameNode(oldPath, newPath, jsContextJson) {
-        if (!this.isReady || !this.kernel) {
-            return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready." });
-        }
-        try {
-            return this.kernel.rename_node(oldPath, newPath, jsContextJson);
-        } catch (error) {
-            return JSON.stringify({ "success": false, "error": `Python execution error: ${error.message}` });
-        }
+        return this.kernel.rename_node(oldPath, newPath, jsContextJson);
     },
-
     explorerGetView(path, jsContextJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_get_view(path, jsContextJson);
     },
-
     explorerToggleTree(path) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_toggle_tree(path);
     },
-
     explorerCreateNode(path, name, nodeType, jsContextJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_create_node(path, name, nodeType, jsContextJson);
     },
-
     explorerRenameNode(oldPath, newName, jsContextJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_rename_node(oldPath, newName, jsContextJson);
     },
-
     explorerDeleteNode(path, jsContextJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_delete_node(path, jsContextJson);
     },
-
     editorLoadFile(filePath, fileContent) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.editor_load_file(filePath, fileContent);
     },
-
     editorPushUndo(content) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.editor_push_undo(content);
     },
-
     editorUndo() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.editor_undo();
     },
-
     editorRedo() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.editor_redo();
     },
-
     editorUpdateOnSave(path, content) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.editor_update_on_save(path, content);
     },
-
     paintGetInitialState(filePath, fileContent) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.paint_get_initial_state(filePath, fileContent);
     },
-
     paintPushUndoState(canvasDataJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.paint_push_undo_state(canvasDataJson);
     },
-
     paintUndo() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.paint_undo();
     },
-
     paintRedo() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.paint_redo();
     },
-
     paintUpdateOnSave(path) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.paint_update_on_save(path);
     },
-
     adventureInitializeState(adventureDataJson, scriptingContextJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.adventure_initialize_state(adventureDataJson, scriptingContextJson);
     },
-
     adventureProcessCommand(command) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.adventure_process_command(command);
     },
-
     adventureCreatorInitialize(filename, initialDataJson) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.adventure_creator_initialize(filename, initialDataJson);
     },
-
     adventureCreatorGetPrompt() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.adventure_creator_get_prompt();
     },
-
     adventureCreatorProcessCommand(command) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.adventure_creator_process_command(command);
     },
-
     top_get_process_list(jobs) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.top_get_process_list(jobs);
     },
-
     log_ensure_dir() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.log_ensure_dir(this._createKernelContext());
     },
-
     log_load_entries() {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.log_load_entries(this._createKernelContext());
     },
-
     log_save_entry(path, content) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.log_save_entry(path, content, this._createKernelContext());
     },
-
     basic_run_program(programText, outputCallback, inputCallback) {
-        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.basic_run_program(programText, outputCallback, inputCallback);
     },
+
 
     async saveFileSystem(fsJsonString) {
         const { StorageHAL } = OopisOS_Kernel.dependencies;

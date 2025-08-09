@@ -93,28 +93,173 @@ def syscall_handler(request_json):
 # These are kept temporarily to prevent the system from breaking while we
 # refactor the JavaScript side to use the new syscall handler.
 def execute_command(command_string: str, js_context_json: str, stdin_data: str = None) -> str:
+    # This is a bit of a special case because the executor's context setting is complex.
+    # We'll handle it by passing the raw context to the executor via the syscall.
+    context = json.loads(js_context_json)
     req = {
         "module": "executor",
-        "function": "execute",
-        "args": [command_string, js_context_json, stdin_data]
+        "function": "set_context",
+        "kwargs": {
+            "user_context": context.get("user_context"),
+            "users": context.get("users"),
+            "user_groups": context.get("user_groups"),
+            "config": context.get("config"),
+            "groups": context.get("groups"),
+            "jobs": context.get("jobs"),
+            "ai_manager": ai_manager, # Pass the Python instance
+            "api_key": context.get("api_key")
+        }
     }
-    return syscall_handler(json.dumps(req))
+    syscall_handler(json.dumps(req)) # Set context first
+
+    req_exec = {
+        "module": "executor",
+        "function": "execute",
+        "args": [command_string, stdin_data]
+    }
+    return syscall_handler(json.dumps(req_exec))
+
 
 def get_session_state_for_saving():
     req = {"module": "session", "function": "get_session_state_for_saving"}
-    return syscall_handler(json.dumps(req))
+    # The result of syscall_handler is already a JSON string
+    result_json = syscall_handler(json.dumps(req))
+    # But the old JS expects a raw JSON string of the state, not the wrapped response
+    response = json.loads(result_json)
+    return response.get("data", "{}")
+
 
 def load_session_state(state_json):
     req = {"module": "session", "function": "load_session_state", "args": [state_json]}
     return syscall_handler(json.dumps(req))
 
-# ... Add similar stubs for all other old functions in kernel.py ...
-# This ensures that if an old JS call is made, it gets routed through the new system.
-# Example:
 def write_file(path, content, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "filesystem", "function": "write_file", "args": [path, content, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def create_directory(path, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "filesystem", "function": "create_directory", "args": [path, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def rename_node(old_path, new_path, js_context_json):
+    # Rename doesn't currently need user_context, but we maintain the pattern
+    req = {"module": "filesystem", "function": "rename_node", "args": [old_path, new_path]}
+    return syscall_handler(json.dumps(req))
+
+# --- App-specific Stubs ---
+
+def chidi_analysis(js_context_json, files_context, analysis_type, question=None):
+    context = json.loads(js_context_json)
     req = {
-        "module": "filesystem",
-        "function": "write_file",
-        "args": [path, content, json.loads(js_context_json).get('user_context')]
+        "module": "ai",
+        "function": "perform_chidi_analysis",
+        "kwargs": {
+            "files_context": files_context,
+            "analysis_type": analysis_type,
+            "question": question,
+            "provider": context.get("provider", "gemini"),
+            "model": context.get("model"),
+            "api_key": context.get("api_key")
+        }
     }
     return syscall_handler(json.dumps(req))
+
+def explorer_get_view(path, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "explorer", "function": "get_view_data", "args": [path, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def explorer_toggle_tree(path):
+    req = {"module": "explorer", "function": "toggle_tree_expansion", "args": [path]}
+    return syscall_handler(json.dumps(req))
+
+def explorer_create_node(path, name, node_type, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "explorer", "function": "create_node", "args": [path, name, node_type, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def explorer_rename_node(old_path, new_name, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "explorer", "function": "rename_node", "args": [old_path, new_name, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def explorer_delete_node(path, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "explorer", "function": "delete_node", "args": [path, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def editor_load_file(file_path, file_content):
+    req = {"module": "editor", "function": "load_file", "args": [file_path, file_content]}
+    return syscall_handler(json.dumps(req))
+
+def editor_push_undo(content):
+    req = {"module": "editor", "function": "push_undo_state", "args": [content]}
+    return syscall_handler(json.dumps(req))
+
+def editor_undo():
+    req = {"module": "editor", "function": "undo"}
+    return syscall_handler(json.dumps(req))
+
+def editor_redo():
+    req = {"module": "editor", "function": "redo"}
+    return syscall_handler(json.dumps(req))
+
+def editor_update_on_save(path, content):
+    req = {"module": "editor", "function": "update_on_save", "args": [path, content]}
+    return syscall_handler(json.dumps(req))
+
+def paint_get_initial_state(file_path, file_content):
+    req = {"module": "paint", "function": "get_initial_state", "args": [file_path, file_content]}
+    return syscall_handler(json.dumps(req))
+
+def paint_push_undo_state(canvas_data_json):
+    req = {"module": "paint", "function": "push_undo_state", "args": [canvas_data_json]}
+    return syscall_handler(json.dumps(req))
+
+def paint_undo():
+    req = {"module": "paint", "function": "undo"}
+    return syscall_handler(json.dumps(req))
+
+def paint_redo():
+    req = {"module": "paint", "function": "redo"}
+    return syscall_handler(json.dumps(req))
+
+def paint_update_on_save(path):
+    req = {"module": "paint", "function": "update_on_save", "args": [path]}
+    return syscall_handler(json.dumps(req))
+
+def adventure_initialize_state(adventure_data_json, scripting_context_json):
+    req = {"module": "adventure", "function": "initialize_state", "args": [adventure_data_json, scripting_context_json]}
+    return syscall_handler(json.dumps(req))
+
+def adventure_process_command(command):
+    req = {"module": "adventure", "function": "process_command", "args": [command]}
+    return syscall_handler(json.dumps(req))
+
+# Note: adventure_creator functions are JS-only for now, so no stubs needed yet.
+
+def top_get_process_list(jobs):
+    req = {"module": "top", "function": "get_process_list", "args": [jobs]}
+    return syscall_handler(json.dumps(req))
+
+def log_ensure_dir(js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "log", "function": "ensure_log_dir", "args": [user_context]}
+    return syscall_handler(json.dumps(req))
+
+def log_load_entries(js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "log", "function": "load_entries", "args": [user_context]}
+    return syscall_handler(json.dumps(req))
+
+def log_save_entry(path, content, js_context_json):
+    user_context = json.loads(js_context_json).get('user_context')
+    req = {"module": "log", "function": "save_entry", "args": [path, content, user_context]}
+    return syscall_handler(json.dumps(req))
+
+def basic_run_program(program_text, output_callback, input_callback):
+    # This is complex due to JS callbacks. We will handle this in a dedicated refactor phase for BASIC.
+    # For now, we call the specific app module directly.
+    return json.dumps(basic_app.run_program(program_text, output_callback, input_callback))

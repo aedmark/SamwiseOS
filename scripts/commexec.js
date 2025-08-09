@@ -230,7 +230,7 @@ class CommandExecutor {
                 config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
                 api_key: apiKey
             };
-            const resultJson = OopisOS_Kernel.execute_command(commandToExecute, JSON.stringify(jsContext), stdinContent);
+            const resultJson = OopisOS_Kernel.execute_command(commandToExecute, OopisOS_Kernel._createKernelContext(), stdinContent);
             const result = JSON.parse(resultJson);
             if (result.success) {
                 if (result.effect) {
