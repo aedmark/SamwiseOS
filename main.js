@@ -219,8 +219,19 @@ window.onload = async () => {
         domElements: domElements,
         SoundManager: soundManager,
         StorageHAL: storageHAL,
-        TextAdventureModal: window.TextAdventureModal,
         AuditManager: auditManager,
+        // App UI Constructors
+        TextAdventureModal: window.TextAdventureModal,
+        Adventure_create: window.Adventure_create,
+        Basic_interp: window.Basic_interp,
+        BasicUI: window.BasicUI,
+        ChidiUI: window.ChidiUI,
+        EditorUI: window.EditorUI,
+        ExplorerUI: window.ExplorerUI,
+        GeminiChatUI: window.GeminiChatUI,
+        LogUI: window.LogUI,
+        PaintUI: window.PaintUI,
+        TopUI: window.TopUI,
     };
 
     const userManager = new UserManager(dependencies);
@@ -254,9 +265,8 @@ window.onload = async () => {
     auditManager.setDependencies(dependencies);
     commandRegistry.setDependencies(dependencies);
 
-
     try {
-        // [MODIFIED] Reordered Initialization Sequence
+        // Reordered Initialization Sequence
         // 1. Initialize core UI and storage components that have no dependencies on Python
         outputManager.initialize(domElements);
         terminalUI.initialize(domElements);

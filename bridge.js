@@ -12,6 +12,21 @@ const OopisOS_Kernel = {
     kernel: null,
     dependencies: null,
 
+    /**
+     * Creates a JSON string containing the current user and path context.
+     * This is passed to Python functions that need session context.
+     * @private
+     * @returns {string} A JSON string of the kernel context.
+     */
+    _createKernelContext() {
+        const { FileSystemManager, UserManager } = this.dependencies;
+        const user = UserManager.getCurrentUser();
+        return JSON.stringify({
+            current_path: FileSystemManager.getCurrentPath(),
+            user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) }
+        });
+    },
+
     async initialize(dependencies) {
         this.dependencies = dependencies;
         const { OutputManager, Config, CommandRegistry } = this.dependencies;
