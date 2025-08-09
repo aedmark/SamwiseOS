@@ -32,7 +32,7 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "paint_redo", "paint_update_on_save",
            "adventure_initialize_state", "adventure_process_command",
            "adventure_creator_initialize", "adventure_creator_get_prompt",
-           "adventure_creator_process_command"]
+           "adventure_creator_process_command", "top_get_process_list"]
 
 
 def initialize_kernel(save_function):
@@ -330,3 +330,15 @@ def adventure_creator_process_command(command):
         "success": False,
         "output": f"Unknown command: '{command}'. Creator is not fully implemented yet."
     })
+
+def top_get_process_list(jobs_proxy):
+    """
+    Bridge to get the process list for the Top app.
+    The jobs_proxy is a PyProxy from JS, so we convert it to a Python dict.
+    """
+    try:
+        jobs = jobs_proxy.to_py()
+        process_list = top_app.get_process_list(jobs)
+        return json.dumps({"success": True, "data": process_list})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})

@@ -1,5 +1,6 @@
 /**
  * Top Manager - Manages the state and logic for the process viewer application.
+ * All core logic is now delegated to the Python kernel.
  * @class TopManager
  * @extends App
  */
@@ -39,6 +40,7 @@ window.TopManager = class TopManager extends App {
 
         this.updateInterval = setInterval(() => this._updateProcessList(), 1000);
         this._updateProcessList();
+        this.container.focus();
     }
 
     /**
@@ -65,7 +67,7 @@ window.TopManager = class TopManager extends App {
      * @param {KeyboardEvent} event - The keyboard event.
      */
     handleKeyDown(event) {
-        if (event.key === "q") {
+        if (event.key === "q" || event.key === "Escape") {
             this.exit();
         }
     }
@@ -83,24 +85,21 @@ window.TopManager = class TopManager extends App {
     }
 
     /**
-     * Fetches the current list of running processes and updates the UI.
+     * Fetches the current list of running processes from the Python kernel and updates the UI.
      * @private
      */
     _updateProcessList() {
-        const { CommandExecutor } = this.dependencies;
-        const jobs = CommandExecutor.getActiveJobs();
-        const processes = Object.keys(jobs).map(pid => {
-            const job = jobs[pid];
-            return {
-                pid: pid,
-                user: job.user || 'system',
-                status: job.status.toUpperCase().charAt(0),
-                command: job.command,
-            };
-        });
+        if (!OopisOS_Kernel || !OopisOS_Kernel.isReady) return;
 
-        if (this.ui) {
-            this.ui.render(processes);
+        // The jobs are passed directly to the Python function contextually
+        const jobs = this.dependencies.CommandExecutor.getActiveJobs();
+        const resultJson = OopisOS_Kernel.top_get_process_list(jobs);
+        const result = JSON.parse(resultJson);
+
+        if (this.ui && result.success) {
+            this.ui.render(result.data);
+        } else if (!result.success) {
+            console.error("Top App Error:", result.error);
         }
     }
 };

@@ -140,7 +140,8 @@ const OopisOS_Kernel = {
                 '/core/apps/editor.py': './core/apps/editor.py',
                 '/core/apps/explorer.py': './core/apps/explorer.py',
                 '/core/apps/paint.py': './core/apps/paint.py',
-                '/core/apps/adventure.py': './core/apps/adventure.py'
+                '/core/apps/adventure.py': './core/apps/adventure.py',
+                '/core/apps/top.py': './core/apps/top.py'
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
@@ -328,6 +329,11 @@ const OopisOS_Kernel = {
     adventureCreatorProcessCommand(command) {
         if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.adventure_creator_process_command(command);
+    },
+
+    top_get_process_list(jobs) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.top_get_process_list(jobs);
     },
 
     async saveFileSystem(fsJsonString) {
