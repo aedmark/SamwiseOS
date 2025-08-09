@@ -1,5 +1,5 @@
 /**
- * [REFACTORED] Paint Manager - Manages UI interaction and delegates all state
+ * Paint Manager - Manages UI interaction and delegates all state
  * management to the Python kernel's PaintManager.
  * @class PaintManager
  * @extends App
@@ -52,7 +52,7 @@ window.PaintManager = class PaintManager extends App {
         };
 
         this.isActive = true;
-        this.ui = new this.dependencies.PaintUI(this.state, this.callbacks, this.dependencies);
+        this.ui = new PaintUI(this.state, this.callbacks, this.dependencies);
         this.container = this.ui.getContainer();
         appLayer.appendChild(this.container);
         this.container.focus();
@@ -71,13 +71,10 @@ window.PaintManager = class PaintManager extends App {
 
     _updateStateFromPython(pyResult) {
         if (pyResult && pyResult.success && pyResult.data) {
-            // Update core state managed by Python
             this.state.canvasData = pyResult.data.canvasData;
             this.state.canUndo = pyResult.data.canUndo;
             this.state.canRedo = pyResult.data.canRedo;
             this.state.isDirty = pyResult.data.isDirty;
-
-            // Re-render UI components that depend on this state
             this.ui.renderInitialCanvas(this.state.canvasData, this.state.canvasDimensions);
             this.ui.updateToolbar(this.state);
         } else if (pyResult && !pyResult.success) {
@@ -113,7 +110,7 @@ window.PaintManager = class PaintManager extends App {
                 this.ui.updateZoom(this.state.zoomLevel);
                 this.ui.updateStatusBar(this.state);
             },
-            onGetState: () => this.state, // Give UI access to the current state for status updates
+            onGetState: () => this.state,
             onCanvasMouseDown: (coords) => {
                 this.state.isDrawing = true;
                 this.state.startCoords = coords;
@@ -121,6 +118,7 @@ window.PaintManager = class PaintManager extends App {
                 if (this.state.currentTool === 'fill') {
                     this._toolFill(coords);
                     this._pushUndoState();
+                    this.state.isDrawing = false; // Fill is a single click, not a drag
                 }
             },
             onCanvasMouseMove: (coords) => {
@@ -130,28 +128,33 @@ window.PaintManager = class PaintManager extends App {
                 const tool = this.state.currentTool;
                 if (tool === 'pencil' || tool === 'eraser') {
                     this._toolLine(this.state.lastCoords, coords, true);
-                    this.state.lastCoords = coords;
                 } else if (['line', 'rect', 'circle'].includes(tool)) {
                     this._previewShape(this.state.startCoords, coords);
                 }
+                this.state.lastCoords = coords; // Always update the last known coordinates
             },
             onCanvasMouseUp: (coords) => {
                 if (!this.state.isDrawing) return;
                 this.state.isDrawing = false;
                 const tool = this.state.currentTool;
+                const endCoords = coords || this.state.lastCoords;
+
+                if (tool === 'fill') return; // Fill action is complete on mousedown
 
                 if (['pencil', 'eraser'].includes(tool)) {
-                    this._toolLine(this.state.lastCoords, coords || this.state.lastCoords, true);
+                    this._toolLine(this.state.lastCoords, endCoords, true);
                 } else if (tool === 'line') {
-                    this._toolLine(this.state.startCoords, coords || this.state.lastCoords);
+                    this._toolLine(this.state.startCoords, endCoords);
                 } else if (tool === 'rect') {
-                    this._toolRect(this.state.startCoords, coords || this.state.lastCoords);
+                    this._toolRect(this.state.startCoords, endCoords);
                 } else if (tool === 'circle') {
-                    this._toolCircle(this.state.startCoords, coords || this.state.lastCoords);
+                    this._toolCircle(this.state.startCoords, endCoords);
                 }
 
                 this.ui.clearPreview();
-                this._pushUndoState();
+                if (tool !== 'select') {
+                    this._pushUndoState();
+                }
             },
         };
     }
@@ -165,18 +168,15 @@ window.PaintManager = class PaintManager extends App {
         if (isPreview) {
             this.ui.updatePreviewCanvas(cellsToUpdate);
         } else {
-            // Apply changes directly to the state canvasData
             cellsToUpdate.forEach(cell => {
                 if (this.state.canvasData[cell.y] && this.state.canvasData[cell.y][cell.x]) {
                     this.state.canvasData[cell.y][cell.x] = { char: cell.char, color: cell.color };
                 }
             });
-            // Then, re-render the main canvas from the updated state
             this.ui.updateCanvas(cellsToUpdate);
         }
     }
 
-    // --- Drawing Tool Logic ---
     _previewShape(start, end) {
         if (!start || !end) return;
         const tool = this.state.currentTool;
@@ -210,23 +210,17 @@ window.PaintManager = class PaintManager extends App {
         const { width, height } = this.state.canvasDimensions;
         const { x, y } = startCoords;
         if (x < 0 || x >= width || y < 0 || y >= height) return;
-
         const targetChar = this.state.canvasData[y][x].char;
         const targetColor = this.state.canvasData[y][x].color;
         const fillChar = this.state.currentCharacter;
         const fillColor = this.state.currentColor;
-
         if (targetChar === fillChar && targetColor === fillColor) return;
-
         const stack = [[x, y]];
         const visited = new Set([`${x},${y}`]);
-
         while (stack.length > 0) {
             const [cx, cy] = stack.pop();
-
             if (this.state.canvasData[cy][cx].char === targetChar && this.state.canvasData[cy][cx].color === targetColor) {
                 this.state.canvasData[cy][cx] = { char: fillChar, color: fillColor };
-
                 const neighbors = [[cx, cy - 1], [cx, cy + 1], [cx - 1, cy], [cx + 1, cy]];
                 for (const [nx, ny] of neighbors) {
                     if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited.has(`${nx},${ny}`)) {
@@ -236,25 +230,20 @@ window.PaintManager = class PaintManager extends App {
                 }
             }
         }
-        // Re-render the entire canvas since many cells could have changed
         this.ui.renderInitialCanvas(this.state.canvasData, this.state.canvasDimensions);
     }
 
-
-    // --- Cell Calculation Helpers ---
     _getLineCells(start, end, isPencil = false) {
         const cells = [];
         let { x: x1, y: y1 } = start;
         let { x: x2, y: y2 } = end;
         const char = this.state.currentTool === 'eraser' ? ' ' : this.state.currentCharacter;
         const color = this.state.currentTool === 'eraser' ? '#000000' : this.state.currentColor;
-
         const dx = Math.abs(x2 - x1);
         const dy = Math.abs(y2 - y1);
         const sx = (x1 < x2) ? 1 : -1;
         const sy = (y1 < y2) ? 1 : -1;
         let err = dx - dy;
-
         while (true) {
             cells.push({ x: x1, y: y1, char, color });
             if ((x1 === x2) && (y1 === y2)) break;
@@ -272,7 +261,6 @@ window.PaintManager = class PaintManager extends App {
         const x2 = Math.max(start.x, end.x);
         const y1 = Math.min(start.y, end.y);
         const y2 = Math.max(start.y, end.y);
-
         for (let x = x1; x <= x2; x++) {
             cells.push({ x, y: y1, char, color });
             cells.push({ x, y: y2, char, color });
@@ -291,13 +279,10 @@ window.PaintManager = class PaintManager extends App {
         const centerY = Math.round((start.y + end.y) / 2);
         const rx = Math.abs(centerX - start.x);
         const ry = Math.abs(centerY - start.y);
-
-        // Bresenham's ellipse algorithm
         let x = 0, y = ry;
         let d1 = (ry * ry) - (rx * rx * ry) + (0.25 * rx * rx);
         let dx = 2 * ry * ry * x;
         let dy = 2 * rx * rx * y;
-
         while (dx < dy) {
             cells.push({ x: centerX + x, y: centerY + y, char, color }, { x: centerX - x, y: centerY + y, char, color }, { x: centerX + x, y: centerY - y, char, color }, { x: centerX - x, y: centerY - y, char, color });
             if (d1 < 0) { x++; dx += (2 * ry * ry); d1 += dx + (ry * ry); }

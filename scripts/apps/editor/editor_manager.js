@@ -57,7 +57,7 @@ window.EditorManager = class EditorManager extends App {
         };
 
         this.isActive = true;
-        this.ui = new this.dependencies.EditorUI(this.state, this.callbacks, this.dependencies);
+        this.ui = new EditorUI(this.state, this.callbacks, this.dependencies); // Corrected this line
         this.container = this.ui.elements.container;
         appLayer.appendChild(this.container);
         this.container.focus();
@@ -65,6 +65,8 @@ window.EditorManager = class EditorManager extends App {
         this._updateContent(this.ui.elements.textarea);
         this._updateButtonStates();
     }
+
+    // ... rest of file is unchanged
     _updateStateFromPython(pyResult) {
         if (pyResult.success && pyResult.data) {
             this.state.canUndo = pyResult.data.canUndo;

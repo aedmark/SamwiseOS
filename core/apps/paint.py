@@ -35,7 +35,6 @@ class PaintManager:
                     self.canvas_data = parsed_content['cells']
                     self.undo_stack = [json.dumps(self.canvas_data)]
             except (json.JSONDecodeError, TypeError):
-                # If content is invalid, we proceed with a blank canvas
                 self.canvas_data = self._get_blank_canvas(
                     self.canvas_dimensions["width"], self.canvas_dimensions["height"]
                 )
@@ -60,8 +59,8 @@ class PaintManager:
     def push_undo_state(self, new_canvas_data_json):
         """Pushes a new canvas state to the undo stack."""
         if new_canvas_data_json != self.undo_stack[-1]:
+            self.canvas_data = json.loads(new_canvas_data_json)
             self.undo_stack.append(new_canvas_data_json)
-            # Limit stack size
             if len(self.undo_stack) > 50:
                 self.undo_stack.pop(0)
             self.redo_stack = []
@@ -90,9 +89,6 @@ class PaintManager:
         """Updates the state after a successful save operation."""
         self.current_file_path = path
         self.is_dirty = False
-        # The current state becomes the new "clean" state.
-        # We can either clear the history or just mark it as clean.
-        # For a better user experience, we'll keep the history but mark as saved.
         self.undo_stack = [json.dumps(self.canvas_data)]
         self.redo_stack = []
         return self._get_state_for_ui()
