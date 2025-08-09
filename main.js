@@ -314,7 +314,7 @@ window.onload = async () => {
         sessionManager.initializeStack(); // <-- Let's open for business!
 
         // THEN, perform actions that might execute commands.
-        await userManager.initializeDefaultUsers(); // <-- Now this will work!
+        await userManager.initializeDefaultUsers();
         await configManager.loadFromFile();
         await configManager.loadPackageManifest();
 
@@ -323,9 +323,6 @@ window.onload = async () => {
 
         // 5. Final setup
         outputManager.clearOutput();
-        await outputManager.appendToOutput(
-            `${configManager.MESSAGES.WELCOME_PREFIX} ${userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`
-        );
 
         initializeTerminalEventListeners(domElements, commandExecutor, dependencies);
 
