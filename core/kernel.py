@@ -144,6 +144,7 @@ def load_session_state(state_json):
 def write_uploaded_file(filename, content, js_context_json):
     try:
         js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
         current_path = js_context.get("current_path", "/")
         user_context = js_context.get("user_context")
         full_path = os.path.join(current_path, filename)
@@ -351,6 +352,7 @@ def log_ensure_dir(js_context_json):
     """Bridge to ensure the user's log directory exists."""
     try:
         js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
         user_context = js_context.get("user_context")
         result = log_app.ensure_log_dir(user_context)
         return json.dumps(result)
@@ -361,6 +363,7 @@ def log_load_entries(js_context_json):
     """Bridge to load all log entries for the current user."""
     try:
         js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
         user_context = js_context.get("user_context")
         entries = log_app.load_entries(user_context)
         return json.dumps({"success": True, "data": entries})
@@ -371,6 +374,7 @@ def log_save_entry(path, content, js_context_json):
     """Bridge to save a log entry."""
     try:
         js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
         user_context = js_context.get("user_context")
         result = log_app.save_entry(path, content, user_context)
         return json.dumps(result)

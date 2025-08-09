@@ -2,6 +2,7 @@
 import math
 import random
 import json
+import re
 
 # This will be a large file, as it's a direct translation of a complex interpreter.
 class BasicInterpreter:

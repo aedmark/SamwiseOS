@@ -77,7 +77,9 @@ class UserManager {
 
         if (result.success) {
             this._saveUsers();
-            await this.fsManager.createUserHomeDirectory(username);
+            await this.sudoExecute(`mkdir /home/${username}`, { isInteractive: false });
+            await this.sudoExecute(`chown ${username} /home/${username}`, { isInteractive: false });
+            await this.sudoExecute(`chgrp ${username} /home/${username}`, { isInteractive: false });
             return ErrorHandler.createSuccess(
                 `User '${username}' registered. Home directory created at /home/${username}.`,
                 { stateModified: true }
@@ -300,6 +302,19 @@ class UserManager {
         this._getManager().load_users(usersFromStorage);
         this._getManager().initialize_defaults(Config.USER.DEFAULT_NAME);
 
+        // Ensure the Guest user's home directory exists.
+        const guestHomePath = `/home/${Config.USER.DEFAULT_NAME}`;
+        // We check the filesystem directly to see if the directory exists.
+        const guestHomeNode = await this.dependencies.FileSystemManager.getNodeByPath(guestHomePath);
+        if (!guestHomeNode) {
+            console.log("UserManager: Guest home directory not found, creating it...");
+            // Use administrative privileges to create and configure the directory.
+            await this.sudoExecute(`mkdir ${guestHomePath}`, { isInteractive: false });
+            await this.sudoExecute(`chown ${Config.USER.DEFAULT_NAME} ${guestHomePath}`, { isInteractive: false });
+            await this.sudoExecute(`chgrp ${Config.USER.DEFAULT_NAME} ${guestHomePath}`, { isInteractive: false });
+            console.log("UserManager: Guest home directory created.");
+        }
+
         // Check if root password needs to be set for the first time
         const rootUser = this._getManager().get_user('root');
         const rootNeedsPassword = !rootUser || !rootUser.get('passwordData');
@@ -309,7 +324,6 @@ class UserManager {
         if (rootNeedsPassword) {
             const randomPassword = Math.random().toString(36).slice(-8);
 
-            // [MODIFIED] Delegate password setting to the Python kernel
             this._getManager().change_password('root', randomPassword);
 
             setTimeout(() => {

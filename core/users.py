@@ -1,7 +1,10 @@
 # gem/core/users.py
 
-import hashlib
+import base64
 import os
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 class UserManager:
     """Manages user accounts, credentials, and properties."""
@@ -11,8 +14,6 @@ class UserManager:
     def initialize_defaults(self, default_username):
         """Initializes default users if they don't exist."""
         if 'root' not in self.users:
-            # In a real system, the initial root password would be set during installation.
-            # Here, we will handle its one-time generation on the JS side.
             self.users['root'] = {'passwordData': None, 'primaryGroup': 'root'}
 
         if default_username not in self.users:
@@ -24,9 +25,7 @@ class UserManager:
 
     def load_users(self, users_dict):
         """Loads user data from a dictionary (from storage)."""
-        # [MODIFIED] Convert the incoming JsProxy to a native Python dictionary
         self.users = users_dict.to_py() if hasattr(users_dict, 'to_py') else users_dict
-
 
     def user_exists(self, username):
         """Checks if a user exists."""
@@ -39,15 +38,29 @@ class UserManager:
     def _secure_hash_password(self, password):
         """Securely hashes a password using PBKDF2 with a random salt."""
         salt = os.urandom(16)
-        # 100,000 iterations is a common default for PBKDF2.
-        pwd_hash = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt, 100000)
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        pwd_hash = kdf.derive(password.encode('utf-8'))
         return {'salt': salt.hex(), 'hash': pwd_hash.hex()}
 
     def _verify_password_with_salt(self, password_attempt, salt_hex, stored_hash_hex):
         """Verifies a password attempt against a stored salt and hash."""
         salt = bytes.fromhex(salt_hex)
-        attempt_hash = hashlib.pbkdf2_hmac('sha256', password_attempt.encode('utf-8'), salt, 100000)
-        return attempt_hash.hex() == stored_hash_hex
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=100000,
+        )
+        try:
+            kdf.verify(password_attempt.encode('utf-8'), bytes.fromhex(stored_hash_hex))
+            return True
+        except Exception:
+            return False
 
     def register_user(self, username, password, primary_group):
         """Creates a new user account."""
@@ -69,8 +82,6 @@ class UserManager:
         """Verifies a user's password."""
         user_entry = self.get_user(username)
         if not user_entry or not user_entry.get('passwordData'):
-            # This case means the user exists but has no password set.
-            # Successful auth if the attempt is also empty/null.
             return not password_attempt
 
         salt = user_entry['passwordData']['salt']
@@ -86,5 +97,4 @@ class UserManager:
         self.users[username]['passwordData'] = new_password_data
         return True
 
-# Instantiate a singleton that will be exposed to JavaScript
 user_manager = UserManager()

@@ -208,7 +208,28 @@ class CommandExecutor {
         try {
             const commandToExecute = await this._preprocessCommandString(rawCommandText, scriptingContext);
             const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-            const jsContext = { current_path: FileSystemManager.getCurrentPath(), user_context: { name: UserManager.getCurrentUser().name }, users: StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {}), user_groups: GroupManager.getGroupsForUser(UserManager.getCurrentUser().name), groups: GroupManager.getAllGroups(), jobs: this.activeJobs, config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE }, api_key: apiKey };
+
+            // [NEW] Build the full user-to-groups mapping for the Python kernel
+            const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
+            const allUsernames = Object.keys(allUsers);
+            const userGroupsMap = {};
+            for (const username of allUsernames) {
+                userGroupsMap[username] = GroupManager.getGroupsForUser(username);
+            }
+            if (!userGroupsMap['Guest']) {
+                userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
+            }
+
+            const jsContext = {
+                current_path: FileSystemManager.getCurrentPath(),
+                user_context: { name: UserManager.getCurrentUser().name },
+                users: allUsers,
+                user_groups: userGroupsMap, // [FIXED] Pass the complete map
+                groups: GroupManager.getAllGroups(),
+                jobs: this.activeJobs,
+                config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+                api_key: apiKey
+            };
             const resultJson = OopisOS_Kernel.execute_command(commandToExecute, JSON.stringify(jsContext), stdinContent);
             const result = JSON.parse(resultJson);
             if (result.success) {

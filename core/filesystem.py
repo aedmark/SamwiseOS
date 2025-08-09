@@ -182,26 +182,45 @@ class FileSystemManager:
         self._save_state()
 
     def create_directory(self, path, user_context):
-        """Creates a new directory."""
+        """
+        Creates a new directory, including any necessary parent directories.
+        """
         abs_path = self.get_absolute_path(path)
-        parent_path = os.path.dirname(abs_path)
-        dir_name = os.path.basename(abs_path)
-        parent_node = self.get_node(parent_path)
+        if self.get_node(abs_path):
+            # Do nothing if it already exists, mimicking `mkdir -p`
+            return
 
-        if not parent_node or parent_node.get('type') != 'directory':
-            raise FileNotFoundError(f"Cannot create directory in '{parent_path}': No such directory.")
-
-        if dir_name in parent_node['children']:
-            raise FileExistsError(f"Cannot create directory '{path}': File exists.")
-
+        parts = [part for part in abs_path.split('/') if part]
+        current_node = self.fs_data.get('/')
+        current_path_so_far = '/'
         now_iso = datetime.utcnow().isoformat() + "Z"
-        new_dir = {
-            "type": "directory", "children": {}, "owner": user_context.get('name', 'guest'),
-            "group": user_context.get('group', 'guest'), "mode": 0o755, "mtime": now_iso
-        }
-        parent_node['children'][dir_name] = new_dir
-        parent_node['mtime'] = now_iso
+
+        for i, part in enumerate(parts):
+            current_path_so_far = os.path.join(current_path_so_far, part)
+            if part not in current_node.get('children', {}):
+                # Special case: A user should be allowed to create their own home directory,
+                # even without general write permissions on /home.
+                is_creating_own_home_dir = (os.path.dirname(current_path_so_far) == '/home' and
+                                            part == user_context.get('name'))
+
+                # Check write permission on the parent, unless the special case applies.
+                if not self._check_permission(current_node, user_context, 'write') and not is_creating_own_home_dir:
+                    raise PermissionError(f"Permission denied to create directory in '{os.path.dirname(current_path_so_far)}'")
+
+                new_dir = {
+                    "type": "directory", "children": {}, "owner": user_context.get('name', 'guest'),
+                    "group": user_context.get('group', 'guest'), "mode": 0o755, "mtime": now_iso
+                }
+                current_node['children'][part] = new_dir
+                current_node['mtime'] = now_iso
+
+            current_node = current_node['children'][part]
+
+            if current_node.get('type') != 'directory':
+                raise FileExistsError(f"Cannot create directory '{path}': A component '{part}' is a file.")
+
         self._save_state()
+
 
     def chmod(self, path, mode_str):
         """Changes the permission mode of a file or directory."""
@@ -408,6 +427,11 @@ class FileSystemManager:
 
         if not node:
             if allow_missing:
+                # Need to check parent directory permissions before allowing
+                parent_path = os.path.dirname(abs_path)
+                parent_node = self.get_node(parent_path)
+                if not parent_node or not self._check_permission(parent_node, user_context, 'write'):
+                    return {"success": False, "error": f"Permission denied to create in '{parent_path}'"}
                 return {"success": True, "node": None, "resolvedPath": abs_path}
             return {"success": False, "error": "No such file or directory"}
 

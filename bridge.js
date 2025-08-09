@@ -19,11 +19,24 @@ const OopisOS_Kernel = {
      * @returns {string} A JSON string of the kernel context.
      */
     _createKernelContext() {
-        const { FileSystemManager, UserManager } = this.dependencies;
+        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config } = this.dependencies;
         const user = UserManager.getCurrentUser();
+
+        // [NEW] Build the full user-to-groups mapping for Python-side permission checks
+        const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
+        const allUsernames = Object.keys(allUsers);
+        const userGroupsMap = {};
+        for (const username of allUsernames) {
+            userGroupsMap[username] = GroupManager.getGroupsForUser(username);
+        }
+        if (!userGroupsMap['Guest']) {
+            userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
+        }
+
         return JSON.stringify({
             current_path: FileSystemManager.getCurrentPath(),
-            user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) }
+            user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) },
+            user_groups: userGroupsMap // [FIXED] Add the complete map to the context
         });
     },
 
