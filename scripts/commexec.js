@@ -195,50 +195,90 @@ class CommandExecutor {
         TerminalUI.setIsNavigatingHistory(false);
     }
 
+    /**
+     * Creates a complete JSON context string for the Python kernel.
+     * This is the official "briefing binder" for any command execution.
+     * @private
+     */
+    _createKernelContext() {
+        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config } = this.dependencies;
+        const user = UserManager.getCurrentUser();
+
+        // Build the full user-to-groups mapping for Python-side permission checks
+        const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
+        const allUsernames = Object.keys(allUsers);
+        const userGroupsMap = {};
+        for (const username of allUsernames) {
+            userGroupsMap[username] = GroupManager.getGroupsForUser(username);
+        }
+        if (!userGroupsMap['Guest']) {
+            userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
+        }
+
+        const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+
+        return JSON.stringify({
+            current_path: FileSystemManager.getCurrentPath(),
+            user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) },
+            users: allUsers,
+            user_groups: userGroupsMap,
+            groups: GroupManager.getAllGroups(),
+            jobs: this.activeJobs,
+            config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+            api_key: apiKey
+        });
+    }
+
     async processSingleCommand(rawCommandText, options = {}) {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
-        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, FileSystemManager, UserManager, StorageManager, GroupManager, Lexer } = this.dependencies;
-        if (this.isInDreamatorium && rawCommandText.trim() === 'exit') { if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); } return ErrorHandler.createSuccess(""); }
-        if (ModalManager.isAwaiting()) { await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue()); if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText); return ErrorHandler.createSuccess(""); }
+        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer } = this.dependencies;
+
+        if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
+            if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
+            return ErrorHandler.createSuccess("");
+        }
+        if (ModalManager.isAwaiting()) {
+            await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
+            if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
+            return ErrorHandler.createSuccess("");
+        }
+
         const cmdToEcho = rawCommandText.trim();
-        if (isInteractive && !scriptingContext) { TerminalUI.hideInputLine(); const prompt = TerminalUI.getPromptText(); await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`); }
-        if (cmdToEcho === "") { if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText); return ErrorHandler.createSuccess(""); }
+        if (isInteractive && !scriptingContext) {
+            TerminalUI.hideInputLine();
+            const prompt = TerminalUI.getPromptText();
+            await OutputManager.appendToOutput(`${prompt}${cmdToEcho}`);
+        }
+
+        if (cmdToEcho === "") {
+            if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
+            return ErrorHandler.createSuccess("");
+        }
         if (isInteractive) HistoryManager.add(cmdToEcho);
+
         let finalResult;
         try {
             const commandToExecute = await this._preprocessCommandString(rawCommandText, scriptingContext);
-            const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-
-            // [NEW] Build the full user-to-groups mapping for the Python kernel
-            const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
-            const allUsernames = Object.keys(allUsers);
-            const userGroupsMap = {};
-            for (const username of allUsernames) {
-                userGroupsMap[username] = GroupManager.getGroupsForUser(username);
-            }
-            if (!userGroupsMap['Guest']) {
-                userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
+            if (!commandToExecute) {
+                if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
+                return ErrorHandler.createSuccess("");
             }
 
-            const jsContext = {
-                current_path: FileSystemManager.getCurrentPath(),
-                user_context: { name: UserManager.getCurrentUser().name },
-                users: allUsers,
-                user_groups: userGroupsMap, // [FIXED] Pass the complete map
-                groups: GroupManager.getAllGroups(),
-                jobs: this.activeJobs,
-                config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
-                api_key: apiKey
-            };
-            const resultJson = OopisOS_Kernel.execute_command(commandToExecute, OopisOS_Kernel._createKernelContext(), stdinContent);
+            // [FIXED] We now create the context and call the kernel in one clean, efficient step!
+            const kernelContextJson = this._createKernelContext();
+            const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
             const result = JSON.parse(resultJson);
+
             if (result.success) {
                 if (result.effect) {
                     const effectResult = await this._handleEffect(result, options);
                     if (effectResult) { finalResult = effectResult; }
                 }
-                if (!finalResult) { finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline }); }
+                if (!finalResult) {
+                    finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+                }
             } else {
+                // This is the fallback for JS-only commands, which is a brilliant strategy!
                 if (result.error && result.error.endsWith("command not found")) {
                     const lexer = new Lexer(commandToExecute, this.dependencies);
                     const tokens = lexer.tokenize();
@@ -259,10 +299,16 @@ class CommandExecutor {
                     finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
                 }
             }
-        } catch (e) { finalResult = ErrorHandler.createError({ message: e.message || "JavaScript execution error." }); }
+        } catch (e) {
+            finalResult = ErrorHandler.createError({ message: e.message || "JavaScript execution error." });
+        }
+
         if (!suppressOutput) {
-            if (finalResult.success) { if (finalResult.data !== null && finalResult.data !== undefined) { await OutputManager.appendToOutput(finalResult.data, finalResult); } }
-            else {
+            if (finalResult.success) {
+                if (finalResult.data !== null && finalResult.data !== undefined) {
+                    await OutputManager.appendToOutput(finalResult.data, finalResult);
+                }
+            } else {
                 let errorMessage = "Unknown error";
                 if (typeof finalResult.error === 'string') { errorMessage = finalResult.error; }
                 else if (finalResult.error && typeof finalResult.error.message === 'string') {
@@ -272,7 +318,9 @@ class CommandExecutor {
                 await OutputManager.appendToOutput(errorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
             }
         }
-        if (isInteractive && !scriptingContext) { await this._finalizeInteractiveModeUI(rawCommandText); }
+        if (isInteractive && !scriptingContext) {
+            await this._finalizeInteractiveModeUI(rawCommandText);
+        }
         return finalResult;
     }
 

@@ -32,42 +32,6 @@ const OopisOS_Kernel = {
         }
     },
 
-
-    /**
-     * Creates a JSON string containing the current user and path context.
-     * This is passed to Python functions that need session context.
-     * @private
-     * @returns {string} A JSON string of the kernel context.
-     */
-    _createKernelContext() {
-        const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, CommandExecutor } = this.dependencies;
-        const user = UserManager.getCurrentUser();
-
-        // [NEW] Build the full user-to-groups mapping for Python-side permission checks
-        const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
-        const allUsernames = Object.keys(allUsers);
-        const userGroupsMap = {};
-        for (const username of allUsernames) {
-            userGroupsMap[username] = GroupManager.getGroupsForUser(username);
-        }
-        if (!userGroupsMap['Guest']) {
-            userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
-        }
-
-        const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-
-        return JSON.stringify({
-            current_path: FileSystemManager.getCurrentPath(),
-            user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) },
-            users: allUsers,
-            user_groups: userGroupsMap,
-            groups: GroupManager.getAllGroups(),
-            jobs: CommandExecutor.getActiveJobs(),
-            config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
-            api_key: apiKey
-        });
-    },
-
     async initialize(dependencies) {
         this.dependencies = dependencies;
         const { OutputManager, Config, CommandRegistry } = this.dependencies;
