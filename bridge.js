@@ -129,6 +129,7 @@ const OopisOS_Kernel = {
                 '/core/commands/bg.py': './core/commands/bg.py',
                 '/core/commands/committee.py': './core/commands/committee.py',
                 '/core/commands/jobs.py': './core/commands/jobs.py',
+                '/core/commands/binder.py': './core/commands/binder.py',
                 '/core/commands/__init__.py': null
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {

@@ -276,10 +276,14 @@ class CommandExecutor {
                     reader.readAsText(file);
                 }
                 break;
-            case 'signal_job': // <-- NEW CASE
+            case 'signal_job':
                 const signalResult = this.sendSignalToJob(result.job_id, result.signal);
-                if (!signalResult.success) {
-                    return ErrorHandler.createError(signalResult.error);
+                if (!signalResult.success) { return ErrorHandler.createError(signalResult.error); }
+                break;
+            case 'execute_commands': // <-- NEW CASE
+                for (const cmd of result.commands) {
+                    // We run these non-interactively to prevent them from appearing in history twice
+                    await this.processSingleCommand(cmd, { isInteractive: false });
                 }
                 break;
             case 'login':
