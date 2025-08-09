@@ -137,6 +137,7 @@ const OopisOS_Kernel = {
                 '/core/apps/__init__.py': null,
                 '/core/apps/editor.py': './core/apps/editor.py',
                 '/core/apps/explorer.py': './core/apps/explorer.py',
+                '/core/apps/paint.py': './core/apps/paint.py',
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
@@ -274,6 +275,31 @@ const OopisOS_Kernel = {
     editorUpdateOnSave(path, content) {
         if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.editor_update_on_save(path, content);
+    },
+
+    paintGetInitialState(filePath, fileContent) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.paint_get_initial_state(filePath, fileContent);
+    },
+
+    paintPushUndoState(canvasDataJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.paint_push_undo_state(canvasDataJson);
+    },
+
+    paintUndo() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.paint_undo();
+    },
+
+    paintRedo() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.paint_redo();
+    },
+
+    paintUpdateOnSave(path) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.paint_update_on_save(path);
     },
 
     async saveFileSystem(fsJsonString) {

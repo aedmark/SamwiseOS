@@ -8,6 +8,8 @@ from users import user_manager
 from sudo import SudoManager
 from ai_manager import AIManager
 from apps.explorer import explorer_manager
+from apps.editor import editor_manager
+from apps.paint import paint_manager
 import json
 import os
 
@@ -22,7 +24,11 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "group_manager", "user_manager",  "sudo_manager", "ai_manager",
            "get_session_state_for_saving", "load_session_state", "write_uploaded_file",
            "restore_system_state", "explorer_get_view", "explorer_toggle_tree",
-           "explorer_create_node", "explorer_rename_node", "explorer_delete_node"]
+           "explorer_create_node", "explorer_rename_node", "explorer_delete_node",
+           "editor_load_file", "editor_push_undo", "editor_undo", "editor_redo",
+           "editor_update_on_save",
+           "paint_get_initial_state", "paint_push_undo_state", "paint_undo",
+           "paint_redo", "paint_update_on_save"]
 
 
 def initialize_kernel(save_function):
@@ -240,6 +246,46 @@ def editor_update_on_save(path, content):
     """Bridge to update the editor state after a file save."""
     try:
         state = editor_manager.update_on_save(path, content)
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def paint_get_initial_state(file_path, file_content):
+    """Bridge to get the initial state for the Paint app."""
+    try:
+        state = paint_manager.get_initial_state(file_path, file_content)
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def paint_push_undo_state(canvas_data_json):
+    """Bridge to push a new canvas state to the undo stack."""
+    try:
+        state = paint_manager.push_undo_state(canvas_data_json)
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def paint_undo():
+    """Bridge to perform a paint undo operation."""
+    try:
+        state = paint_manager.undo()
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def paint_redo():
+    """Bridge to perform a paint redo operation."""
+    try:
+        state = paint_manager.redo()
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def paint_update_on_save(path):
+    """Bridge to update the paint state after a file save."""
+    try:
+        state = paint_manager.update_on_save(path)
         return json.dumps({"success": True, "data": state})
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
