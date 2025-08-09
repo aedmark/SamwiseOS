@@ -1,4 +1,4 @@
-# /core/kernel.py
+# gem/core/kernel.py
 
 from executor import command_executor
 from filesystem import fs_manager
@@ -10,6 +10,7 @@ from ai_manager import AIManager
 from apps.explorer import explorer_manager
 from apps.editor import editor_manager
 from apps.paint import paint_manager
+from apps.adventure import adventure_manager
 import json
 import os
 

@@ -40,6 +40,8 @@ class AdventureManager:
                 "inventory": adventure.get("player", {}).get("inventory", []),
                 "score": initial_score,
                 "moves": 0,
+                "dialogueWith": None, # State for tracking conversations
+                "dialogueNode": None
             },
             "scriptingContext": scripting_context,
             "lastPlayerCommand": "",
@@ -85,58 +87,126 @@ class AdventureManager:
         """Processes a single player command."""
         self.state['player']['moves'] += 1
 
-        # Simplified parser
-        parts = command_text.lower().strip().split()
-        verb_str = parts[0]
-        noun_str = " ".join(parts[1:]) if len(parts) > 1 else ""
-
-        action = self._find_action(verb_str)
-
-        updates = []
-
-        if not action:
-            updates.append({"type": "output", "text": "I don't understand that verb.", "styleClass": "error"})
+        # If in a dialogue, process the response differently.
+        if self.state['player'].get('dialogueWith'):
+            handler_result = self._process_dialogue_response(command_text)
+            updates = handler_result.get("updates", [])
+            game_over = False
         else:
-            handler_name = f"_handle_{action}"
-            handler = getattr(self, handler_name, self._handle_unknown)
-            result_updates = handler(noun_str, verb_str)
-            updates.extend(result_updates)
+            parts = command_text.lower().strip().split()
+            verb_str = parts[0] if parts else ""
+            noun_str = " ".join(parts[1:]) if len(parts) > 1 else ""
 
-        # Always add status update at the end
+            action = self._find_action(verb_str)
+
+            updates = []
+            game_over = False
+
+            if not action:
+                updates.append({"type": "output", "text": "I don't understand that verb.", "styleClass": "error"})
+            else:
+                handler_name = f"_handle_{action}"
+                handler = getattr(self, handler_name, self._handle_unknown)
+                handler_result = handler(noun_str, verb_str)
+
+                if isinstance(handler_result, dict):
+                    updates.extend(handler_result.get("updates", []))
+                    game_over = handler_result.get("gameOver", False)
+                else:
+                    updates.extend(handler_result)
+
         room = self.state["adventure"]["rooms"].get(self.state["player"]["currentLocation"])
         updates.append({"type": "status", "roomName": room.get("name"), "score": self.state["player"]["score"], "moves": self.state["player"]["moves"]})
 
-        return {"success": True, "updates": updates}
+        return {"success": True, "updates": updates, "gameOver": game_over}
+
+    def _process_dialogue_response(self, response_text):
+        """Handles player input during a conversation."""
+        npc_id = self.state['player']['dialogueWith']
+        node_id = self.state['player']['dialogueNode']
+        npc = self.state['adventure']['npcs'].get(npc_id)
+        current_node = npc['dialogue']['nodes'].get(node_id)
+
+        response_lower = response_text.lower()
+
+        # Allow exiting the conversation
+        if response_lower in ["goodbye", "bye", "exit", "quit"]:
+            self.state['player']['dialogueWith'] = None
+            self.state['player']['dialogueNode'] = None
+            return {"updates": [{"type": "output", "text": "You end the conversation.", "styleClass": "system"}]}
+
+        # Check player choices
+        for choice in current_node.get('playerChoices', []):
+            if any(keyword in response_lower for keyword in choice['keywords']):
+                next_node_id = choice['nextNode']
+                self.state['player']['dialogueNode'] = next_node_id
+                return self._present_dialogue_node(npc, next_node_id)
+
+        return {"updates": [{"type": "output", "text": "That's not a valid response.", "styleClass": "error"}]}
+
+    def _present_dialogue_node(self, npc, node_id):
+        """Formats and returns the output for a given dialogue node."""
+        node = npc['dialogue']['nodes'].get(node_id)
+        if not node:
+            # End conversation if node doesn't exist
+            self.state['player']['dialogueWith'] = None
+            self.state['player']['dialogueNode'] = None
+            return {"updates": [{"type": "output", "text": f"{npc['name']} has nothing more to say.", "styleClass": "system"}]}
+
+        output_text = [node['npcResponse']]
+        if node.get('playerChoices'):
+            for i, choice in enumerate(node['playerChoices']):
+                output_text.append(f"  > You could say something about: {', '.join(choice['keywords'])}")
+        else:
+            # End conversation if there are no more choices
+            self.state['player']['dialogueWith'] = None
+            self.state['player']['dialogueNode'] = None
+
+        return {"updates": [{"type": "output", "text": "\n".join(output_text), "styleClass": "dialogue"}]}
 
     def _find_action(self, verb_str):
-        """Finds the action corresponding to a verb string."""
         for verb, data in self.verbs.items():
             if verb == verb_str or verb_str in data.get("aliases", []):
                 return data.get("action")
         return None
 
     def _find_entity_in_scope(self, noun_str):
-        """Finds an item or NPC in the player's inventory or current room by its noun."""
         current_location = self.state['player']['currentLocation']
         inventory = self.state['player']['inventory']
 
-        # Check inventory first
         for item_id in inventory:
             item = self.state['adventure']['items'].get(item_id)
             if item and item.get('noun') == noun_str:
                 return item, 'item'
 
-        # Check items in the room
         for item_id, item in self.state['adventure']['items'].items():
             if item.get('location') == current_location and item.get('noun') == noun_str:
                 return item, 'item'
 
-        # Check NPCs in the room
         for npc_id, npc in self.state['adventure']['npcs'].items():
             if npc.get('location') == current_location and npc.get('noun') == noun_str:
                 return npc, 'npc'
 
         return None, None
+
+    def _handle_talk(self, noun_str, verb_str):
+        if not noun_str:
+            return [{"type": "output", "text": "Talk to whom?", "styleClass": "error"}]
+
+        entity, entity_type = self._find_entity_in_scope(noun_str)
+
+        if entity_type != 'npc':
+            return [{"type": "output", "text": "You can't talk to that.", "styleClass": "error"}]
+
+        npc = entity
+        if not npc.get('dialogue'):
+            return [{"type": "output", "text": f"{npc['name']} has nothing to say.", "styleClass": "system"}]
+
+        start_node_id = npc['dialogue']['startNode']
+        self.state['player']['dialogueWith'] = npc['id']
+        self.state['player']['dialogueNode'] = start_node_id
+
+        return self._present_dialogue_node(npc, start_node_id)
 
     def _handle_look(self, noun_str, verb_str):
         if not noun_str:
@@ -185,6 +255,12 @@ class AdventureManager:
 
         item_names = [self.state['adventure']['items'][item_id]['name'] for item_id in inventory_ids]
         return [{"type": "output", "text": "You are carrying:\n" + "\n".join(item_names), "styleClass": "system"}]
+
+    def _handle_quit(self, noun_str, verb_str):
+        return {
+            "updates": [{"type": "output", "text": "Goodbye!", "styleClass": "system"}],
+            "gameOver": True
+        }
 
     def _handle_unknown(self, noun_str, verb_str):
         return [{"type": "output", "text": "That's not a verb I recognize.", "styleClass": "error"}]

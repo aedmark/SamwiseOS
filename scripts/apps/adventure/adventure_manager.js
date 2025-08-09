@@ -138,6 +138,8 @@ window.AdventureManager = class AdventureManager extends App {
             this._applyUiUpdates(result.updates);
             if (result.gameOver) {
                 this.ui.elements.input.disabled = true;
+                // Add a small delay before exiting so the user can see the final message.
+                setTimeout(() => this.exit(), 1200);
             }
         } else {
             this.ui.appendOutput(result.error, "error");
