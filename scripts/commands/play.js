@@ -1,6 +1,11 @@
 // scripts/commands/play.js
 
 /**
+ * @fileoverview
+ * Justification: This command is a specialist that directly uses the browser's audio APIs (Tone.js).
+ */
+
+/**
  * @fileoverview This file defines the 'play' command, a utility for playing
  * musical notes and chords through the system synthesizer.
  * @module commands/play

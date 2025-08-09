@@ -1,6 +1,11 @@
 // scripts/commands/post_message.js
 
 /**
+ * @fileoverview
+ * Justification: This command is a specialist for the browser's MessageBusManager (inter-process communication).
+ */
+
+/**
  * @fileoverview This file defines the 'post_message' command, a utility for
  * sending string messages to background jobs for inter-process communication.
  * @module commands/post_message

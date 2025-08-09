@@ -1,6 +1,11 @@
 // scripts/commands/nc.js
 
 /**
+ * @fileoverview
+ * Justification: This command is a specialist that uses browser networking APIs (WebSocket, WebRTC).
+ */
+
+/**
  * @fileoverview This file defines the 'nc' (netcat) command, a utility for
  * sending and receiving messages between OopisOS instances over the network.
  * @module commands/nc

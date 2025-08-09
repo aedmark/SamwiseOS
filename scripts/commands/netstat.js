@@ -1,6 +1,11 @@
 // scripts/commands/netstat.js
 
 /**
+ * @fileoverview
+ * Justification: This command is a specialist that uses browser networking APIs (WebSocket, WebRTC).
+ */
+
+/**
  * @fileoverview This file defines the 'netstat' command, a utility for displaying
  * the current network status and discovered OopisOS instances.
  * @module commands/netstat

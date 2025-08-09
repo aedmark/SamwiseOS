@@ -1,6 +1,11 @@
 // scripts/commands/read_messages.js
 
 /**
+ * @fileoverview
+ * Justification: This command is a specialist for the browser's MessageBusManager (inter-process communication).
+ */
+
+/**
  * @fileoverview This file defines the 'read_messages' command, a utility for
  * background jobs to retrieve messages from their dedicated message queue.
  * @module commands/read_messages
