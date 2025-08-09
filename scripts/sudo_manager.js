@@ -6,19 +6,13 @@
  * All core logic for parsing /etc/sudoers and checking permissions is now handled by `core/sudo.py`.
  * This JS class manages sudo session timestamps.
  */
+
 class SudoManager {
     constructor() {
         this.userSudoTimestamps = {};
         this.dependencies = {};
         this.config = null;
         this.groupManager = null;
-    }
-
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            return OopisOS_Kernel.sudoManager;
-        }
-        throw new Error("Python kernel for SudoManager is not available.");
     }
 
     setDependencies(fsManager, groupManager, config) {
@@ -31,8 +25,6 @@ class SudoManager {
         const timestamp = this.userSudoTimestamps[username];
         if (!timestamp) return false;
 
-        // For now, we'll keep timeout logic in JS side, but it could be moved to Python.
-        // We'll read the timeout from the JS config for simplicity.
         const timeoutMinutes = this.config.SUDO.DEFAULT_TIMEOUT || 15;
         if (timeoutMinutes <= 0) return false;
 
@@ -55,14 +47,13 @@ class SudoManager {
     canUserRunCommand(username, commandToRun) {
         try {
             const userGroups = this.groupManager.getGroupsForUser(username);
-            // Delegate the actual check to the Python kernel
-            return this._getManager().can_user_run_command(username, userGroups, commandToRun);
+            // Delegate the actual check to the Python kernel via syscall
+            const resultJson = OopisOS_Kernel.syscall("sudo", "can_user_run_command", [username, userGroups, commandToRun]);
+            const result = JSON.parse(resultJson);
+            return result.success ? result.data : false;
         } catch (e) {
             console.error("Failed to call Python SudoManager:", e);
             return false;
         }
     }
-
-    // The parseSudoers and invalidateSudoersCache methods are now obsolete in JS
-    // as this is handled entirely within the Python module.
 }

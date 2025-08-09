@@ -283,8 +283,9 @@ window.onload = async () => {
         if (OopisOS_Kernel.isReady) {
             if (fsJsonFromStorage) {
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
-                OopisOS_Kernel.kernel.load_fs_from_json(fsJsonString);
-                fsManager.setFsData(fsJsonFromStorage);
+                // [FIXED] Use the new, unified syscall to load the filesystem state!
+                OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [fsJsonString]);
+                fsManager.setFsData(fsJsonFromStorage); // Also update the JS-side cache for now
             } else {
                 await outputManager.appendToOutput(
                     "No file system found. Initializing new one.",
@@ -293,11 +294,13 @@ window.onload = async () => {
                 await fsManager.initialize(configManager.USER.DEFAULT_NAME);
                 const initialFsData = fsManager.getFsData();
                 const initialFsJsonString = JSON.stringify(initialFsData);
-                OopisOS_Kernel.kernel.load_fs_from_json(initialFsJsonString);
+                // [FIXED] Use the new, unified syscall here as well!
+                OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [initialFsJsonString]);
                 await storageHAL.save(initialFsData);
             }
         } else {
-            await fsManager.load(); // Fallback if kernel failed
+            // Fallback if kernel failed. This remains the same.
+            await fsManager.load();
         }
 
         // 4. Now that the kernel is ready, initialize all managers that depend on it

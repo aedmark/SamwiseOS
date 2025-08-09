@@ -10,20 +10,12 @@ class GroupManager {
         this.dependencies = {};
     }
 
-    _getManager() {
-        if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            return OopisOS_Kernel.groupManager;
-        }
-        throw new Error("Python kernel for GroupManager is not available.");
-    }
-
     setDependencies(dependencies) {
         this.dependencies = dependencies;
     }
 
     initialize() {
         const { StorageManager, Config } = this.dependencies;
-        // The JS GroupManager no longer holds state, but we need to sync Python state with localStorage on boot.
         const groupsFromStorage = StorageManager.loadItem(
             Config.STORAGE_KEYS.USER_GROUPS,
             "User Groups",
@@ -31,9 +23,11 @@ class GroupManager {
         );
 
         if (groupsFromStorage) {
-            this._getManager().load_groups(groupsFromStorage);
+            // Use syscall to load initial state
+            OopisOS_Kernel.syscall("groups", "load_groups", [groupsFromStorage]);
         } else {
-            this._getManager().initialize_defaults();
+            // Use syscall for default initialization
+            OopisOS_Kernel.syscall("groups", "initialize_defaults");
         }
         this._save(); // Save back to storage to ensure consistency
         console.log("GroupManager initialized and synced with Python kernel.");
@@ -51,10 +45,14 @@ class GroupManager {
 
     getAllGroups() {
         try {
-            const pyProxy = this._getManager().get_all_groups();
-            const jsObject = pyProxy.toJs({ dict_converter: Object.fromEntries });
-            pyProxy.destroy();
-            return jsObject;
+            // Use syscall to get all groups
+            const resultJson = OopisOS_Kernel.syscall("groups", "get_all_groups");
+            const result = JSON.parse(resultJson);
+            if (result.success) {
+                return result.data;
+            }
+            console.error("Failed to get all groups from kernel:", result.error);
+            return {};
         } catch (e) {
             console.error(e);
             return {};
@@ -62,23 +60,32 @@ class GroupManager {
     }
 
     groupExists(groupName) {
-        return this._getManager().group_exists(groupName);
+        // Use syscall to check if a group exists
+        const resultJson = OopisOS_Kernel.syscall("groups", "group_exists", [groupName]);
+        const result = JSON.parse(resultJson);
+        return result.success ? result.data : false;
     }
 
     createGroup(groupName) {
-        const result = this._getManager().create_group(groupName);
-        if (result) {
+        // Use syscall to create a group
+        const resultJson = OopisOS_Kernel.syscall("groups", "create_group", [groupName]);
+        const result = JSON.parse(resultJson);
+        if (result.success && result.data) {
             this._save();
+            return true;
         }
-        return result;
+        return false;
     }
 
     addUserToGroup(username, groupName) {
-        const result = this._getManager().add_user_to_group(username, groupName);
-        if (result) {
+        // Use syscall to add a user to a group
+        const resultJson = OopisOS_Kernel.syscall("groups", "add_user_to_group", [username, groupName]);
+        const result = JSON.parse(resultJson);
+        if (result.success && result.data) {
             this._save();
+            return true;
         }
-        return result;
+        return false;
     }
 
     getGroupsForUser(username) {
@@ -109,8 +116,10 @@ class GroupManager {
     }
 
     deleteGroup(groupName) {
-        const result = this._getManager().delete_group(groupName);
-        if (result) {
+        //  Use syscall to delete a group
+        const resultJson = OopisOS_Kernel.syscall("groups", "delete_group", [groupName]);
+        const result = JSON.parse(resultJson);
+        if (result.success && result.data) {
             this._save();
             return { success: true };
         }
@@ -118,8 +127,10 @@ class GroupManager {
     }
 
     removeUserFromAllGroups(username) {
-        const result = this._getManager().remove_user_from_all_groups(username);
-        if (result) {
+        //  Use syscall to remove a user from all groups
+        const resultJson = OopisOS_Kernel.syscall("groups", "remove_user_from_all_groups", [username]);
+        const result = JSON.parse(resultJson);
+        if (result.success && result.data) {
             this._save();
         }
     }

@@ -156,17 +156,25 @@ class FileSystemManager {
     getFsData() {
         // Refactored to fetch from Python for legacy support (e.g., backup command)
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            const fsJsonString = OopisOS_Kernel.kernel.save_fs_to_json();
-            return JSON.parse(fsJsonString);
+            // Let's use the new syscall for this read-only operation, too, for consistency!
+            const resultJson = OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
+            const result = JSON.parse(resultJson);
+            if (result.success) {
+                return JSON.parse(result.data);
+            }
+            // Fallback in case of error
+            console.error("Failed to get FS data from kernel:", result.error);
+            return this.fsData;
         }
         console.warn("getFsData called before kernel was ready. Returning potentially stale JS data.");
         return this.fsData;
     }
 
     setFsData(newData) {
-        // This is now primarily for restoring backups. The data will be sent to Python on next interaction.
+        // This is now primarily for restoring backups. The data will be sent to Python.
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            OopisOS_Kernel.kernel.load_fs_from_json(JSON.stringify(newData));
+            // Use the new, unified syscall to set the filesystem state!
+            OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(newData)]);
         }
         this.fsData = newData; // Keep a JS copy for safety until full transition
     }
