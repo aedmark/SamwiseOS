@@ -21,7 +21,8 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "env_manager", "history_manager", "alias_manager", "session_manager",
            "group_manager", "user_manager",  "sudo_manager", "ai_manager",
            "get_session_state_for_saving", "load_session_state", "write_uploaded_file",
-           "restore_system_state", "explorer_get_view", "explorer_toggle_tree"]
+           "restore_system_state", "explorer_get_view", "explorer_toggle_tree",
+           "explorer_create_node", "explorer_rename_node", "explorer_delete_node"]
 
 
 def initialize_kernel(save_function):
@@ -172,5 +173,32 @@ def explorer_toggle_tree(path):
     try:
         explorer_manager.toggle_tree_expansion(path)
         return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def explorer_create_node(path, name, node_type, js_context_json):
+    try:
+        js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
+        result = explorer_manager.create_node(path, name, node_type, js_context.get("user_context"))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def explorer_rename_node(old_path, new_name, js_context_json):
+    try:
+        js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
+        result = explorer_manager.rename_node(old_path, new_name, js_context.get("user_context"))
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def explorer_delete_node(path, js_context_json):
+    try:
+        js_context = json.loads(js_context_json)
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
+        result = explorer_manager.delete_node(path, js_context.get("user_context"))
+        return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})

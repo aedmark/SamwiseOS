@@ -23,6 +23,7 @@ const OopisOS_Kernel = {
 
             this.pyodide.FS.mkdir('/core');
             this.pyodide.FS.mkdir('/core/commands');
+            this.pyodide.FS.mkdir('/core/apps');
             await this.pyodide.runPythonAsync(`import sys\nsys.path.append('/core')`);
 
             const filesToLoad = {
@@ -132,7 +133,9 @@ const OopisOS_Kernel = {
                 '/core/commands/binder.py': './core/commands/binder.py',
                 '/core/commands/bulletin.py': './core/commands/bulletin.py',
                 '/core/commands/agenda.py': './core/commands/agenda.py',
-                '/core/commands/__init__.py': null
+                '/core/commands/__init__.py': null,
+                '/core/apps/__init__.py': './core/apps/__init__.py', // <-- ADD THE NEW PACKAGE FILE
+                '/core/apps/explorer.py': './core/apps/explorer.py',
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
@@ -230,6 +233,21 @@ const OopisOS_Kernel = {
     explorerToggleTree(path) {
         if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_toggle_tree(path);
+    },
+
+    explorerCreateNode(path, name, nodeType, jsContextJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.explorer_create_node(path, name, nodeType, jsContextJson);
+    },
+
+    explorerRenameNode(oldPath, newName, jsContextJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.explorer_rename_node(oldPath, newName, jsContextJson);
+    },
+
+    explorerDeleteNode(path, jsContextJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.explorer_delete_node(path, jsContextJson);
     },
 
     async saveFileSystem(fsJsonString) {

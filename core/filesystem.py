@@ -41,6 +41,7 @@ class FileSystemManager:
                     "home": {"type": "directory", "children": {}, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
                     "etc": {"type": "directory", "children": {
                         'sudoers': {"type": "file", "content": "# /etc/sudoers...", "owner": "root", "group": "root", "mode": 0o440, "mtime": now_iso}
+                        'oopis.conf': {"type": "file", "content": "# OopisOS System Configuration File\n", "owner": "root", "group": "root", "mode": 0o644, "mtime": now_iso}
                     }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
                 }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso,
             }

@@ -167,13 +167,10 @@ window.ExplorerUI = class ExplorerUI {
           Object.keys(node.children).filter(
               (childName) => node.children[childName].type === "directory"
           ).length > 0;
-      const canRead = FileSystemManager.hasPermission(
-          node,
-          UserManager.getCurrentUser().name,
-          "read"
-      );
 
-      const summary = Utils.createElement("summary");
+        // The hasPermission check is now done in Python. We just use the result.
+        const canRead = node.canRead;
+        const summary = Utils.createElement("summary");
       const folderIcon = Utils.createElement("span", {
         className: "mr-1",
         textContent: "📁",
