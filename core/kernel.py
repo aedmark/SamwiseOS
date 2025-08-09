@@ -7,6 +7,7 @@ from groups import group_manager
 from users import user_manager
 from sudo import SudoManager
 from ai_manager import AIManager
+from apps.explorer import explorer_manager
 import json
 import os
 
@@ -20,7 +21,7 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "env_manager", "history_manager", "alias_manager", "session_manager",
            "group_manager", "user_manager",  "sudo_manager", "ai_manager",
            "get_session_state_for_saving", "load_session_state", "write_uploaded_file",
-           "restore_system_state"] # <-- ADD THIS
+           "restore_system_state", "explorer_get_view", "explorer_toggle_tree"]
 
 
 def initialize_kernel(save_function):
@@ -31,8 +32,6 @@ def load_fs_from_json(json_string):
 
 def save_fs_to_json():
     return fs_manager.save_state_to_json()
-
-# ... (all other existing bridge functions remain the same) ...
 
 def get_node_json(path, js_context_json):
     try:
@@ -156,3 +155,22 @@ def restore_system_state(backup_data_json):
     except Exception as e:
         import traceback
         return json.dumps({"success": False, "error": f"Restore failed: {repr(e)}\n{traceback.format_exc()}"})
+
+def explorer_get_view(path, js_context_json):
+    """Bridge function to get explorer view data."""
+    try:
+        js_context = json.loads(js_context_json)
+        user_context = js_context.get("user_context")
+        fs_manager.set_context(js_context.get("current_path"), js_context.get("user_groups"))
+        view_data = explorer_manager.get_view_data(path, user_context)
+        return json.dumps({"success": True, "data": view_data})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def explorer_toggle_tree(path):
+    """Bridge function to toggle tree expansion state."""
+    try:
+        explorer_manager.toggle_tree_expansion(path)
+        return json.dumps({"success": True})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})

@@ -222,6 +222,16 @@ const OopisOS_Kernel = {
         }
     },
 
+    explorerGetView(path, jsContextJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.explorer_get_view(path, jsContextJson);
+    },
+
+    explorerToggleTree(path) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.explorer_toggle_tree(path);
+    },
+
     async saveFileSystem(fsJsonString) {
         const { StorageHAL } = OopisOS_Kernel.dependencies;
         try {

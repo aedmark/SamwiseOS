@@ -13,20 +13,12 @@ class CommandExecutor:
         self.fs_manager = fs_manager
         self.commands = self._discover_commands()
         self.user_context = {"name": "Guest"}
-        # ... (other initializations remain the same) ...
 
     def _discover_commands(self):
         """Dynamically finds all available command modules."""
-        commands_dir = os.path.join(os.path.dirname(__file__), 'commands')
-        try:
-            files = os.listdir(commands_dir)
-        except FileNotFoundError:
-            return []
-        return sorted(
-            f[:-3]
-            for f in files
-            if f.endswith('.py') and f != '__init__.py'
-        )
+        command_dir = os.path.join(os.path.dirname(__file__), 'commands')
+        py_files = [f for f in os.listdir(command_dir) if f.endswith('.py') and not f.startswith('__')]
+        return [os.path.splitext(f)[0] for f in py_files]
 
     def set_context(self, user_context, users, user_groups, config, groups, jobs, ai_manager, api_key):
         """Sets the current user and system context from the JS side."""

@@ -197,7 +197,7 @@ class CommandExecutor {
 
     async processSingleCommand(rawCommandText, options = {}) {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
-        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, FileSystemManager, UserManager, StorageManager, GroupManager } = this.dependencies;
+        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, FileSystemManager, UserManager, StorageManager, GroupManager, Lexer } = this.dependencies;
         if (this.isInDreamatorium && rawCommandText.trim() === 'exit') { if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); } return ErrorHandler.createSuccess(""); }
         if (ModalManager.isAwaiting()) { await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue()); if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText); return ErrorHandler.createSuccess(""); }
         const cmdToEcho = rawCommandText.trim();
@@ -218,7 +218,25 @@ class CommandExecutor {
                 }
                 if (!finalResult) { finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline }); }
             } else {
-                finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
+                if (result.error && result.error.endsWith("command not found")) {
+                    const lexer = new Lexer(commandToExecute, this.dependencies);
+                    const tokens = lexer.tokenize();
+                    const commandName = tokens.length > 0 && tokens[0].type === 'WORD' ? tokens[0].value : null;
+
+                    if (commandName) {
+                        const commandInstance = await this._ensureCommandLoaded(commandName);
+                        if (commandInstance) {
+                            const rawArgs = tokens.slice(1).filter(t => t.type !== 'EOF').map(t => t.value);
+                            finalResult = await commandInstance.execute(rawArgs, options, this.dependencies);
+                        } else {
+                            finalResult = ErrorHandler.createError({ message: result.error });
+                        }
+                    } else {
+                        finalResult = ErrorHandler.createError({ message: result.error });
+                    }
+                } else {
+                    finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
+                }
             }
         } catch (e) { finalResult = ErrorHandler.createError({ message: e.message || "JavaScript execution error." }); }
         if (!suppressOutput) {
@@ -238,7 +256,7 @@ class CommandExecutor {
     }
 
     async _handleEffect(result, options) {
-        const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils } = this.dependencies;
+        const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager } = this.dependencies;
         switch (result.effect) {
             case 'change_directory': FileSystemManager.setCurrentPath(result.path); TerminalUI.updatePrompt(); break;
             case 'clear_screen': OutputManager.clearOutput(); break;
@@ -266,12 +284,27 @@ class CommandExecutor {
                 for (const file of files) {
                     const reader = new FileReader();
                     reader.onload = (event) => {
-                        const content = event.target.result;
-                        const jsContext = { current_path: FileSystemManager.getCurrentPath(), user_context: { name: UserManager.getCurrentUser().name } };
-                        const writeResultJson = OopisOS_Kernel.write_uploaded_file(file.name, content, JSON.stringify(jsContext));
-                        const writeResult = JSON.parse(writeResultJson);
-                        if(writeResult.success) { OutputManager.appendToOutput(`Uploaded '${file.name}' to ${writeResult.path}`); }
-                        else { OutputManager.appendToOutput(`Error uploading '${file.name}': ${writeResult.error}`, {typeClass: Config.CSS_CLASSES.ERROR_MSG}); }
+                        try {
+                            const content = event.target.result;
+                            const user = UserManager.getCurrentUser();
+                            const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
+                            const jsContext = {
+                                current_path: FileSystemManager.getCurrentPath(),
+                                user_context: { name: user.name, group: primaryGroup }
+                            };
+                            const writeResultJson = OopisOS_Kernel.write_uploaded_file(file.name, content, JSON.stringify(jsContext));
+                            const writeResult = JSON.parse(writeResultJson);
+                            if (writeResult.success) {
+                                OutputManager.appendToOutput(`Uploaded '${file.name}' to ${writeResult.path}`);
+                            } else {
+                                OutputManager.appendToOutput(`Error uploading '${file.name}': ${writeResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                            }
+                        } catch (e) {
+                            OutputManager.appendToOutput(`CRITICAL ERROR during upload of '${file.name}': ${e.message}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                        }
+                    };
+                    reader.onerror = () => {
+                        OutputManager.appendToOutput(`Error reading file '${file.name}' from your local machine.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                     };
                     reader.readAsText(file);
                 }
