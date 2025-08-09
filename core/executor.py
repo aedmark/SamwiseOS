@@ -17,7 +17,16 @@ class CommandExecutor:
 
     def _discover_commands(self):
         """Dynamically finds all available command modules."""
-        # ... (this function remains the same) ...
+        commands_dir = os.path.join(os.path.dirname(__file__), 'commands')
+        try:
+            files = os.listdir(commands_dir)
+        except FileNotFoundError:
+            return []
+        return sorted(
+            f[:-3]
+            for f in files
+            if f.endswith('.py') and f != '__init__.py'
+        )
 
     def set_context(self, user_context, users, user_groups, config, groups, jobs, ai_manager, api_key):
         """Sets the current user and system context from the JS side."""
