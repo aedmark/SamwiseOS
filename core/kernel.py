@@ -94,31 +94,34 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
     The main backward-compatibility stub for running commands.
     It now correctly handles passing live Python objects to the executor.
     """
-    context = json.loads(js_context_json)
-    fs_manager.current_path = context.get("current_path", "/")
+    try:
+        context = json.loads(js_context_json)
+        fs_manager.current_path = context.get("current_path", "/")
 
-    # Set the context on the executor directly.
-    # We do not pass Python objects through the JSON-based syscall_handler.
-    # This is a direct, internal hand-off of a critical system component.
-    command_executor.set_context(
-        user_context=context.get("user_context"),
-        users=context.get("users"),
-        user_groups=context.get("user_groups"),
-        config=context.get("config"),
-        groups=context.get("groups"),
-        jobs=context.get("jobs"),
-        ai_manager=ai_manager,
-        api_key=context.get("api_key")
-    )
+        # Set the context on the executor directly.
+        command_executor.set_context(
+            user_context=context.get("user_context"),
+            users=context.get("users"),
+            user_groups=context.get("user_groups"),
+            config=context.get("config"),
+            groups=context.get("groups"),
+            jobs=context.get("jobs"),
+            ai_manager=ai_manager,
+            api_key=context.get("api_key"),
+            session_start_time=context.get("session_start_time"),
+            session_stack=context.get("session_stack")
+        )
 
-    # Now, create the request for the execution part, which IS JSON serializable.
-    req_exec = {
-        "module": "executor",
-        "function": "execute",
-        "args": [command_string, stdin_data]
-    }
-    return syscall_handler(json.dumps(req_exec))
+        # FIX: Call the executor directly to prevent double-encoding the JSON response.
+        return command_executor.execute(command_string, stdin_data)
 
+    except Exception as e:
+        # Provide a fallback error message if context parsing or setting fails
+        return json.dumps({
+            "success": False,
+            "error": f"Kernel Error before execution: {repr(e)}",
+            "traceback": traceback.format_exc()
+        })
 
 def get_session_state_for_saving():
     req = {"module": "session", "function": "get_session_state_for_saving"}
