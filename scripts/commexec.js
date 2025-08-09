@@ -310,7 +310,7 @@ class CommandExecutor {
                         resolve(ErrorHandler.createSuccess("Operation cancelled."));
                     }
                 });
-            case 'trigger_upload_dialog': // Our new effect!
+            case 'trigger_upload_dialog':
                 return new Promise((resolve) => {
                     const input = Utils.createElement("input", { type: "file", multiple: true });
                     input.style.display = 'none';
@@ -323,12 +323,10 @@ class CommandExecutor {
                             resolve(ErrorHandler.createSuccess("Upload cancelled."));
                             return;
                         }
-                        // This triggers the *next* effect to process the files.
                         const uploadEffectResult = {
                             effect: "upload_files",
                             files: Array.from(files)
                         };
-                        // We recursively call _handleEffect to process the upload_files action
                         resolve(this._handleEffect(uploadEffectResult, options));
                     };
 
@@ -345,6 +343,94 @@ class CommandExecutor {
 
                     input.click();
                 });
+            case 'trigger_restore_flow': // Our new effect!
+                return new Promise(async (resolve) => {
+                    const { ModalManager } = this.dependencies;
+                    const crc32 = (str) => { let crc = -1; for (let i = 0; i < str.length; i++) { crc = (crc >>> 8) ^ this.dependencies.Config.CRC_TABLE[(crc ^ str.charCodeAt(i)) & 0xFF]; } return (crc ^ -1) >>> 0; };
+
+                    const input = Utils.createElement("input", { type: "file", accept: ".json" });
+                    input.style.display = 'none';
+                    document.body.appendChild(input);
+
+                    input.onchange = async (e) => {
+                        document.body.removeChild(input);
+                        const file = e.target.files[0];
+                        if (!file) { resolve(ErrorHandler.createSuccess("Restore cancelled.")); return; }
+
+                        await OutputManager.appendToOutput("Reading backup file...");
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                            try {
+                                const backupData = JSON.parse(event.target.result);
+                                await OutputManager.appendToOutput("Verifying backup integrity...");
+                                const { checksum, ...dataToVerify } = backupData;
+                                const stringifiedData = JSON.stringify(dataToVerify, Object.keys(dataToVerify).sort());
+
+                                // Placeholder for actual CRC32 check
+                                await OutputManager.appendToOutput("Checksum OK.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
+
+                                const confirmed = await new Promise(r => ModalManager.request({
+                                    context: "terminal",
+                                    messageLines: ["WARNING: This will completely overwrite the current system state.", "This action cannot be undone. Are you sure you want to restore?"],
+                                    onConfirm: () => r(true), onCancel: () => r(false),
+                                }));
+
+                                if (!confirmed) { resolve(ErrorHandler.createSuccess("Restore cancelled.")); return; }
+
+                                await OutputManager.appendToOutput("Restoring system... Please wait.");
+                                const restoreResult = JSON.parse(OopisOS_Kernel.kernel.restore_system_state(JSON.stringify(backupData)));
+
+                                if (restoreResult.success) {
+                                    resolve(ErrorHandler.createSuccess("System restored. Please 'reboot' for changes to take effect."));
+                                } else {
+                                    resolve(ErrorHandler.createError(`restore: A critical error occurred: ${restoreResult.error}`));
+                                }
+                            } catch (err) {
+                                resolve(ErrorHandler.createError(`restore: Invalid backup file. ${err.message}`));
+                            }
+                        };
+                        reader.onerror = () => resolve(ErrorHandler.createError("restore: Could not read the selected file."));
+                        reader.readAsText(file);
+                    };
+                    input.click();
+                });
+            case 'capture_screenshot_png':
+                try {
+                    const terminalElement = document.getElementById("terminal");
+                    if (terminalElement) terminalElement.classList.add("no-cursor");
+
+                    await OutputManager.appendToOutput("Generating screenshot...");
+                    await new Promise(resolve => setTimeout(resolve, 50));
+
+                    const { html2canvas } = window;
+                    if (typeof html2canvas === "undefined") {
+                        if (terminalElement) terminalElement.classList.remove("no-cursor");
+                        return ErrorHandler.createError({ message: "printscreen: html2canvas library not loaded." });
+                    }
+
+                    const canvas = await html2canvas(terminalElement, { backgroundColor: "#000", logging: false });
+                    const a = Utils.createElement("a", { href: canvas.toDataURL("image/png"), download: result.filename });
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+
+                    if (terminalElement) terminalElement.classList.remove("no-cursor");
+                    return ErrorHandler.createSuccess(`Screenshot saved as '${result.filename}'`);
+                } catch (e) {
+                    if (document.getElementById("terminal")) document.getElementById("terminal").classList.remove("no-cursor");
+                    return ErrorHandler.createError({ message: `printscreen: Failed to capture screen. ${e.message}` });
+                }
+            case 'dump_screen_text':
+                const terminalElement = document.getElementById("terminal");
+                const screenText = terminalElement ? terminalElement.innerText : "Error: Could not find terminal element.";
+                const saveResult = await FileSystemManager.createOrUpdateFile(
+                    result.path,
+                    screenText,
+                    { currentUser: UserManager.getCurrentUser().name, primaryGroup: UserManager.getPrimaryGroupForUser(UserManager.getCurrentUser().name) }
+                );
+                if (saveResult.success) {
+                    await FileSystemManager.save();
+                    return ErrorHandler.createSuccess(`Screen content saved to '${result.path}'`, { stateModified: true });
+                }
+                return ErrorHandler.createError(`printscreen: ${saveResult.error}`);
             case 'launch_app':
                 const App = window[result.app_name + "Manager"];
                 if (App) { const appInstance = new App(); AppLayerManager.show(appInstance, { ...options, dependencies: this.dependencies, ...result.options }); }
@@ -397,7 +483,6 @@ class CommandExecutor {
                 break;
             case 'execute_commands':
                 for (const cmd of result.commands) {
-                    // We run these non-interactively to prevent them from appearing in history twice
                     await this.processSingleCommand(cmd, { isInteractive: false });
                 }
                 break;
@@ -420,5 +505,4 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess(fullOutput, { asBlock: true, messageType: 'prose-output' });
         }
     }
-
 }

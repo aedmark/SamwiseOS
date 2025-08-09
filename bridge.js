@@ -166,6 +166,7 @@ const OopisOS_Kernel = {
                 '/core/commands/clearfs.py': './core/commands/clearfs.py',
                 '/core/commands/upload.py': './core/commands/upload.py',
                 '/core/commands/planner.py': './core/commands/planner.py',
+                '/core/commands/printscreen.py': './core/commands/printscreen.py',
                 '/core/commands/__init__.py': null,
                 '/core/apps/__init__.py': null,
                 '/core/apps/editor.py': './core/apps/editor.py',
