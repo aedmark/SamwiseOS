@@ -141,7 +141,8 @@ const OopisOS_Kernel = {
                 '/core/apps/explorer.py': './core/apps/explorer.py',
                 '/core/apps/paint.py': './core/apps/paint.py',
                 '/core/apps/adventure.py': './core/apps/adventure.py',
-                '/core/apps/top.py': './core/apps/top.py'
+                '/core/apps/top.py': './core/apps/top.py',
+                '/core/apps/log.py': './core/apps/log.py'
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
@@ -334,6 +335,21 @@ const OopisOS_Kernel = {
     top_get_process_list(jobs) {
         if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.top_get_process_list(jobs);
+    },
+
+    log_ensure_dir() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.log_ensure_dir(this._createKernelContext());
+    },
+
+    log_load_entries() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.log_load_entries(this._createKernelContext());
+    },
+
+    log_save_entry(path, content) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.log_save_entry(path, content, this._createKernelContext());
     },
 
     async saveFileSystem(fsJsonString) {

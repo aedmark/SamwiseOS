@@ -11,6 +11,8 @@ from apps.explorer import explorer_manager
 from apps.editor import editor_manager
 from apps.paint import paint_manager
 from apps.adventure import adventure_manager
+from apps import top as top_app
+from apps import log as log_app
 import json
 import os
 
@@ -32,7 +34,9 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "paint_redo", "paint_update_on_save",
            "adventure_initialize_state", "adventure_process_command",
            "adventure_creator_initialize", "adventure_creator_get_prompt",
-           "adventure_creator_process_command", "top_get_process_list"]
+           "adventure_creator_process_command", "top_get_process_list",
+           "top_get_process_list",
+           "log_ensure_dir", "log_load_entries", "log_save_entry"]
 
 
 def initialize_kernel(save_function):
@@ -340,5 +344,35 @@ def top_get_process_list(jobs_proxy):
         jobs = jobs_proxy.to_py()
         process_list = top_app.get_process_list(jobs)
         return json.dumps({"success": True, "data": process_list})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def log_ensure_dir(js_context_json):
+    """Bridge to ensure the user's log directory exists."""
+    try:
+        js_context = json.loads(js_context_json)
+        user_context = js_context.get("user_context")
+        result = log_app.ensure_log_dir(user_context)
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def log_load_entries(js_context_json):
+    """Bridge to load all log entries for the current user."""
+    try:
+        js_context = json.loads(js_context_json)
+        user_context = js_context.get("user_context")
+        entries = log_app.load_entries(user_context)
+        return json.dumps({"success": True, "data": entries})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def log_save_entry(path, content, js_context_json):
+    """Bridge to save a log entry."""
+    try:
+        js_context = json.loads(js_context_json)
+        user_context = js_context.get("user_context")
+        result = log_app.save_entry(path, content, user_context)
+        return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
