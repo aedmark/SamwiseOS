@@ -100,9 +100,20 @@ class FileSystemManager {
         const { ErrorHandler } = this.dependencies;
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
             try {
-                const fsJsonString = OopisOS_Kernel.kernel.save_fs_to_json();
+                // BEHOLD! The new, correct way to communicate!
+                const resultJson = OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
+                const result = JSON.parse(resultJson);
+
+                // We must always check if our request was successful!
+                if (!result.success) {
+                    // If the kernel reported an error, we throw it so our catch block can see it.
+                    throw new Error(result.error || "Failed to get filesystem JSON from kernel.");
+                }
+
+                const fsJsonString = result.data; // The data is now in a 'data' property!
                 const saveData = JSON.parse(fsJsonString);
                 const success = await this.storageHAL.save(saveData);
+
                 if (success) return ErrorHandler.createSuccess();
                 return ErrorHandler.createError("OopisOs failed to save the file system via kernel.");
             } catch (e) {

@@ -194,7 +194,14 @@ class Command {
             }
 
             const pathArg = args[index];
-            const pathValidationResult = await FileSystemManager.validatePath(pathArg, rule.options || {});
+
+            // Combine the rule's options and permissions into ONE request!
+            const combinedOptions = {
+                ...(rule.options || {}),
+                permissions: rule.permissions || [],
+            };
+            // Now we make a single, powerful, and secure call!
+            const pathValidationResult = await FileSystemManager.validatePath(pathArg, combinedOptions);
 
             if (!pathValidationResult.success) {
                 return ErrorHandler.createError(pathValidationResult.error);
@@ -202,13 +209,7 @@ class Command {
 
             const { node, resolvedPath } = pathValidationResult.data;
 
-            if (rule.permissions) {
-                for (const perm of rule.permissions) {
-                    if (node && !FileSystemManager.hasPermission(node, currentUser, perm)) {
-                        return ErrorHandler.createError(`'${pathArg}': Permission denied`);
-                    }
-                }
-            }
+            // The old, deprecated permission check loop below this is now completely gone!
 
             if (rule.options && rule.options.ownershipRequired && node) {
                 if (!FileSystemManager.canUserModifyNode(node, currentUser)) {

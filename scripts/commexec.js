@@ -533,10 +533,17 @@ class CommandExecutor {
                                 current_path: FileSystemManager.getCurrentPath(),
                                 user_context: { name: user.name, group: primaryGroup }
                             };
-                            const writeResultJson = OopisOS_Kernel.write_uploaded_file(file.name, content, JSON.stringify(jsContext));
+
+                            // 1. Get the full destination path using our trusty FileSystemManager.
+                            const fullPath = FileSystemManager.getAbsolutePath(file.name);
+
+                            // 2. Use the correct, existing kernel function!
+                            const writeResultJson = OopisOS_Kernel.writeFile(fullPath, content, JSON.stringify(jsContext));
+
                             const writeResult = JSON.parse(writeResultJson);
                             if (writeResult.success) {
-                                OutputManager.appendToOutput(`Uploaded '${file.name}' to ${writeResult.path}`);
+                                // We use fullPath here to show the user exactly where it went!
+                                OutputManager.appendToOutput(`Uploaded '${file.name}' to ${fullPath}`);
                             } else {
                                 OutputManager.appendToOutput(`Error uploading '${file.name}': ${writeResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                             }
