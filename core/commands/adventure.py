@@ -8,8 +8,8 @@ default_adventure_data = {
     "winCondition": {"type": "itemUsedOn", "itemId": "page", "targetId": "terminal"},
     "winMessage": "You touch the manual page to the terminal's screen... The Architect smiles. 'Excellent work. Test complete.'",
     "rooms": {
-        "test_chamber": {"name": "Test Chamber", "points": 0, "description": "You are in a room that feels... unfinished...", "exits": {"north": "server_closet"}},
-        "server_closet": {"name": "Server Closet", "description": "You have entered a small, dark closet.", "isDark": True, "exits": {"south": "test_chamber"}}
+        "test_chamber": {"id": "test_chamber", "name": "Test Chamber", "points": 0, "description": "You are in a room that feels... unfinished...", "exits": {"north": "server_closet"}},
+        "server_closet": {"id": "server_closet", "name": "Server Closet", "description": "You have entered a small, dark closet.", "isDark": True, "exits": {"south": "test_chamber"}}
     },
     "items": {
         "desk": {"id": "desk", "name": "metal desk", "noun": "desk", "description": "A simple metal desk. A small, brass key rests on its surface.", "location": "test_chamber", "canTake": False},
@@ -26,10 +26,16 @@ default_adventure_data = {
 }
 
 def run(args, flags, user_context, **kwargs):
-    # NOTE: The --create flag is complex and remains in the JS command for now.
     if '--create' in flags:
-        # This special return value tells the JS executor to fall back to the original JS command.
-        return {"effect": "fallback_to_js", "reason": "Adventure Creator is a complex interactive tool that remains part of the core JS implementation."}
+        # The JS CommandExecutor needs to know how to get dependencies for this to work
+        return {
+            "effect": "launch_interactive_app",
+            "app_name": "Adventure_create",
+            "options": {
+                "filename": args[0] if args else "new_adventure.json",
+                "initialData": {} # Start with a blank slate
+            }
+        }
 
     # Play Mode
     adventure_to_load = None

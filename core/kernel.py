@@ -28,7 +28,10 @@ __all__ = ["initialize_kernel", "load_fs_from_json", "save_fs_to_json",
            "editor_load_file", "editor_push_undo", "editor_undo", "editor_redo",
            "editor_update_on_save",
            "paint_get_initial_state", "paint_push_undo_state", "paint_undo",
-           "paint_redo", "paint_update_on_save"]
+           "paint_redo", "paint_update_on_save",
+           "adventure_initialize_state", "adventure_process_command",
+           "adventure_creator_initialize", "adventure_creator_get_prompt",
+           "adventure_creator_process_command"]
 
 
 def initialize_kernel(save_function):
@@ -289,3 +292,40 @@ def paint_update_on_save(path):
         return json.dumps({"success": True, "data": state})
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
+
+def adventure_initialize_state(adventure_data_json, scripting_context_json):
+    """Bridge for initializing the adventure game state."""
+    try:
+        result = adventure_manager.initialize_state(adventure_data_json, scripting_context_json)
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def adventure_process_command(command):
+    """Bridge for processing a player command."""
+    try:
+        result = adventure_manager.process_command(command)
+        return json.dumps(result)
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+# Placeholder for Adventure Creator - to be implemented fully later
+def adventure_creator_initialize(filename, initial_data_json):
+    # This is a stub. Full implementation requires the AdventureCreatorManager class.
+    return json.dumps({
+        "success": True,
+        "message": f"Entering Adventure Creator for '{filename}'.\nType 'help' for commands, 'exit' to quit."
+    })
+
+def adventure_creator_get_prompt():
+    # Stub
+    return json.dumps({"success": True, "prompt": "(creator)> "})
+
+def adventure_creator_process_command(command):
+    # Stub
+    if command.lower() == 'exit':
+        return json.dumps({"success": True, "output": "Exiting Adventure Creator.", "shouldExit": True})
+    return json.dumps({
+        "success": False,
+        "output": f"Unknown command: '{command}'. Creator is not fully implemented yet."
+    })

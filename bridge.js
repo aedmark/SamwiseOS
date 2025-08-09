@@ -140,6 +140,7 @@ const OopisOS_Kernel = {
                 '/core/apps/editor.py': './core/apps/editor.py',
                 '/core/apps/explorer.py': './core/apps/explorer.py',
                 '/core/apps/paint.py': './core/apps/paint.py',
+                '/core/apps/adventure.py': './core/apps/adventure.py'
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
@@ -302,6 +303,31 @@ const OopisOS_Kernel = {
     paintUpdateOnSave(path) {
         if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.paint_update_on_save(path);
+    },
+
+    adventureInitializeState(adventureDataJson, scriptingContextJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.adventure_initialize_state(adventureDataJson, scriptingContextJson);
+    },
+
+    adventureProcessCommand(command) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.adventure_process_command(command);
+    },
+
+    adventureCreatorInitialize(filename, initialDataJson) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.adventure_creator_initialize(filename, initialDataJson);
+    },
+
+    adventureCreatorGetPrompt() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.adventure_creator_get_prompt();
+    },
+
+    adventureCreatorProcessCommand(command) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.adventure_creator_process_command(command);
     },
 
     async saveFileSystem(fsJsonString) {
