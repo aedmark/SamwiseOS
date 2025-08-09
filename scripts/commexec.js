@@ -255,15 +255,11 @@ class CommandExecutor {
             case 'passwd': await UserManager.changePasswordWithPrompt(result.username, options); break;
             case 'removeuser': await UserManager.removeUserWithPrompt(result.username, result.remove_home, options); break;
             case 'page_output': await PagerManager.enter(result.content, { mode: result.mode }); break;
-            case 'export_file':
-            case 'backup_data': // <-- ADD THIS CASE
+            case 'export_file': case 'backup_data':
                 const blob = new Blob([result.content], { type: "text/plain;charset=utf-8" });
                 const url = URL.createObjectURL(blob);
                 const a = Utils.createElement("a", { href: url, download: result.filename });
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
                 break;
             case 'upload_files':
                 const { files } = result;
@@ -274,13 +270,16 @@ class CommandExecutor {
                         const jsContext = { current_path: FileSystemManager.getCurrentPath(), user_context: { name: UserManager.getCurrentUser().name } };
                         const writeResultJson = OopisOS_Kernel.write_uploaded_file(file.name, content, JSON.stringify(jsContext));
                         const writeResult = JSON.parse(writeResultJson);
-                        if(writeResult.success) {
-                            OutputManager.appendToOutput(`Uploaded '${file.name}' to ${writeResult.path}`);
-                        } else {
-                            OutputManager.appendToOutput(`Error uploading '${file.name}': ${writeResult.error}`, {typeClass: Config.CSS_CLASSES.ERROR_MSG});
-                        }
+                        if(writeResult.success) { OutputManager.appendToOutput(`Uploaded '${file.name}' to ${writeResult.path}`); }
+                        else { OutputManager.appendToOutput(`Error uploading '${file.name}': ${writeResult.error}`, {typeClass: Config.CSS_CLASSES.ERROR_MSG}); }
                     };
                     reader.readAsText(file);
+                }
+                break;
+            case 'signal_job': // <-- NEW CASE
+                const signalResult = this.sendSignalToJob(result.job_id, result.signal);
+                if (!signalResult.success) {
+                    return ErrorHandler.createError(signalResult.error);
                 }
                 break;
             case 'login':

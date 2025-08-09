@@ -125,6 +125,9 @@ const OopisOS_Kernel = {
                 '/core/commands/find.py': './core/commands/find.py',
                 '/core/commands/sort.py': './core/commands/sort.py',
                 '/core/commands/cd.py': './core/commands/cd.py',
+                '/core/commands/fg.py': './core/commands/fg.py',
+                '/core/commands/bg.py': './core/commands/bg.py',
+                '/core/commands/committee.py': './core/commands/committee.py',
                 '/core/commands/jobs.py': './core/commands/jobs.py',
                 '/core/commands/__init__.py': null
             };
