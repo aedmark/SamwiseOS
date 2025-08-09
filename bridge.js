@@ -134,7 +134,8 @@ const OopisOS_Kernel = {
                 '/core/commands/bulletin.py': './core/commands/bulletin.py',
                 '/core/commands/agenda.py': './core/commands/agenda.py',
                 '/core/commands/__init__.py': null,
-                '/core/apps/__init__.py': './core/apps/__init__.py', // <-- ADD THE NEW PACKAGE FILE
+                '/core/apps/__init__.py': null,
+                '/core/apps/editor.py': './core/apps/editor.py',
                 '/core/apps/explorer.py': './core/apps/explorer.py',
             };
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
@@ -248,6 +249,31 @@ const OopisOS_Kernel = {
     explorerDeleteNode(path, jsContextJson) {
         if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
         return this.kernel.explorer_delete_node(path, jsContextJson);
+    },
+
+    editorLoadFile(filePath, fileContent) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.editor_load_file(filePath, fileContent);
+    },
+
+    editorPushUndo(content) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.editor_push_undo(content);
+    },
+
+    editorUndo() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.editor_undo();
+    },
+
+    editorRedo() {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.editor_redo();
+    },
+
+    editorUpdateOnSave(path, content) {
+        if (!this.isReady) return JSON.stringify({ success: false, error: "Kernel not ready." });
+        return this.kernel.editor_update_on_save(path, content);
     },
 
     async saveFileSystem(fsJsonString) {

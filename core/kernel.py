@@ -202,3 +202,44 @@ def explorer_delete_node(path, js_context_json):
         return json.dumps(result)
     except Exception as e:
         return json.dumps({"success": False, "error": repr(e)})
+
+# --- Editor Bridge Functions ---
+def editor_load_file(file_path, file_content):
+    """Bridge to load a file into the Python editor manager."""
+    try:
+        state = editor_manager.load_file(file_path, file_content)
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def editor_push_undo(content):
+    """Bridge to push a new state to the undo stack."""
+    try:
+        state = editor_manager.push_undo_state(content)
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def editor_undo():
+    """Bridge to perform an undo operation."""
+    try:
+        result = editor_manager.undo()
+        return json.dumps({"success": True, "data": result})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def editor_redo():
+    """Bridge to perform a redo operation."""
+    try:
+        result = editor_manager.redo()
+        return json.dumps({"success": True, "data": result})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
+
+def editor_update_on_save(path, content):
+    """Bridge to update the editor state after a file save."""
+    try:
+        state = editor_manager.update_on_save(path, content)
+        return json.dumps({"success": True, "data": state})
+    except Exception as e:
+        return json.dumps({"success": False, "error": repr(e)})
