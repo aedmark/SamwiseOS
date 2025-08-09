@@ -6,7 +6,6 @@
  * the primary event listeners for the terminal interface once the window has loaded.
  */
 
-// ... (initializeTerminalEventListeners function remains unchanged) ...
 function initializeTerminalEventListeners(domElements, commandExecutor, dependencies) {
     const { AppLayerManager, ModalManager, TerminalUI, TabCompletionManager, HistoryManager, SoundManager } = dependencies;
 
@@ -220,6 +219,7 @@ window.onload = async () => {
         domElements: domElements,
         SoundManager: soundManager,
         StorageHAL: storageHAL,
+        TextAdventureModal: window.TextAdventureModal,
         AuditManager: auditManager,
     };
 
