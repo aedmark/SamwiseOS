@@ -22,7 +22,7 @@ sudo_manager = SudoManager(fs_manager)
 ai_manager = AIManager(fs_manager, command_executor)
 
 # --- Module to Manager Mapping ---
-# This dispatcher dictionary makes the syscall_handler clean and extensible.
+# [MODIFIED] Our dispatcher is now fully populated with our new app logic modules!
 MODULE_DISPATCHER = {
     "executor": command_executor,
     "filesystem": fs_manager,

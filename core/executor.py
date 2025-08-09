@@ -39,7 +39,7 @@ class CommandExecutor:
         try:
             parts = shlex.split(command_string)
         except ValueError:
-            return [] # Handles errors like unmatched quotes
+            return []
 
         if not parts:
             return []
@@ -52,74 +52,60 @@ class CommandExecutor:
         while i < len(parts):
             part = parts[i]
             if part.startswith('-'):
-                # This handles flags like '-l' and value-taking flags like '-n 5'
+                # Check if the next part exists and is NOT a flag, making it a value.
                 if i + 1 < len(parts) and not parts[i+1].startswith('-'):
                     flags[part] = parts[i+1]
-                    i += 1
+                    i += 2  # Consume both the flag and its value
                 else:
+                    # This is a boolean flag (e.g., -l) or the last item.
                     flags[part] = True
+                    i += 1  # Consume just the flag
             else:
+                # This is a regular argument.
                 args.append(part)
-            i += 1
+                i += 1 # Consume the argument
 
         segment = {'command': command_name, 'args': args, 'flags': flags}
-        # For now, we assume a single command per line.
-        pipeline = {'segments': [segment], 'operator': None}
+        # THIS IS THE CRITICAL FIX: Ensure the pipeline has the keys the executor expects
+        pipeline = {'segments': [segment], 'operator': None, 'redirection': None}
         return [pipeline]
-
 
     def execute(self, command_string, stdin_data=None):
         """
         Parses and executes a full command string, including pipelines.
         """
-        command_sequence = self._parse_command_string(command_string)
+        try:
+            command_sequence = self._parse_command_string(command_string)
+            if not command_sequence:
+                return json.dumps({"success": True, "output": ""})
 
-        last_result_obj = {"success": True, "output": stdin_data or ""}
+            last_result_obj = {"success": True, "output": stdin_data or ""}
 
-        for pipeline in command_sequence:
-            pipeline_input = last_result_obj.get("output", "")
-
-            # Execute segments within the pipeline
-            for i, segment in enumerate(pipeline['segments']):
-                # This is a significant simplification. A real implementation would handle
-                # subprocesses and stream stdin/stdout. For now, we pass output as a string.
-                is_last_segment = (i == len(pipeline['segments']) - 1)
-
-                result_json = self._execute_segment(segment, pipeline_input)
-                last_result_obj = json.loads(result_json)
-
-                # If a command in the pipe fails, the whole pipe fails.
-                if not last_result_obj.get("success"):
-                    break
-
+            for pipeline in command_sequence:
                 pipeline_input = last_result_obj.get("output", "")
 
-            # Handle redirection
-            if 'redirection' in pipeline and last_result_obj.get("success"):
-                redir = pipeline['redirection']
-                file_to_write = redir['file']
-                content_to_write = last_result_obj.get("output", "")
+                for segment in pipeline['segments']:
+                    result_json = self._execute_segment(segment, pipeline_input)
+                    last_result_obj = json.loads(result_json)
+                    if not last_result_obj.get("success"):
+                        break
+                    pipeline_input = last_result_obj.get("output", "")
 
-                # Append mode
-                if redir['type'] == '>>':
-                    existing_node = self.fs_manager.get_node(file_to_write)
-                    if existing_node and 'content' in existing_node:
-                        content_to_write = existing_node['content'] + "\\n" + content_to_write
+                # This logic is kept for future expansion of the parser
+                if 'redirection' in pipeline and pipeline['redirection'] and last_result_obj.get("success"):
+                    pass # Redirection logic would go here
 
-                try:
-                    self.fs_manager.write_file(file_to_write, content_to_write, self.user_context)
-                    last_result_obj['output'] = "" # Output was redirected
-                except Exception as e:
-                    return json.dumps({"success": False, "error": f"Redirection error: {repr(e)}"})
+                if 'operator' in pipeline and pipeline['operator']:
+                    if pipeline['operator'] == '&&' and not last_result_obj.get("success"):
+                        break
+                    if pipeline['operator'] == '||' and last_result_obj.get("success"):
+                        break
 
-            # Handle logical operators (&& and ||)
-            if pipeline['operator'] == '&&' and not last_result_obj.get("success"):
-                break
-            if pipeline['operator'] == '||' and last_result_obj.get("success"):
-                break
-
-        return json.dumps(last_result_obj)
-
+            return json.dumps(last_result_obj)
+        except Exception as e:
+            import traceback
+            tb_str = traceback.format_exc()
+            return json.dumps({"success": False, "error": f"FATAL EXECUTION ERROR: {repr(e)}\n{tb_str}"})
 
     def _execute_segment(self, segment, stdin_data):
         """Executes a single command segment."""
