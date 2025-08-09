@@ -17,7 +17,9 @@ const OopisOS_Kernel = {
         const { OutputManager, Config, CommandRegistry } = this.dependencies;
         try {
             await OutputManager.appendToOutput("Initializing Python runtime via Pyodide...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
-            this.pyodide = await loadPyodide();
+            this.pyodide = await loadPyodide({
+                indexURL: "./node_modules/pyodide/"
+            });
             await this.pyodide.loadPackage("cryptography");
             await OutputManager.appendToOutput("Python runtime loaded. Loading kernel...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
 

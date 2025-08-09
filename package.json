@@ -23,7 +23,6 @@
     "dist": "electron-builder",
     "test": "mocha"
   },
-
   "build": {
     "appId": "com.samwiseos.app",
     "productName": "SamwiseOS",
