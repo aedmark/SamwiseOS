@@ -33,52 +33,40 @@ class CommandExecutor:
 
     def _parse_command_string(self, command_string):
         """
-        A new, more powerful parser to handle pipes and redirections.
-        This is a simplified version of the JS Lexer/Parser logic.
+        Parses a command string into a sequence of pipelines and segments
+        using shlex for robust tokenization.
         """
-        # This regex will split by operators while keeping them, and also handle quoted strings.
-        # It's a complex but necessary part of building a shell.
-        tokens = re.findall(r'(\S+)\s*->\s*(\S+)\s+"(.+)"|(\"(?:\\\"|[^\"])*\")|(\'(?:\\\'|[^\'])*\')|(\|\||&&|;|\||>>|>|<|&)|([^\s\'\"\|&;<>]+)', command_string)
+        try:
+            parts = shlex.split(command_string)
+        except ValueError:
+            return [] # Handles errors like unmatched quotes
 
-        # The regex returns multiple capture groups, so we need to flatten and clean the list.
-        flat_tokens = []
-        for token_tuple in tokens:
-            flat_tokens.extend([t for t in token_tuple if t])
+        if not parts:
+            return []
 
-        pipelines = []
-        current_pipeline = {'segments': [], 'operator': None}
-        current_segment = {'command': None, 'args': [], 'flags': {}}
+        command_name = parts[0]
+        args = []
+        flags = {}
 
-        i = 0
-        while i < len(flat_tokens):
-            token = flat_tokens[i]
-            if token in ['|', '&&', '||', ';', '&']:
-                if current_segment['command']:
-                    current_pipeline['segments'].append(current_segment)
-                current_pipeline['operator'] = token
-                pipelines.append(current_pipeline)
-                current_pipeline = {'segments': [], 'operator': None}
-                current_segment = {'command': None, 'args': [], 'flags': {}}
-            elif token in ['>', '>>', '<']:
-                # Simplified redirection handling for now
-                current_pipeline['redirection'] = {'type': token, 'file': flat_tokens[i+1]}
-                i += 1 # Skip the filename token
-            else:
-                # Naive flag parsing for now. This will need to be improved.
-                if token.startswith('-'):
-                    current_segment['flags'][token] = True
-                elif not current_segment['command']:
-                    current_segment['command'] = token
+        i = 1
+        while i < len(parts):
+            part = parts[i]
+            if part.startswith('-'):
+                # This handles flags like '-l' and value-taking flags like '-n 5'
+                if i + 1 < len(parts) and not parts[i+1].startswith('-'):
+                    flags[part] = parts[i+1]
+                    i += 1
                 else:
-                    current_segment['args'].append(token.strip("'\""))
+                    flags[part] = True
+            else:
+                args.append(part)
             i += 1
 
-        if current_segment['command']:
-            current_pipeline['segments'].append(current_segment)
-        if current_pipeline['segments']:
-            pipelines.append(current_pipeline)
+        segment = {'command': command_name, 'args': args, 'flags': flags}
+        # For now, we assume a single command per line.
+        pipeline = {'segments': [segment], 'operator': None}
+        return [pipeline]
 
-        return pipelines
 
     def execute(self, command_string, stdin_data=None):
         """

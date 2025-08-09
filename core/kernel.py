@@ -95,8 +95,9 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
     It now correctly handles passing live Python objects to the executor.
     """
     context = json.loads(js_context_json)
+    fs_manager.current_path = context.get("current_path", "/")
 
-    # [FIXED] Set the context on the executor directly.
+    # Set the context on the executor directly.
     # We do not pass Python objects through the JSON-based syscall_handler.
     # This is a direct, internal hand-off of a critical system component.
     command_executor.set_context(
