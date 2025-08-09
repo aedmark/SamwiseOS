@@ -211,7 +211,7 @@ class ConfigManager {
         "df", "diff", "dreamatorium", "du", "echo", "edit", "exit", "explore", "export", "expr",
         "fg", "find", "fsck", "forge", "gemini",
         "grep", "groupadd", "groupdel", "groups", "head", "help", "history", "jobs", "kill",
-        "less", "listusers", "log", "login", "logout", "ls", "ln", "man", "more", "mkdir", "mv", "mxml2sh",
+        "less", "listusers", "log", "login", "logout", "ls", "ln", "man", "more", "mkdir", "mv",
         "nc", "netstat", "nl", "ocrypt", "paint", "passwd", "patch", "ping", "play",
         "planner", "printscreen",
         "ps", "pwd", "reboot", "remix", "removeuser", "rename", "reset", "restore", "rm", "rmdir",
