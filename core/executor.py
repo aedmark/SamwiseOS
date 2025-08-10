@@ -138,23 +138,23 @@ class CommandExecutor:
                 "session_stack": self.session_stack,
             }
 
-            # --- THIS IS THE FIX! ---
+            # This logic ensures we only pass arguments that the command function can actually accept.
             sig = inspect.signature(run_func)
             params = sig.parameters
-            has_kwargs = any(p.kind == p.VAR_KEYWORD for p in params.values())
 
-            final_kwargs = {}
-            if has_kwargs:
-                # If the function has **kwargs, it's open to all context!
-                final_kwargs = possible_kwargs
+            # Check if the function signature includes a **kwargs parameter.
+            has_varkw = any(p.kind == p.VAR_KEYWORD for p in params.values())
+
+            if has_varkw:
+                # If it has **kwargs, it's designed to accept any context we give it.
+                kwargs_for_run = possible_kwargs
             else:
-                # Otherwise, only give it what it explicitly asks for.
-                for k, v in possible_kwargs.items():
-                    if k in params:
-                        final_kwargs[k] = v
+                # If not, we meticulously filter to only include parameters it explicitly asks for by name.
+                kwargs_for_run = {
+                    key: value for key, value in possible_kwargs.items() if key in params
+                }
 
-            result = run_func(**final_kwargs)
-            # --- END OF FIX ---
+            result = run_func(**kwargs_for_run)
 
             if isinstance(result, dict):
                 if 'success' not in result:
