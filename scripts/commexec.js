@@ -418,6 +418,45 @@ class CommandExecutor {
 
                     input.click();
                 });
+            case 'upload_files':
+                // The infinite loop was here! Instead of re-running the whole command,
+                // we now call a specific kernel function to handle the file data.
+                const { files: filesToProcess } = result;
+                const fileDataPromises = Array.from(filesToProcess).map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => resolve({
+                            name: file.name,
+                            path: FileSystemManager.getAbsolutePath(file.name),
+                            content: event.target.result
+                        });
+                        reader.onerror = () => reject(new Error(`Could not read file: ${file.name}`));
+                        reader.readAsText(file);
+                    });
+                });
+
+                const filesForPython = await Promise.all(fileDataPromises);
+                const user = UserManager.getCurrentUser();
+                const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
+                const userContext = { name: user.name, group: primaryGroup };
+
+                // Directly call the 'run' function of the 'upload' command via the executor module
+                const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
+                    command_name: 'upload',
+                    args: [],
+                    flags: {},
+                    user_context: userContext,
+                    stdin_data: null,
+                    // Pass the file data in kwargs
+                    kwargs: { files: filesForPython }
+                });
+                const pyResult = JSON.parse(resultJson);
+
+                if (pyResult.success) {
+                    return ErrorHandler.createSuccess(pyResult.output);
+                } else {
+                    return ErrorHandler.createError(pyResult.error);
+                }
             case 'trigger_restore_flow': // Our new effect!
                 return new Promise(async (resolve) => {
                     const { ModalManager } = this.dependencies;
@@ -521,43 +560,6 @@ class CommandExecutor {
                 const url = URL.createObjectURL(blob);
                 const a = Utils.createElement("a", { href: url, download: result.filename });
                 document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-                break;
-            case 'upload_files':
-                const { files } = result;
-                for (const file of files) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        try {
-                            const content = event.target.result;
-                            const user = UserManager.getCurrentUser();
-                            const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
-                            const jsContext = {
-                                current_path: FileSystemManager.getCurrentPath(),
-                                user_context: { name: user.name, group: primaryGroup }
-                            };
-
-                            // 1. Get the full destination path using our trusty FileSystemManager.
-                            const fullPath = FileSystemManager.getAbsolutePath(file.name);
-
-                            // 2. Use the correct, existing kernel function!
-                            const writeResultJson = OopisOS_Kernel.writeFile(fullPath, content, JSON.stringify(jsContext));
-
-                            const writeResult = JSON.parse(writeResultJson);
-                            if (writeResult.success) {
-                                // We use fullPath here to show the user exactly where it went!
-                                OutputManager.appendToOutput(`Uploaded '${file.name}' to ${fullPath}`);
-                            } else {
-                                OutputManager.appendToOutput(`Error uploading '${file.name}': ${writeResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
-                            }
-                        } catch (e) {
-                            OutputManager.appendToOutput(`CRITICAL ERROR during upload of '${file.name}': ${e.message}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
-                        }
-                    };
-                    reader.onerror = () => {
-                        OutputManager.appendToOutput(`Error reading file '${file.name}' from your local machine.`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
-                    };
-                    reader.readAsText(file);
-                }
                 break;
             case 'signal_job':
                 const signalResult = this.sendSignalToJob(result.job_id, result.signal);

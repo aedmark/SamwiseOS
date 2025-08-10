@@ -530,10 +530,9 @@ class TabCompletionManager {
         const { currentWordPrefix, isCompletingCommand, commandName } = context;
         let suggestions = [];
 
-        const { CommandExecutor, Config, StorageManager, FileSystemManager, UserManager } = this.dependencies;
+        const { CommandExecutor, Config, StorageManager, FileSystemManager } = this.dependencies;
 
         if (isCompletingCommand) {
-            // [MODIFIED] Use the unified command manifest from Config
             suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
                 cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
             ).sort();
@@ -542,7 +541,6 @@ class TabCompletionManager {
             if (!commandDefinition) return [];
 
             if (commandDefinition.definition.completionType === "commands") {
-                // [MODIFIED] Use the unified command manifest from Config
                 suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
                     cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
                 ).sort();
@@ -580,16 +578,14 @@ class TabCompletionManager {
                     pathPrefixForFS,
                     FileSystemManager.getCurrentPath()
                 );
-                const baseNode = await FileSystemManager.getNodeByPath(
-                    effectiveBasePathForFS
-                );
-                const currentUser = UserManager.getCurrentUser().name;
 
-                if (
-                    baseNode &&
-                    baseNode.type === Config.FILESYSTEM.DEFAULT_DIRECTORY_TYPE &&
-                    await FileSystemManager.hasPermission(baseNode, currentUser, "read")
-                ) {
+                const pathValidation = await FileSystemManager.validatePath(effectiveBasePathForFS, {
+                    expectedType: 'directory',
+                    permissions: ['read', 'execute']
+                });
+
+                if (pathValidation.success && pathValidation.data.node) {
+                    const baseNode = pathValidation.data.node;
                     suggestions = Object.keys(baseNode.children)
                         .filter((name) =>
                             name.toLowerCase().startsWith(segmentToMatchForFS.toLowerCase())

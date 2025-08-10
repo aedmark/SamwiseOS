@@ -33,6 +33,7 @@ class CommandExecutor:
         self.session_start_time = session_start_time
         self.session_stack = session_stack
 
+
     def _parse_command_string(self, command_string):
         """
         Parses a command string into a sequence of pipelines and segments
@@ -54,21 +55,17 @@ class CommandExecutor:
         while i < len(parts):
             part = parts[i]
             if part.startswith('-'):
-                # Check if the next part exists and is NOT a flag, making it a value.
                 if i + 1 < len(parts) and not parts[i+1].startswith('-'):
                     flags[part] = parts[i+1]
-                    i += 2  # Consume both the flag and its value
+                    i += 2
                 else:
-                    # This is a boolean flag (e.g., -l) or the last item.
                     flags[part] = True
-                    i += 1  # Consume just the flag
+                    i += 1
             else:
-                # This is a regular argument.
                 args.append(part)
-                i += 1 # Consume the argument
+                i += 1
 
         segment = {'command': command_name, 'args': args, 'flags': flags}
-        # Ensure the pipeline has the keys the executor expects
         pipeline = {'segments': [segment], 'operator': None, 'redirection': None}
         return [pipeline]
 
@@ -93,9 +90,8 @@ class CommandExecutor:
                         break
                     pipeline_input = last_result_obj.get("output", "")
 
-                # This logic is kept for future expansion of the parser
                 if 'redirection' in pipeline and pipeline['redirection'] and last_result_obj.get("success"):
-                    pass # Redirection logic would go here
+                    pass
 
                 if 'operator' in pipeline and pipeline['operator']:
                     if pipeline['operator'] == '&&' and not last_result_obj.get("success"):
@@ -107,12 +103,25 @@ class CommandExecutor:
         except Exception as e:
             import traceback
             tb_str = traceback.format_exc()
-            return json.dumps({"success": False, "error": f"FATAL EXECUTION ERROR: {repr(e)}\n{tb_str}"})
+            return json.dumps({"success": False, "error": f"FATAL EXECUTION ERROR: {repr(e)}\\n{tb_str}"})
 
     def _execute_segment(self, segment, stdin_data):
         """Executes a single command segment."""
-        command_name = segment['command']
+        # This can now be a simple wrapper around the new method
+        return self.run_command_by_name(
+            command_name=segment['command'],
+            args=segment['args'],
+            flags=segment['flags'],
+            user_context=self.user_context,
+            stdin_data=stdin_data,
+            kwargs={} # Add kwargs if the segment parsing is expanded
+        )
 
+    def run_command_by_name(self, command_name, args, flags, user_context, stdin_data, kwargs):
+        """
+        Directly executes a command by its name with provided arguments, bypassing string parsing.
+        This is the new method that was missing.
+        """
         if command_name not in self.commands:
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
 
@@ -122,10 +131,11 @@ class CommandExecutor:
             if not run_func:
                 return json.dumps({"success": False, "error": f"Command '{command_name}' is not runnable."})
 
+            # Combine all possible arguments for the command's run function
             possible_kwargs = {
-                "args": segment['args'],
-                "flags": segment['flags'],
-                "user_context": self.user_context,
+                "args": args,
+                "flags": flags,
+                "user_context": user_context,
                 "stdin_data": stdin_data,
                 "users": self.users,
                 "user_groups": self.user_groups,
@@ -136,20 +146,16 @@ class CommandExecutor:
                 "api_key": self.api_key,
                 "session_start_time": self.session_start_time,
                 "session_stack": self.session_stack,
+                **kwargs # Unpack any additional kwargs, like our file data
             }
 
-            # This logic ensures we only pass arguments that the command function can actually accept.
             sig = inspect.signature(run_func)
             params = sig.parameters
-
-            # Check if the function signature includes a **kwargs parameter.
             has_varkw = any(p.kind == p.VAR_KEYWORD for p in params.values())
 
             if has_varkw:
-                # If it has **kwargs, it's designed to accept any context we give it.
                 kwargs_for_run = possible_kwargs
             else:
-                # If not, we meticulously filter to only include parameters it explicitly asks for by name.
                 kwargs_for_run = {
                     key: value for key, value in possible_kwargs.items() if key in params
                 }
@@ -167,5 +173,6 @@ class CommandExecutor:
             import traceback
             tb_str = traceback.format_exc()
             return json.dumps({"success": False, "error": f"Error executing '{command_name}': {repr(e)}\\n{tb_str}"})
+
 
 command_executor = CommandExecutor()
