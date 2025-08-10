@@ -1,0 +1,144 @@
+/* scripts/apps/onboarding/onboarding.css */
+
+.onboarding-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-background-dark);
+    font-family: var(--font-family-sans);
+    z-index: 1000;
+    color: var(--color-text-primary);
+}
+
+.onboarding-card {
+    background-color: var(--color-background-medium);
+    padding: var(--spacing-xl);
+    border-radius: var(--border-radius-md);
+    border: 1px solid var(--color-border-primary);
+    width: 100%;
+    max-width: 450px;
+    box-shadow: var(--shadow-drop-medium);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.onboarding-header {
+    width: 100%;
+}
+
+.onboarding-progress {
+    display: flex;
+    gap: var(--spacing-sm);
+    width: 100%;
+}
+
+.onboarding-progress .step-indicator {
+    flex-grow: 1;
+    height: 8px;
+    background-color: var(--color-background-light);
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+.onboarding-progress .step-indicator.active {
+    background-color: var(--color-info);
+}
+
+.onboarding-progress .step-indicator.complete {
+    background-color: var(--color-success);
+}
+
+.onboarding-card h1 {
+    color: var(--color-text-primary);
+    text-align: center;
+    margin-bottom: var(--spacing-xs);
+}
+
+.onboarding-card p {
+    color: var(--color-text-secondary);
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+    line-height: 1.5;
+}
+
+.onboarding-card form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.onboarding-card input[type="text"],
+.onboarding-card input[type="password"] {
+    padding: var(--spacing-sm);
+    background-color: var(--color-background-dark);
+    border: 1px solid var(--color-border-secondary);
+    border-radius: var(--border-radius-sm);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-base);
+}
+
+.onboarding-card input:focus {
+    outline: none;
+    border-color: var(--color-info);
+    box-shadow: 0 0 5px var(--color-info);
+}
+
+.onboarding-card button {
+    padding: var(--spacing-sm);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    background-color: var(--color-info);
+    color: var(--color-background-darkest);
+    font-size: var(--font-size-lg);
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.onboarding-card button:hover {
+    background-color: #38bdf8; /* A lighter shade of info */
+}
+
+.onboarding-error {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    text-align: center;
+    border: 1px solid #ef4444;
+}
+
+.onboarding-summary ul {
+    list-style: none;
+    margin: var(--spacing-lg) 0;
+    padding: var(--spacing-md);
+    background: var(--color-background-dark);
+    border-radius: var(--border-radius-sm);
+}
+
+.onboarding-summary li {
+    padding: var(--spacing-xs) 0;
+}
+
+.onboarding-spinner {
+    width: 48px;
+    height: 48px;
+    border: 5px solid var(--color-text-primary);
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    box-sizing: border-box;
+    animation: rotation 1s linear infinite;
+    align-self: center;
+}
+
+@keyframes rotation {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

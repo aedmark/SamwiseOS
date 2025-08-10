@@ -80,6 +80,7 @@ class ConfigManager {
              * @type {object}
              */
             STORAGE_KEYS: {
+                ONBOARDING_COMPLETE: "oopisOsOnboardingComplete",
                 USER_CREDENTIALS: "oopisOsUserCredentials",
                 USER_TERMINAL_STATE_PREFIX: "oopisOsUserTerminalState_",
                 MANUAL_TERMINAL_STATE_PREFIX: "oopisOsManualUserTerminalState_",

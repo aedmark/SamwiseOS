@@ -9,6 +9,22 @@
 // This global variable will be our session's birth certificate!
 window.sessionStartTime = new Date();
 
+function startOnboardingProcess(dependencies) {
+    const { AppLayerManager, outputManager, terminalUI } = dependencies;
+    outputManager.clearOutput();
+    terminalUI.hideInputLine();
+
+    // Launch the onboarding app!
+    const OnboardingApp = window.OnboardingManager;
+    if (OnboardingApp) {
+        const appInstance = new OnboardingApp();
+        AppLayerManager.show(appInstance, { dependencies });
+    } else {
+        console.error("OnboardingManager app not found!");
+        outputManager.appendToOutput("CRITICAL ERROR: Onboarding process could not be started.");
+    }
+}
+
 function initializeTerminalEventListeners(domElements, commandExecutor, dependencies) {
     const { AppLayerManager, ModalManager, TerminalUI, TabCompletionManager, HistoryManager, SoundManager } = dependencies;
 
@@ -60,6 +76,11 @@ function initializeTerminalEventListeners(domElements, commandExecutor, dependen
 
         // Ignore key events if a full-screen app is active.
         if (AppLayerManager.isActive()) {
+            // Allow the active app to handle the keydown event
+            const activeApp = AppLayerManager.activeApp;
+            if (activeApp && typeof activeApp.handleKeyDown === 'function') {
+                activeApp.handleKeyDown(e);
+            }
             return;
         }
 
@@ -268,19 +289,26 @@ window.onload = async () => {
     auditManager.setDependencies(dependencies);
     commandRegistry.setDependencies(dependencies);
 
+    // Early initialization for critical UI/Storage
+    outputManager.initialize(domElements);
+    terminalUI.initialize(domElements);
+    modalManager.initialize(domElements);
+    appLayerManager.initialize(domElements);
+    await storageHAL.init();
+    outputManager.initializeConsoleOverrides();
+
+    // Check for onboarding status
+    const onboardingComplete = storageManager.loadItem(configManager.STORAGE_KEYS.ONBOARDING_COMPLETE, "Onboarding Status", false);
+
+    // Initialize the Python Kernel Bridge here, before any logic that depends on it.
+    await OopisOS_Kernel.initialize(dependencies);
+
+    if (!onboardingComplete) {
+        startOnboardingProcess(dependencies);
+        return; // Halt the normal boot process
+    }
+
     try {
-        // Reordered Initialization Sequence
-        // 1. Initialize core UI and storage components that have no dependencies on Python
-        outputManager.initialize(domElements);
-        terminalUI.initialize(domElements);
-        modalManager.initialize(domElements);
-        appLayerManager.initialize(domElements);
-        await storageHAL.init();
-        outputManager.initializeConsoleOverrides();
-
-        // 2. CRITICAL: Initialize the Python Kernel Bridge. This must happen BEFORE managers that depend on it are initialized.
-        await OopisOS_Kernel.initialize(dependencies);
-
         // 3. Initialize filesystem and sync with Python kernel
         const fsJsonFromStorage = await storageHAL.load();
         if (OopisOS_Kernel.isReady) {
