@@ -11,7 +11,6 @@ class GroupManager:
             self.groups = {
                 "root": {"members": ["root"]},
                 "Guest": {"members": ["Guest"]},
-                "userDiag": {"members": ["userDiag"]},
                 "towncrier": {"members": []}
             }
 

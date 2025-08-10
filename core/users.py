@@ -18,6 +18,9 @@ class UserManager:
 
     def initialize_defaults(self, default_username):
         """Initializes default users if they don't exist."""
+        if not group_manager.group_exists('root'):
+            group_manager.create_group('root')
+
         if 'root' not in self.users:
             self.users['root'] = {'passwordData': None, 'primaryGroup': 'root'}
 
@@ -86,9 +89,23 @@ class UserManager:
     def verify_password(self, username, password_attempt):
         """Verifies a user's password."""
         user_entry = self.get_user(username)
-        if not user_entry or not user_entry.get('passwordData'):
+
+        if not user_entry:
+            return False # User doesn't exist
+
+        has_password = user_entry.get('passwordData')
+
+        if username == 'root':
+            if not has_password:
+                # This case should not happen after onboarding, but as a safeguard, root must have a password.
+                return False
+                # If root has a password, it must be verified. The salt/hash check will handle this.
+
+        elif not has_password:
+            # For non-root users, if no password is set, only an empty attempt is valid.
             return not password_attempt
 
+        # If we get here, it means a password is set and we need to check it.
         salt = user_entry['passwordData']['salt']
         stored_hash = user_entry['passwordData']['hash']
         return self._verify_password_with_salt(password_attempt, salt, stored_hash)
@@ -106,10 +123,6 @@ class UserManager:
         """
         Performs the initial system setup in a transactional manner.
         """
-        # This check is too strict for the onboarding flow and prevents recovery
-        # from a failed first attempt. It is safe to remove because this function
-        # is only called during the explicit onboarding process.
-
         # Backup state for rollback
         original_users = copy.deepcopy(self.users)
         original_groups = copy.deepcopy(group_manager.groups)
@@ -119,32 +132,40 @@ class UserManager:
             # 1. Initialize the default filesystem structure
             fs_manager._initialize_default_filesystem()
 
-            # 2. Create the new user's group
+            # 2. Ensure root group and user exist before anything else
+            if not group_manager.group_exists('root'):
+                group_manager.create_group('root')
+
+            if not self.user_exists('root'):
+                # Register root user with NO password initially. It will be set below.
+                self.register_user('root', None, 'root')
+
+            # 3. Create the new user's group
             if not group_manager.group_exists(username):
                 group_manager.create_group(username)
 
-            # 3. Register the new user
+            # 4. Register the new user
             registration_result = self.register_user(username, password, username)
             if not registration_result["success"]:
                 # If the user already exists (from a partial fail), just proceed
                 if "already exists" not in registration_result["error"]:
                     raise ValueError(registration_result["error"])
 
-            # 4. Add the user to their own primary group
+            # 5. Add the user to their own primary group
             group_manager.add_user_to_group(username, username)
 
-            # 5. Create the user's home directory as root
+            # 6. Create the user's home directory as root
             home_path = f"/home/{username}"
-            # Create directory if it doesn't exist from a previous attempt
             if not fs_manager.get_node(home_path):
                 fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
                 fs_manager.chown(home_path, username)
                 fs_manager.chgrp(home_path, username)
 
-            # 6. Set the root password (this will now overwrite if it was set in a failed attempt)
-            self.change_password('root', root_password)
+            # 7. Set the root password
+            if not self.change_password('root', root_password):
+                raise ValueError("Failed to set root password during setup.")
 
-            # 7. Persist changes to the filesystem
+            # 8. Persist changes to the filesystem
             fs_manager._save_state()
 
             return {"success": True}

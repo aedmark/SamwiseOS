@@ -42,6 +42,9 @@ class FileSystemManager:
                     "etc": {"type": "directory", "children": {
                         'sudoers': {"type": "file", "content": "# /etc/sudoers...", "owner": "root", "group": "root", "mode": 0o440, "mtime": now_iso}
                     }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
+                    "var": {"type": "directory", "children": {
+                        "log": {"type": "directory", "children": {}, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso}
+                    }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
                 }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso,
             }
         }

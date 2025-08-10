@@ -115,38 +115,34 @@ class UserManager {
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler } = this.dependencies;
 
-        const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
-        const hasPassword = userResult.success && userResult.data && userResult.data.passwordData;
-
-        if (hasPassword) {
-            if (providedPassword !== null) {
-                const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
-                if (verifyResult.success && verifyResult.data) {
-                    return await successCallback(username);
-                } else {
-                    return ErrorHandler.createError(this.config.MESSAGES.INVALID_PASSWORD);
-                }
+        if (providedPassword !== null) {
+            // If password was provided via args (e.g., `su root pa$$word`)
+            const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
+            if (verifyResult.success && verifyResult.data) {
+                return await successCallback(username);
             } else {
-                return new Promise((resolve) => {
-                    this.modalManager.request({
-                        context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
-                        onConfirm: async (passwordFromPrompt) => {
-                            const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt]));
-                            if (verifyResult.success && verifyResult.data) {
-                                resolve(await successCallback(username));
-                            } else {
-                                this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
-                                resolve(ErrorHandler.createError(failureMessage));
-                            }
-                        },
-                        onCancel: () => resolve(ErrorHandler.createSuccess({ output: this.config.MESSAGES.OPERATION_CANCELLED })),
-                        options,
-                    });
-                });
+                this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
+                return ErrorHandler.createError(failureMessage);
             }
         } else {
-            if (providedPassword !== null) return ErrorHandler.createError("This account does not require a password.");
-            return await successCallback(username);
+            // If no password was provided, we MUST prompt. Python will tell us if it's okay to be empty.
+            return new Promise((resolve) => {
+                this.modalManager.request({
+                    context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
+                    onConfirm: async (passwordFromPrompt) => {
+                        // An empty string is a valid attempt for users without a password.
+                        const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
+                        if (verifyResult.success && verifyResult.data) {
+                            resolve(await successCallback(username));
+                        } else {
+                            this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
+                            resolve(ErrorHandler.createError(failureMessage));
+                        }
+                    },
+                    onCancel: () => resolve(ErrorHandler.createSuccess({ output: this.config.MESSAGES.OPERATION_CANCELLED })),
+                    options,
+                });
+            });
         }
     }
 
