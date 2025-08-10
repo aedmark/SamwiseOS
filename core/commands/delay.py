@@ -11,11 +11,12 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         if milliseconds < 0:
             return "delay: Invalid delay time. Must be a non-negative integer."
 
-        # Convert milliseconds to seconds for time.sleep()
-        seconds_to_sleep = milliseconds / 1000.0
-        time.sleep(seconds_to_sleep)
+        # Return an effect to be handled by the JS CommandExecutor
+        return {
+            "effect": "delay",
+            "milliseconds": milliseconds
+        }
 
-        return "" # Success
     except ValueError:
         return f"delay: Invalid delay time '{args[0]}'. Must be an integer."
     except Exception as e:

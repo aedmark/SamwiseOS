@@ -332,6 +332,9 @@ class CommandExecutor {
     async _handleEffect(result, options) {
         const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager, NetworkManager, CommandExecutor } = this.dependencies;
         switch (result.effect) {
+            case 'delay':
+                await new Promise(resolve => setTimeout(resolve, result.milliseconds));
+                break;
             case 'useradd':
                 return await UserManager.registerWithPrompt(result.username, options);
             case 'play_sound':
