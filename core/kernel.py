@@ -1,4 +1,4 @@
-# gem/core/kernel.py
+# /core/kernel.py
 
 from executor import command_executor
 from filesystem import fs_manager
@@ -22,7 +22,9 @@ sudo_manager = SudoManager(fs_manager)
 ai_manager = AIManager(fs_manager, command_executor)
 
 # --- Module to Manager Mapping ---
-# [MODIFIED] Our dispatcher is now fully populated with our new app logic modules!
+
+# Our dispatcher is now fully populated with our new app logic modules!
+
 MODULE_DISPATCHER = {
     "executor": command_executor,
     "filesystem": fs_manager,
@@ -112,7 +114,7 @@ def execute_command(command_string: str, js_context_json: str, stdin_data: str =
             session_stack=context.get("session_stack")
         )
 
-        # FIX: Call the executor directly to prevent double-encoding the JSON response.
+        # Call the executor directly to prevent double-encoding the JSON response.
         return command_executor.execute(command_string, stdin_data)
 
     except Exception as e:
@@ -241,8 +243,6 @@ def adventure_process_command(command):
     req = {"module": "adventure", "function": "process_command", "args": [command]}
     return syscall_handler(json.dumps(req))
 
-# Note: adventure_creator functions are JS-only for now, so no stubs needed yet.
-
 def top_get_process_list(jobs):
     req = {"module": "top", "function": "get_process_list", "args": [jobs]}
     return syscall_handler(json.dumps(req))
@@ -263,6 +263,6 @@ def log_save_entry(path, content, js_context_json):
     return syscall_handler(json.dumps(req))
 
 def basic_run_program(program_text, output_callback, input_callback):
-    # This is complex due to JS callbacks. We will handle this in a dedicated refactor phase for BASIC.
+    # HEY LESLIE! WE NEED TO IMPLEMENT THIS!
     # For now, we call the specific app module directly.
     return json.dumps(basic_app.run_program(program_text, output_callback, input_callback))

@@ -1,4 +1,4 @@
-// gem/bridge.js
+// bridge.js
 
 /**
  * @file bridge.js
@@ -13,13 +13,14 @@ const OopisOS_Kernel = {
     dependencies: null,
 
     /**
-     * [NEW] The single, unified gateway for all JS-to-Python communication.
+     * The single, unified gateway for all JS-to-Python communication.
      * @param {string} module - The name of the Python module to call (e.g., 'filesystem').
      * @param {string} func - The name of the function to call within the module.
      * @param {Array} [args=[]] - An array of positional arguments for the Python function.
      * @param {Object} [kwargs={}] - An object of keyword arguments for the Python function.
      * @returns {string} A JSON string representing the standardized response from the kernel.
      */
+
     syscall(module, func, args = [], kwargs = {}) {
         if (!this.isReady || !this.kernel) {
             return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready for syscall." });
@@ -206,7 +207,7 @@ const OopisOS_Kernel = {
         }
     },
 
-    // --- DEPRECATED STUBS (to be removed) ---
+    // --- DEPRECATED STUBS (HEY LESLIE, SHOULD WE REMOVE THESE?) ---
     execute_command(commandString, jsContextJson, stdinContent = null) {
         return this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
@@ -297,7 +298,6 @@ const OopisOS_Kernel = {
     basic_run_program(programText, outputCallback, inputCallback) {
         return this.kernel.basic_run_program(programText, outputCallback, inputCallback);
     },
-
 
     async saveFileSystem(fsJsonString) {
         const { StorageHAL } = OopisOS_Kernel.dependencies;

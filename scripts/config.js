@@ -7,6 +7,7 @@
  * It's all about keeping things consistent across the board.
  * @class ConfigManager
  */
+
 class ConfigManager {
     /**
      * @constructor
@@ -168,12 +169,13 @@ class ConfigManager {
                 PASSWORD_CONFIRM_PROMPT: "Can you repeat that?",
                 PASSWORD_MISMATCH: "You're mixed up, kid. The passwords don't match.",
                 INVALID_PASSWORD: "Nope, sorry. Are you sure you typed it right?.",
-                EMPTY_PASSWORD_NOT_ALLOWED: "You gonna talk or what?",
+                EMPTY_PASSWORD_NOT_ALLOWED: "No free passes around here, kiddo. You can't use an empty password.",
             },
             /**
              * A manifest of internal errors.
              * @type {object}
              */
+
             INTERNAL_ERRORS: {
                 DB_NOT_INITIALIZED_FS_SAVE: "DB not initialized for FS save",
                 DB_NOT_INITIALIZED_FS_LOAD: "DB not initialized for FS load",
@@ -188,6 +190,7 @@ class ConfigManager {
              * AI API configurations.
              * @type {object}
              */
+
             API: {
                 GEMINI_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
                 LLM_PROVIDERS: {
@@ -205,6 +208,7 @@ class ConfigManager {
              * The manifest of all built-in commands.
              * @type {string[]}
              */
+
             COMMANDS_MANIFEST: [
                 "adventure", "agenda", "alias", "auditlog", "awk", "backup", "base64", "basic", "bc", "beep", "bg", "binder",
                 "bulletin", "cat", "cd", "check_fail", "chgrp", "chidi", "chmod", "chown", "cksum",
@@ -255,6 +259,7 @@ class ConfigManager {
      * @param {string} valueStr - The string to parse.
      * @returns {*} The parsed value or the original string.
      */
+
     _parseConfigValue(valueStr) {
         if (typeof valueStr !== "string") return valueStr;
         const lowercasedVal = valueStr.toLowerCase();
@@ -272,6 +277,7 @@ class ConfigManager {
      * @param {string} path - The dot-notation path to the property.
      * @param {*} value - The value to set.
      */
+
     _setNestedProperty(obj, path, value) {
         const parts = path.split(".");
         let current = obj;
@@ -289,6 +295,7 @@ class ConfigManager {
      * It's how we add new commands to the master list!
      * @returns {Promise<void>}
      */
+
     async loadPackageManifest() {
         const { FileSystemManager } = this.dependencies;
         const manifestPath = '/etc/pkg_manifest.json';

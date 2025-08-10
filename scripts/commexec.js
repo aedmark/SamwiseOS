@@ -1,12 +1,13 @@
-// gem/scripts/commexec.js
+// /scripts/commexec.js
 
 /**
- * [REFACTORED] The central nervous system of OopisOS. This class has been refactored
+ * The central nervous system of OopisOS. This class has been refactored
  * to act as a bridge to the Python kernel's command executor. It is now responsible for
  * gathering context, passing the raw command string to Python, and handling any UI/session
  * "effects" returned by the Python kernel.
  * @class CommandExecutor
  */
+
 class CommandExecutor {
     /**
      * @constructor
@@ -200,6 +201,7 @@ class CommandExecutor {
      * This is the official "briefing binder" for any command execution.
      * @private
      */
+
     _createKernelContext() {
         const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager } = this.dependencies;
         const user = UserManager.getCurrentUser();
@@ -267,7 +269,7 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess("");
             }
 
-            // [FIXED] We now create the context and call the kernel in one clean, efficient step!
+            // We now create the context and call the kernel in one clean, efficient step!
             const kernelContextJson = this._createKernelContext();
             const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
             const result = JSON.parse(resultJson);

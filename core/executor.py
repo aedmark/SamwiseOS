@@ -1,4 +1,4 @@
-# gem/core/executor.py
+# /core/executor.py
 
 import shlex
 import json
@@ -68,7 +68,7 @@ class CommandExecutor:
                 i += 1 # Consume the argument
 
         segment = {'command': command_name, 'args': args, 'flags': flags}
-        # THIS IS THE CRITICAL FIX: Ensure the pipeline has the keys the executor expects
+        # Ensure the pipeline has the keys the executor expects
         pipeline = {'segments': [segment], 'operator': None, 'redirection': None}
         return [pipeline]
 

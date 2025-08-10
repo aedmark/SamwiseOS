@@ -314,7 +314,7 @@ window.onload = async () => {
         if (OopisOS_Kernel.isReady) {
             if (fsJsonFromStorage) {
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
-                // [FIXED] Use the new, unified syscall to load the filesystem state!
+                // Use the new, unified syscall to load the filesystem state!
                 OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [fsJsonString]);
                 fsManager.setFsData(fsJsonFromStorage); // Also update the JS-side cache for now
             } else {
@@ -325,7 +325,7 @@ window.onload = async () => {
                 await fsManager.initialize(configManager.USER.DEFAULT_NAME);
                 const initialFsData = fsManager.getFsData();
                 const initialFsJsonString = JSON.stringify(initialFsData);
-                // [FIXED] Use the new, unified syscall here as well!
+                // Use the new, unified syscall here as well!
                 OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [initialFsJsonString]);
                 await storageHAL.save(initialFsData);
             }
@@ -339,7 +339,7 @@ window.onload = async () => {
         groupManager.initialize();
         environmentManager.initialize();
         aliasManager.initialize();
-        sessionManager.initializeStack(); // <-- Let's open for business!
+        sessionManager.initializeStack();
 
         // THEN, perform actions that might execute commands.
         await userManager.initializeDefaultUsers();
