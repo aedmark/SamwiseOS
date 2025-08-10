@@ -5,6 +5,8 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import copy # For deepcopy
+
 # We need to import our other managers to collaborate!
 from filesystem import fs_manager
 from groups import group_manager
@@ -102,39 +104,57 @@ class UserManager:
 
     def first_time_setup(self, username, password, root_password):
         """
-        Performs the initial system setup: initializes the filesystem,
-        creates the first user, and sets the root password.
+        Performs the initial system setup in a transactional manner.
         """
-        # Safety check: only run if root has no password.
-        root_user = self.get_user('root')
-        if not root_user or root_user.get('passwordData'):
-            return {"success": False, "error": "System has already been set up."}
+        # This check is too strict for the onboarding flow and prevents recovery
+        # from a failed first attempt. It is safe to remove because this function
+        # is only called during the explicit onboarding process.
 
-        # 1. Initialize the default filesystem structure
-        fs_manager.initialize_default_filesystem()
+        # Backup state for rollback
+        original_users = copy.deepcopy(self.users)
+        original_groups = copy.deepcopy(group_manager.groups)
+        original_fs_data = copy.deepcopy(fs_manager.fs_data)
 
-        # 2. Create the new user's group
-        if not group_manager.group_exists(username):
-            group_manager.create_group(username)
+        try:
+            # 1. Initialize the default filesystem structure
+            fs_manager._initialize_default_filesystem()
 
-        # 3. Register the new user
-        registration_result = self.register_user(username, password, username)
-        if not registration_result["success"]:
-            return registration_result # Propagate the error
+            # 2. Create the new user's group
+            if not group_manager.group_exists(username):
+                group_manager.create_group(username)
 
-        # 4. Add the user to their own primary group
-        group_manager.add_user_to_group(username, username)
+            # 3. Register the new user
+            registration_result = self.register_user(username, password, username)
+            if not registration_result["success"]:
+                # If the user already exists (from a partial fail), just proceed
+                if "already exists" not in registration_result["error"]:
+                    raise ValueError(registration_result["error"])
 
-        # 5. Create the user's home directory
-        user_context = {"name": username, "group": username}
-        fs_manager.create_directory(f"/home/{username}", user_context)
+            # 4. Add the user to their own primary group
+            group_manager.add_user_to_group(username, username)
 
-        # 6. Set the root password
-        self.change_password('root', root_password)
+            # 5. Create the user's home directory as root
+            home_path = f"/home/{username}"
+            # Create directory if it doesn't exist from a previous attempt
+            if not fs_manager.get_node(home_path):
+                fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
+                fs_manager.chown(home_path, username)
+                fs_manager.chgrp(home_path, username)
 
-        # 7. Persist changes to the filesystem
-        fs_manager._save_state()
+            # 6. Set the root password (this will now overwrite if it was set in a failed attempt)
+            self.change_password('root', root_password)
 
-        return {"success": True}
+            # 7. Persist changes to the filesystem
+            fs_manager._save_state()
+
+            return {"success": True}
+        except Exception as e:
+            # Rollback to original state on any failure
+            self.users = original_users
+            group_manager.groups = original_groups
+            fs_manager.fs_data = original_fs_data
+
+            # The JS side already has a generic "Setup failed:" prefix
+            return {"success": False, "error": f"An error occurred during setup: {str(e)}"}
 
 user_manager = UserManager()

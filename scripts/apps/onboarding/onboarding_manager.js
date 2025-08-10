@@ -89,7 +89,6 @@ window.OnboardingManager = class OnboardingManager extends App {
             },
             onFinish: async () => {
                 this.ui.showSpinner();
-                // This will be a new function we create in the next phase!
                 const result = await UserManager.performFirstTimeSetup(this.state.userData);
 
                 if (result.success) {
@@ -100,8 +99,11 @@ window.OnboardingManager = class OnboardingManager extends App {
                         window.location.reload();
                     }, 3000);
                 } else {
-                    this.state.error = `Setup failed: ${result.error}`;
+                    // This is the line we're fixing! It now correctly handles both
+                    // string and object errors from the kernel.
+                    this.state.error = `Setup failed: ${result.error.message || result.error || 'An unknown error occurred.'}`;
                     this.state.step = 1; // Go back to the beginning on failure
+                    this.state.userData = { username: '', password: '', rootPassword: '' }; // Clear sensitive data
                     this.ui.update(this.state);
                     this.ui.hideSpinner();
                 }
