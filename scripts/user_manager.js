@@ -70,6 +70,46 @@ class UserManager {
         return ErrorHandler.createError(result.error || "Failed to register new user in kernel.");
     }
 
+    async registerWithPrompt(username, options) {
+        const { ErrorHandler } = this.dependencies;
+        const formatValidation = this.dependencies.Utils.validateUsernameFormat(username);
+        if (!formatValidation.isValid) {
+            return ErrorHandler.createError(formatValidation.error);
+        }
+        if (await this.userExists(username)) {
+            return ErrorHandler.createError(`useradd: user '${username}' already exists`);
+        }
+
+        return new Promise((resolve) => {
+            this.modalManager.request({
+                context: "terminal",
+                type: "input",
+                messageLines: [`New password for ${username}:`],
+                obscured: true,
+                onConfirm: (password) => {
+                    this.modalManager.request({
+                        context: "terminal",
+                        type: "input",
+                        messageLines: ["Retype new password:"],
+                        obscured: true,
+                        onConfirm: async (confirmPassword) => {
+                            if (password !== confirmPassword) {
+                                resolve(ErrorHandler.createError("passwd: passwords do not match."));
+                                return;
+                            }
+                            const result = await this.register(username, password);
+                            resolve(result);
+                        },
+                        onCancel: () => resolve(ErrorHandler.createSuccess({ output: "useradd: user creation cancelled." })),
+                        options,
+                    });
+                },
+                onCancel: () => resolve(ErrorHandler.createSuccess({ output: "useradd: user creation cancelled." })),
+                options,
+            });
+        });
+    }
+
     async verifyPassword(username, password) {
         const { ErrorHandler } = this.dependencies;
         if (!await this.userExists(username)) return ErrorHandler.createError("User not found.");

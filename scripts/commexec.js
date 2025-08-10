@@ -332,6 +332,8 @@ class CommandExecutor {
     async _handleEffect(result, options) {
         const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager, NetworkManager, CommandExecutor } = this.dependencies;
         switch (result.effect) {
+            case 'useradd':
+                return await UserManager.registerWithPrompt(result.username, options);
             case 'play_sound':
                 if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
                 SoundManager.playNote(result.notes, result.duration);
@@ -551,7 +553,6 @@ class CommandExecutor {
                 else { console.error(`Attempted to launch unknown app: ${result.app_name}`); }
                 break;
             case 'visudo': await this.processSingleCommand(`edit /etc/sudoers`, { ...options, isVisudo: true }); break;
-            case 'useradd': await UserManager.registerWithPrompt(result.username, options); break;
             case 'passwd': await UserManager.changePasswordWithPrompt(result.username, options); break;
             case 'removeuser': await UserManager.removeUserWithPrompt(result.username, result.remove_home, options); break;
             case 'page_output': await PagerManager.enter(result.content, { mode: result.mode }); break;

@@ -210,19 +210,13 @@ class ConfigManager {
              */
 
             COMMANDS_MANIFEST: [
-                "adventure", "agenda", "alias", "auditlog", "awk", "backup", "base64", "basic", "bc", "beep", "bg", "binder",
-                "bulletin", "cat", "cd", "check_fail", "chgrp", "chidi", "chmod", "chown", "cksum",
-                "clear", "clearfs", "comm", "committee", "cp", "csplit", "curl", "cut", "date", "delay",
-                "df", "diff", "du", "echo", "edit", "explore", "export", "expr",
-                "fg", "find", "fsck", "forge", "gemini",
-                "grep", "groupadd", "groupdel", "groups", "head", "help", "history", "jobs", "kill",
-                "less", "listusers", "log", "login", "logout", "ls", "ln", "man", "more", "mkdir", "mv",
-                "nc", "netstat", "nl", "ocrypt", "paint", "passwd", "patch", "ping", "play",
-                "planner", "printscreen", "who", "uptime",
-                "ps", "pwd", "reboot", "remix", "removeuser", "rename", "reset", "restore", "rm", "rmdir",
-                "run", "sed", "set", "shuf", "sort", "storyboard", "su", "sudo", "sync","tail", "top", "touch", "tr",
-                "tree", "unalias", "uniq", "unset", "unzip", "upload", "useradd", "usermod", "visudo",
-                "wc", "wget", "whoami", "xor", "zip", "xargs"
+                "nc",
+                "netstat",
+                "play",
+                "post_message",
+                "read_messages",
+                "run",
+                "tail"
             ],
         };
 

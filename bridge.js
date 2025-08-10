@@ -74,6 +74,7 @@ const OopisOS_Kernel = {
                 '/core/commands/su.py': './core/commands/su.py',
                 '/core/commands/alias.py': './core/commands/alias.py',
                 '/core/commands/unalias.py': './core/commands/unalias.py',
+                '/core/commands/mv.py': './core/commands/mv.py',
                 '/core/commands/set.py': './core/commands/set.py',
                 '/core/commands/unset.py': './core/commands/unset.py',
                 '/core/commands/history.py': './core/commands/history.py',
