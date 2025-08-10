@@ -10,9 +10,9 @@
 window.sessionStartTime = new Date();
 
 function startOnboardingProcess(dependencies) {
-    const { AppLayerManager, outputManager, terminalUI } = dependencies;
-    outputManager.clearOutput();
-    terminalUI.hideInputLine();
+    const { AppLayerManager, OutputManager, TerminalUI } = dependencies;
+    OutputManager.clearOutput();
+    TerminalUI.hideInputLine();
 
     // Launch the onboarding app!
     const OnboardingApp = window.OnboardingManager;
@@ -21,7 +21,7 @@ function startOnboardingProcess(dependencies) {
         AppLayerManager.show(appInstance, { dependencies });
     } else {
         console.error("OnboardingManager app not found!");
-        outputManager.appendToOutput("CRITICAL ERROR: Onboarding process could not be started.");
+        OutputManager.appendToOutput("CRITICAL ERROR: Onboarding process could not be started.");
     }
 }
 

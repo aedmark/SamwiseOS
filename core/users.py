@@ -5,6 +5,9 @@ import os
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+# We need to import our other managers to collaborate!
+from filesystem import fs_manager
+from groups import group_manager
 
 class UserManager:
     """Manages user accounts, credentials, and properties."""
@@ -96,5 +99,42 @@ class UserManager:
         new_password_data = self._secure_hash_password(new_password)
         self.users[username]['passwordData'] = new_password_data
         return True
+
+    def first_time_setup(self, username, password, root_password):
+        """
+        Performs the initial system setup: initializes the filesystem,
+        creates the first user, and sets the root password.
+        """
+        # Safety check: only run if root has no password.
+        root_user = self.get_user('root')
+        if not root_user or root_user.get('passwordData'):
+            return {"success": False, "error": "System has already been set up."}
+
+        # 1. Initialize the default filesystem structure
+        fs_manager.initialize_default_filesystem()
+
+        # 2. Create the new user's group
+        if not group_manager.group_exists(username):
+            group_manager.create_group(username)
+
+        # 3. Register the new user
+        registration_result = self.register_user(username, password, username)
+        if not registration_result["success"]:
+            return registration_result # Propagate the error
+
+        # 4. Add the user to their own primary group
+        group_manager.add_user_to_group(username, username)
+
+        # 5. Create the user's home directory
+        user_context = {"name": username, "group": username}
+        fs_manager.create_directory(f"/home/{username}", user_context)
+
+        # 6. Set the root password
+        self.change_password('root', root_password)
+
+        # 7. Persist changes to the filesystem
+        fs_manager._save_state()
+
+        return {"success": True}
 
 user_manager = UserManager()

@@ -46,14 +46,14 @@ window.OnboardingManager = class OnboardingManager extends App {
     }
 
     _createCallbacks() {
-        const { UserManager, ErrorHandler, StorageManager, Config } = this.dependencies;
+        const { UserManager, Utils, ErrorHandler, StorageManager, Config } = this.dependencies;
         return {
             onNextStep: async (data) => {
                 this.state.error = null; // Clear previous errors
                 // --- Step Validation ---
                 if (this.state.step === 1) { // Create User Account
                     const { username, password, confirmPassword } = data;
-                    const formatValidation = UserManager.constructor.Utils.validateUsernameFormat(username);
+                    const formatValidation = Utils.validateUsernameFormat(username);
                     if (!formatValidation.isValid) {
                         this.state.error = formatValidation.error;
                     } else if (!password || password.length < 4) {
@@ -97,7 +97,7 @@ window.OnboardingManager = class OnboardingManager extends App {
                     this.ui.update({ ...this.state, step: 'complete' });
                     // The reboot effect will be triggered by the command.
                     setTimeout(() => {
-                       window.location.reload();
+                        window.location.reload();
                     }, 3000);
                 } else {
                     this.state.error = `Setup failed: ${result.error}`;

@@ -13,6 +13,7 @@
     height: 95%;
     max-height: 95%;
     max-width: 1200px;
+    margin: auto; /* This ensures it's centered in the flex container */
 }
 
 .app-header {

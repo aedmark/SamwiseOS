@@ -267,22 +267,33 @@ class UserManager {
         const rootResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", ['root']));
         const rootNeedsPassword = rootResult.success && rootResult.data && !rootResult.data.passwordData;
 
-        let changesMade = false;
-        if (rootNeedsPassword) {
-            const randomPassword = Math.random().toString(36).slice(-8);
-            OopisOS_Kernel.syscall("users", "change_password", ['root', randomPassword]);
-            setTimeout(() => {
-                OutputManager.appendToOutput(`IMPORTANT: Your one-time root password is: ${randomPassword}`, { typeClass: Config.CSS_CLASSES.WARNING_MSG });
-                OutputManager.appendToOutput(`Please save it securely or change it immediately using 'passwd'.`, { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
-            }, 500);
-            changesMade = true;
-        }
+        // Onboarding flow will handle this now, so we can remove the one-time password generation.
+        // This makes the system more secure as it won't boot into a usable state
+        // with a printed root password anymore.
 
         const usersResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
         const allUsers = usersResult.success ? usersResult.data : {};
         if (Object.keys(allUsers).length > Object.keys(usersFromStorage).length) {
-            changesMade = true;
+            this._saveUsers();
         }
-        if (changesMade) this._saveUsers();
+    }
+
+    async performFirstTimeSetup(userData) {
+        const { username, password, rootPassword } = userData;
+        const { ErrorHandler, FileSystemManager } = this.dependencies;
+
+        const resultJson = OopisOS_Kernel.syscall("users", "first_time_setup", [username, password, rootPassword]);
+        const result = JSON.parse(resultJson);
+
+        if (result.success) {
+            // After Python does the heavy lifting, we need to sync the JS-side state
+            // and save the results to localStorage and IndexedDB.
+            this._saveUsers();
+            this.groupManager._save();
+            await FileSystemManager.save();
+            return ErrorHandler.createSuccess();
+        } else {
+            return ErrorHandler.createError(result.error || "An unknown error occurred during first-time setup.");
+        }
     }
 }
