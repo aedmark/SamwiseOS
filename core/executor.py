@@ -107,6 +107,11 @@ class CommandExecutor:
 
     def _parse_command_string(self, command_string):
         try:
+            # Add spaces around operators to help shlex
+            command_string = command_string.replace(';', ' ; ')
+            command_string = command_string.replace('&&', ' && ')
+            command_string = command_string.replace('||', ' || ')
+            command_string = command_string.replace('|', ' | ')
             parts = shlex.split(command_string)
         except ValueError as e:
             raise ValueError(f"Syntax error in command: {e}")
