@@ -10,6 +10,7 @@ class FileSystemManager:
         self.fs_data = {}
         self.current_path = "/"
         self.save_function = None
+        self.user_groups = {} # Initialize the attribute
         self._initialize_default_filesystem()
 
     def set_save_function(self, func):

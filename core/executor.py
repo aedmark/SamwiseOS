@@ -168,8 +168,28 @@ class CommandExecutor:
 
         return command_sequence
 
-    def execute(self, command_string, stdin_data=None):
+    def execute(self, command_string, js_context_json, stdin_data=None):
         try:
+            context = json.loads(js_context_json)
+            # Ensure fs_manager gets the full context.
+            fs_manager.set_context(
+                current_path=context.get("current_path", "/"),
+                user_groups=context.get("user_groups")
+            )
+
+            # Set the context on the executor directly.
+            self.set_context(
+                user_context=context.get("user_context"),
+                users=context.get("users"),
+                user_groups=context.get("user_groups"),
+                config=context.get("config"),
+                groups=context.get("groups"),
+                jobs=context.get("jobs"),
+                ai_manager=ai_manager,
+                api_key=context.get("api_key"),
+                session_start_time=context.get("session_start_time"),
+                session_stack=context.get("session_stack")
+            )
             command_sequence = self._parse_command_string(command_string)
             if not command_sequence:
                 return json.dumps({"success": True, "output": ""})

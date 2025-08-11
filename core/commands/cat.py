@@ -15,30 +15,27 @@ def run(args, flags, user_context, stdin_data=None):
     output_parts = []
     files = args
 
-    # We must first check if stdin_data has a value. A simple 'if stdin_data:'
-    # is the most Pythonic way to handle this. It will correctly evaluate
-    # None, empty strings, and the JavaScript 'null' (JsNull) as False,
-    # preventing the AttributeError.
     if stdin_data:
         output_parts.extend(stdin_data.splitlines())
 
     if not files and not output_parts:
-        # If no files were provided and there was no stdin, cat should
-        # simply exit without error.
         return ""
 
     for file_path in files:
         try:
-            content = fs_manager.read_file(file_path)
+            node = fs_manager.get_node(file_path)
+            if not node:
+                output_parts.append(f"cat: {file_path}: No such file or directory")
+                continue
+            if node.get('type') != 'file':
+                output_parts.append(f"cat: {file_path}: Is a directory")
+                continue
+            content = node.get('content', '')
             if content is not None:
                 output_parts.extend(content.splitlines())
-            else:
-                # This case is unlikely if read_file raises an error, but it's good practice.
-                output_parts.append(f"cat: {file_path}: No such file or directory")
-        except FileNotFoundError:
-            output_parts.append(f"cat: {file_path}: No such file or directory")
-        except IsADirectoryError:
-            output_parts.append(f"cat: {file_path}: Is a directory")
+        except Exception as e:
+            output_parts.append(f"cat: {file_path}: An unexpected error occurred - {repr(e)}")
+
 
     if flags.get('number'):
         numbered_output = []
