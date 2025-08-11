@@ -1,6 +1,7 @@
 # gem/core/commands/mv.py
 
 from filesystem import fs_manager
+import os
 
 def run(args, flags, user_context, **kwargs):
     """
@@ -12,9 +13,20 @@ def run(args, flags, user_context, **kwargs):
     source_path = args[0]
     destination_path = args[1]
 
+    # We must check if the destination is a directory.
+    # If it is, the final path for the moved item should be INSIDE that directory.
+    dest_node = fs_manager.get_node(destination_path)
+    if dest_node and dest_node.get('type') == 'directory':
+        # Construct the new path by joining the destination directory and the source's basename.
+        source_basename = os.path.basename(source_path)
+        final_destination_path = os.path.join(destination_path, source_basename)
+    else:
+        # Otherwise, it's a direct rename.
+        final_destination_path = destination_path
+
     try:
-        # This calls the powerful rename_node function we already built!
-        fs_manager.rename_node(source_path, destination_path)
+        # Call the powerful rename_node function with the correctly determined final path.
+        fs_manager.rename_node(source_path, final_destination_path)
         return ""  # Success!
     except FileNotFoundError as e:
         return {"success": False, "error": f"mv: cannot move '{source_path}': No such file or directory"}

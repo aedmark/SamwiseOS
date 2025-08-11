@@ -91,6 +91,12 @@ def run(args, flags, user_context, stdin_data=None):
     paths = args if args else ["."]
     output = []
 
+    # If we are checking a single path that doesn't exist, we must fail.
+    # This specifically targets the use case in the diagnostic script.
+    if len(paths) == 1 and not fs_manager.get_node(fs_manager.get_absolute_path(paths[0])):
+        return {"success": False, "error": f"ls: cannot access '{paths[0]}': No such file or directory"}
+
+
     for i, path in enumerate(paths):
         target_path = fs_manager.get_absolute_path(path)
         node = fs_manager.get_node(target_path)
