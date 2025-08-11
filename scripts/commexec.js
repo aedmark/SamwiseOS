@@ -118,7 +118,11 @@ class CommandExecutor {
                 if (line && !line.startsWith("#")) {
                     const result = await this.processSingleCommand(line, { ...options, scriptingContext, });
                     i = scriptingContext.currentLineIndex;
-                    if (!result.success) { throw new Error(`Error on line ${i + 1}: ${result.error || 'Unknown error'}`); }
+                    if (!result.success) {
+                        // This properly extracts the message from our standardized error object!
+                        const errorMessage = typeof result.error === 'object' && result.error !== null ? result.error.message : result.error;
+                        throw new Error(`Error on line ${i + 1}: ${errorMessage || 'Unknown error'}`);
+                    }
                 }
             }
         } finally { EnvironmentManager.pop(); }
