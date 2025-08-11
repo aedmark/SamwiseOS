@@ -2,12 +2,12 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context, stdin_data=None):
+def run(args, flags, user_context, **kwargs):
     """
     Moves or renames a source file/directory to a destination.
     """
     if len(args) != 2:
-        return help(args, flags, user_context)
+        return {"success": False, "error": help(args, flags, user_context)}
 
     source_path = args[0]
     destination_path = args[1]
@@ -17,14 +17,14 @@ def run(args, flags, user_context, stdin_data=None):
         fs_manager.rename_node(source_path, destination_path)
         return ""  # Success!
     except FileNotFoundError as e:
-        return f"mv: cannot move '{source_path}': No such file or directory"
+        return {"success": False, "error": f"mv: cannot move '{source_path}': No such file or directory"}
     except FileExistsError as e:
-        return f"mv: cannot move to '{destination_path}': Destination exists"
+        return {"success": False, "error": f"mv: cannot move to '{destination_path}': Destination exists"}
     except Exception as e:
         # A catch-all for other potential filesystem issues
-        return f"mv: an unexpected error occurred: {repr(e)}"
+        return {"success": False, "error": f"mv: an unexpected error occurred: {repr(e)}"}
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     """
     Displays the manual page for the mv command.
     """
@@ -43,7 +43,7 @@ DESCRIPTION
     This command is powered by the core Python filesystem for maximum reliability.
 """
 
-def help(args, flags, user_context, stdin_data=None):
+def help(args, flags, user_context, **kwargs):
     """
     Provides help information for the mv command.
     """
