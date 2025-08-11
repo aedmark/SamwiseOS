@@ -334,15 +334,19 @@ window.onload = async () => {
             await fsManager.load();
         }
 
-        // 4. Now that the kernel is ready, initialize all managers that depend on it
-        // FIRST, initialize the core session components that don't execute commands.
+        // 4. Now that the kernel is ready, initialize all managers that depend on it.
+        // --- THIS IS THE FIX! ---
+        // Initialize users FIRST, so default users and their primary group names exist.
+        // Then, initialize groups, which will create the actual group structures.
+        await userManager.initializeDefaultUsers();
         groupManager.initialize();
+
+        // Initialize the rest of the session components.
         environmentManager.initialize();
         aliasManager.initialize();
         sessionManager.initializeStack();
 
         // THEN, perform actions that might execute commands.
-        await userManager.initializeDefaultUsers();
         await configManager.loadPackageManifest();
 
         // Finally, load the state for the now-initialized session.

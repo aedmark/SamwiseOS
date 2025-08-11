@@ -33,12 +33,8 @@ chown diagUser /home/diagUser/diag_workspace/
 # The group must be 'testgroup' so 'testuser' can enter
 chgrp testgroup /home/diagUser/diag_workspace/
 # Permissions allow owner (diagUser) and group (testgroup) full access
-chmod 770 /home/diagUser/diag_workspace/
-# Grant others (including testuser) execute/traverse permission on the parent directory.
-chmod 755 /home/diagUser
+chmod 775 /home/diagUser/diag_workspace/
 
-echo "sudouser ALL" >> /etc/sudoers
-echo "sudouser2 ls" >> /etc/sudoers
 echo "Setup complete."
 echo "---------------------------------------------------------------------"
 echo ""
@@ -162,15 +158,15 @@ echo "Initial content" > group_test_file.txt
 chown diagUser group_test_file.txt
 chgrp testgroup group_test_file.txt
 chmod 664 group_test_file.txt
-echo "--- Test: Group write permission ---"
 su testuser testpass
+echo "--- Test: Group write permission ---"
 cd /home/diagUser/diag_workspace
 delay 200
 echo "Append by group member" >> group_test_file.txt
 cat group_test_file.txt
-echo "--- Test: 'Other' permissions (should fail) ---"
 logout
 su Guest
+echo "--- Test: 'Other' permissions (should fail) ---"
 check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_test_file.txt"
 delay 200
 echo "--- Test: Permission Edge Cases ---"
