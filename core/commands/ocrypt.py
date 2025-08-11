@@ -7,6 +7,12 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the ocrypt command accepts."""
+    return [
+        {'name': 'decrypt', 'short': 'd', 'long': 'decrypt', 'takes_value': False},
+    ]
+
 def _derive_key(password: bytes, salt: bytes) -> bytes:
     """Derives a cryptographic key from a password and salt."""
     kdf = PBKDF2HMAC(
@@ -21,7 +27,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     if len(args) < 2:
         return "ocrypt: missing operands. Usage: ocrypt [-d] <password> <input_file> [output_file]"
 
-    is_decrypt = "-d" in flags
+    is_decrypt = flags.get('decrypt', False)
 
     password = args[0]
     input_file_path = args[1]

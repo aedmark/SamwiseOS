@@ -4,6 +4,13 @@ from filesystem import fs_manager
 from groups import group_manager
 from users import user_manager
 
+def define_flags():
+    """Declares the flags that the committee command accepts."""
+    return [
+        {'name': 'create', 'short': 'c', 'long': 'create', 'takes_value': True},
+        {'name': 'members', 'short': 'm', 'long': 'members', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, **kwargs):
     """
     Automates the creation of a collaborative project space, including a user group,
@@ -12,8 +19,8 @@ def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
         return {"success": False, "error": "committee: only root can create a committee."}
 
-    committee_name = flags.get("-c") or flags.get("--create")
-    members_str = flags.get("-m") or flags.get("--members")
+    committee_name = flags.get("create")
+    members_str = flags.get("members")
 
     if not committee_name or not members_str:
         return {"success": False, "error": "committee: --create and --members flags are required."}

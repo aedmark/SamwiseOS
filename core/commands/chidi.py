@@ -5,6 +5,14 @@ from filesystem import fs_manager
 
 SUPPORTED_EXTENSIONS = {".md", ".txt", ".html"}
 
+def define_flags():
+    """Declares the flags that the chidi command accepts."""
+    return [
+        {'name': 'new', 'short': 'n', 'long': 'new', 'takes_value': False},
+        {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
+        {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
+    ]
+
 def _get_files_for_analysis(start_path, user_context):
     """
     Recursively finds all supported files for analysis from a starting path.
@@ -86,9 +94,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         "options": {
             "initialFiles": files,
             "launchOptions": {
-                "isNewSession": "-n" in flags or "--new" in flags,
-                "provider": flags.get("-p") or flags.get("--provider"),
-                "model": flags.get("-m") or flags.get("--model")
+                "isNewSession": flags.get('new', False),
+                "provider": flags.get("provider"),
+                "model": flags.get("model")
             }
         }
     }

@@ -3,6 +3,13 @@
 import os
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the tree command accepts."""
+    return [
+        {'name': 'level', 'short': 'L', 'long': 'level', 'takes_value': True},
+        {'name': 'dirs-only', 'short': 'd', 'long': 'dirs-only', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     path_arg = args[0] if args else "."
     start_path = fs_manager.get_absolute_path(path_arg)
@@ -15,11 +22,11 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         return f"tree: '{path_arg}' is not a directory."
 
     try:
-        max_depth = int(flags.get('-L')) if '-L' in flags else float('inf')
+        max_depth = int(flags.get('level')) if flags.get('level') else float('inf')
     except (ValueError, TypeError):
         return f"tree: Invalid level, must be an integer."
 
-    dirs_only = "-d" in flags
+    dirs_only = flags.get('dirs-only', False)
     output = [path_arg]
     dir_count = 0
     file_count = 0

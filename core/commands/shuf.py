@@ -4,18 +4,23 @@ import random
 import re
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the shuf command accepts."""
+    return [
+        {'name': 'echo', 'short': 'e', 'long': 'echo', 'takes_value': False},
+        {'name': 'input-range', 'short': 'i', 'long': 'input-range', 'takes_value': True},
+        {'name': 'head-count', 'short': 'n', 'long': 'head-count', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     lines = []
 
-    is_echo_mode = "-e" in flags or "--echo" in flags
-    is_input_range = "-i" in flags or "--input-range" in flags
+    is_echo_mode = flags.get('echo', False)
+    range_str = flags.get('input-range')
 
     if is_echo_mode:
         lines = list(args)
-    elif is_input_range:
-        if not args:
-            return "shuf: missing input range with -i"
-        range_str = args[0]
+    elif range_str:
         match = re.match(r'(\d+)-(\d+)', range_str)
         if not match:
             return f"shuf: invalid input range: '{range_str}'"
@@ -39,18 +44,15 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     random.shuffle(lines)
 
-    head_count = None
-    if "-n" in flags or "--head-count" in flags:
+    head_count_str = flags.get('head-count')
+    if head_count_str is not None:
         try:
-            count_str = flags.get("-n") or flags.get("--head-count")
-            head_count = int(count_str)
+            head_count = int(head_count_str)
             if head_count < 0:
                 raise ValueError
+            lines = lines[:head_count]
         except (ValueError, TypeError):
             return "shuf: invalid line count"
-
-    if head_count is not None:
-        lines = lines[:head_count]
 
     return "\n".join(lines)
 

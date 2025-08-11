@@ -1,5 +1,13 @@
 # gem/core/commands/gemini.py
 
+def define_flags():
+    """Declares the flags that the gemini command accepts."""
+    return [
+        {'name': 'chat', 'short': 'c', 'long': 'chat', 'takes_value': False},
+        {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
+        {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     """
     Engages in a context-aware conversation with a configured AI model.
@@ -7,14 +15,14 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
 
-    if '--chat' in flags or '-c' in flags:
+    if flags.get('chat', False):
         # This effect will launch the existing JavaScript-based chat UI
         return {
             "effect": "launch_app",
             "app_name": "GeminiChat",
             "options": {
-                "provider": flags.get('--provider') or flags.get('-p'),
-                "model": flags.get('--model') or flags.get('-m')
+                "provider": flags.get('provider'),
+                "model": flags.get('model')
             }
         }
 
@@ -25,7 +33,7 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
 
     # For now, we'll just pass through. The real logic will be in AIManager.
     # We'll need to pass conversation history and other context from JS.
-    result = ai_manager.perform_agentic_search(user_prompt, [], flags.get('--provider', 'gemini'), flags.get('--model'), {"apiKey": api_key})
+    result = ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'gemini'), flags.get('model'), {"apiKey": api_key})
 
     if result["success"]:
         return result["data"]

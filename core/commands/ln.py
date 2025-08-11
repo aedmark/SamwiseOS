@@ -2,8 +2,14 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the ln command accepts."""
+    return [
+        {'name': 'symbolic', 'short': 's', 'long': 'symbolic', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
-    if not flags.get('-s'):
+    if not flags.get('symbolic'):
         return "ln: only symbolic links (-s) are supported in this version."
 
     if len(args) != 2:

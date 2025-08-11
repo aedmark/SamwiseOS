@@ -5,6 +5,16 @@ from filesystem import fs_manager
 
 SUPPORTED_EXTENSIONS = {".md", ".txt", ".html", ".js", ".sh", ".css", ".json"}
 
+def define_flags():
+    """Declares the flags that the storyboard command accepts."""
+    return [
+        {'name': 'mode', 'long': 'mode', 'takes_value': True},
+        {'name': 'summary', 'long': 'summary', 'takes_value': False},
+        {'name': 'ask', 'long': 'ask', 'takes_value': True},
+        {'name': 'provider', 'long': 'provider', 'takes_value': True},
+        {'name': 'model', 'long': 'model', 'takes_value': True},
+    ]
+
 def _get_files_for_analysis(start_path, user_context):
     """
     Recursively finds all supported files for analysis from a starting path.
@@ -73,18 +83,17 @@ def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=Non
         # Default to current directory if no args and no pipe
         start_path = fs_manager.get_absolute_path(".")
         files_to_analyze = _get_files_for_analysis(start_path, user_context)
-    # --- END CORRECTION ---
 
     if not files_to_analyze:
         return "No supported files found to analyze."
 
     result = ai_manager.perform_storyboard(
         files_to_analyze,
-        mode=flags.get('--mode', 'code'),
-        is_summary=flags.get('--summary', False),
-        question=flags.get('--ask'),
-        provider=flags.get('--provider', 'gemini'),
-        model=flags.get('--model'),
+        mode=flags.get('mode', 'code'),
+        is_summary=flags.get('summary', False),
+        question=flags.get('ask'),
+        provider=flags.get('provider', 'gemini'),
+        model=flags.get('model'),
         api_key=api_key
     )
 

@@ -5,6 +5,12 @@ from filesystem import fs_manager
 from users import user_manager
 import shlex
 
+def define_flags():
+    """Declares the flags that the binder command accepts."""
+    return [
+        {'name': 'section', 'short': 's', 'long': 'section', 'takes_value': True},
+    ]
+
 def _read_binder_file(binder_path):
     """Helper to read and parse a binder file."""
     node = fs_manager.get_node(binder_path)
@@ -57,7 +63,7 @@ def run(args, flags, user_context, **kwargs):
             return {"success": False, "error": "Usage: binder add <binder_file> <path_to_add>"}
 
         binder_path, path_to_add = args[1], args[2]
-        section = flags.get("-s") or flags.get("--section") or 'general'
+        section = flags.get("section") or 'general'
 
         binder_data, error = _read_binder_file(binder_path)
         if error: return {"success": False, "error": error}

@@ -2,6 +2,14 @@
 
 import string
 
+def define_flags():
+    """Declares the flags that the tr command accepts."""
+    return [
+        {'name': 'complement', 'short': 'c', 'long': 'complement', 'takes_value': False},
+        {'name': 'delete', 'short': 'd', 'long': 'delete', 'takes_value': False},
+        {'name': 'squeeze-repeats', 'short': 's', 'long': 'squeeze-repeats', 'takes_value': False},
+    ]
+
 def _expand_set(set_str):
     """Expands character sets like 'a-z' and '[:alpha:]' into a list of characters."""
     char_classes = {
@@ -45,9 +53,9 @@ def run(args, flags, user_context, stdin_data=None):
     set1_str = args[0]
     set2_str = args[1] if len(args) > 1 else None
 
-    is_delete = '-d' in flags
-    is_squeeze = '-s' in flags
-    is_complement = '-c' in flags
+    is_delete = flags.get('delete', False)
+    is_squeeze = flags.get('squeeze-repeats', False)
+    is_complement = flags.get('complement', False)
 
     if is_complement:
         all_chars = [chr(i) for i in range(256)]

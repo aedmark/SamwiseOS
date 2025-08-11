@@ -2,6 +2,14 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the comm command accepts."""
+    return [
+        {'name': 'suppress-col1', 'short': '1', 'takes_value': False},
+        {'name': 'suppress-col2', 'short': '2', 'takes_value': False},
+        {'name': 'suppress-col3', 'short': '3', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if len(args) != 2:
         return "comm: missing operand. Usage: comm FILE1 FILE2"
@@ -19,9 +27,9 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     lines1 = node1.get('content', '').splitlines()
     lines2 = node2.get('content', '').splitlines()
 
-    suppress_col1 = "-1" in flags
-    suppress_col2 = "-2" in flags
-    suppress_col3 = "-3" in flags
+    suppress_col1 = flags.get('suppress-col1', False)
+    suppress_col2 = flags.get('suppress-col2', False)
+    suppress_col3 = flags.get('suppress-col3', False)
 
     # Pre-calculate prefixes for performance
     col2_prefix = "" if suppress_col1 else "\t"

@@ -2,6 +2,12 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the csplit command accepts."""
+    return [
+        {'name': 'prefix', 'short': 'f', 'long': 'prefix', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if len(args) < 2:
         return "csplit: missing operand"
@@ -27,7 +33,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         # A full implementation would support regex patterns.
         return f"csplit: '{pattern}' is not a valid line number"
 
-    prefix = flags.get('-f') or flags.get('--prefix') or 'xx'
+    prefix = flags.get('prefix') or 'xx'
 
     # Part 1: lines before the split point
     content1 = "\n".join(lines[:line_num-1])

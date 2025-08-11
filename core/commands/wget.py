@@ -3,12 +3,18 @@
 import urllib.request
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the wget command accepts."""
+    return [
+        {'name': 'output-document', 'short': 'O', 'long': 'output-document', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if not args:
         return "wget: missing URL"
 
     url = args[0]
-    output_path = flags.get('-O') or flags.get('--output-document')
+    output_path = flags.get('output-document')
 
     if not output_path:
         # If -O is not specified, derive filename from URL

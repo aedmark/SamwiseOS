@@ -2,6 +2,13 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the remix command accepts."""
+    return [
+        {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
+        {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
@@ -24,8 +31,8 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
     if not content1.strip() or not content2.strip():
         return {"success": False, "error": "remix: One or both input files are empty."}
 
-    provider = flags.get("-p") or flags.get("--provider") or "gemini"
-    model = flags.get("-m") or flags.get("--model")
+    provider = flags.get("provider") or "gemini"
+    model = flags.get("model")
 
     result = ai_manager.perform_remix(path1, content1, path2, content2, provider, model, api_key)
 

@@ -3,6 +3,12 @@
 import re
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the sed command accepts."""
+    return [
+        {'name': 'field-separator', 'short': 'F', 'long': 'field-separator', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if not args:
         return "sed: missing expression"

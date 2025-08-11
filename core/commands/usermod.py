@@ -3,17 +3,24 @@
 from users import user_manager
 from groups import group_manager
 
+def define_flags():
+    """Declares the flags that the usermod command accepts."""
+    return [
+        {'name': 'append-groups', 'short': 'aG', 'takes_value': True},
+        {'name': 'primary-group', 'short': 'g', 'long': 'gid', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
         return {"success": False, "error": "usermod: only root can modify users."}
 
-    # Simplified parser for this specific command's structure
-    if len(args) < 2 or ('-aG' not in flags and '-g' not in flags):
+    group_to_add = flags.get('append-groups')
+    primary_group_to_set = flags.get('primary-group')
+
+    if not args or not (group_to_add or primary_group_to_set):
         return {"success": False, "error": "Usage: usermod [-aG groupname] [-g primarygroup] <username>"}
 
-    username = args[-1]
-    group_to_add = flags.get('-aG')
-    primary_group_to_set = flags.get('-g')
+    username = args[0]
 
     if not user_manager.user_exists(username):
         return {"success": False, "error": f"usermod: user '{username}' does not exist."}

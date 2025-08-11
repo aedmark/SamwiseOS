@@ -3,6 +3,12 @@
 import base64
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the base64 command accepts."""
+    return [
+        {'name': 'decode', 'short': 'd', 'long': 'decode', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None):
     input_data = ""
 
@@ -19,7 +25,7 @@ def run(args, flags, user_context, stdin_data=None):
     else:
         return "" # No input, no output
 
-    is_decode = "-d" in flags or "--decode" in flags
+    is_decode = flags.get('decode', False)
 
     try:
         if is_decode:

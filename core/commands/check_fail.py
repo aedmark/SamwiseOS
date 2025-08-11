@@ -2,6 +2,12 @@
 import json
 from executor import command_executor
 
+def define_flags():
+    """Declares the flags that the check_fail command accepts."""
+    return [
+        {'name': 'check-empty', 'short': 'z', 'long': 'check-empty', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, **kwargs):
     """
     Checks if a given command string fails or produces empty output.
@@ -10,7 +16,7 @@ def run(args, flags, user_context, **kwargs):
         return {"success": False, "error": "check_fail: command string argument cannot be empty"}
 
     command_to_test = " ".join(args)
-    check_empty_output = "-z" in flags
+    check_empty_output = flags.get('check-empty', False)
 
     # We need to execute the command within the same context
     # The command_executor instance is passed in via kwargs from the kernel
