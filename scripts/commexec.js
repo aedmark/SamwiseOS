@@ -345,6 +345,9 @@ class CommandExecutor {
             case 'sync_session_state':
                 this.dependencies.SessionManager.syncAndSave(result);
                 break;
+            case 'sync_user_state':
+                this.dependencies.UserManager.syncAndSave(result.users);
+                break;
             case 'useradd':
                 return await UserManager.registerWithPrompt(result.username, options);
             case 'play_sound':

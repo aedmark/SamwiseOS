@@ -32,7 +32,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
                 fs_manager.chown(home_path, username)
                 fs_manager.chgrp(home_path, username)
-                return f"User '{username}' registered. Home directory created at /home/{username}."
+                return {
+                    "success": True,
+                    "output": f"User '{username}' registered. Home directory created at /home/{username}.",
+                    "effect": "sync_user_state",
+                    "users": user_manager.get_all_users()
+                }
             else:
                 return registration_result
 

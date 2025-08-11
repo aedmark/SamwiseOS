@@ -32,6 +32,15 @@ class UserManager {
         this.storageManager.saveItem(this.config.STORAGE_KEYS.USER_CREDENTIALS, allUsers, "User list");
     }
 
+    syncAndSave(usersData) {
+        const { StorageManager, Config } = this.dependencies;
+        // The data from the effect is the new source of truth.
+        // 1. Save it to localStorage so it persists across sessions.
+        StorageManager.saveItem(Config.STORAGE_KEYS.USER_CREDENTIALS, usersData, "User list");
+        // 2. Ensure Python's in-memory state is identical to what we're saving.
+        OopisOS_Kernel.syscall("users", "load_users", [usersData]);
+    }
+
     getCurrentUser() {
         return this.currentUser;
     }
