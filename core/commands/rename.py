@@ -31,7 +31,7 @@ SYNOPSIS
 
 DESCRIPTION
     Renames OLD_PATH to NEW_PATH. If NEW_PATH is an existing directory,
-    moves OLD_PATH into that directory.
+    moves OLD_PATH into that directory. This command is an alias for 'mv'.
 """
 
 def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):

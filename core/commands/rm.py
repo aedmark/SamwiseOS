@@ -1,48 +1,65 @@
 # gem/core/commands/rm.py
 
 from filesystem import fs_manager
+import shlex
+import os
 
 def define_flags():
     """Declares the flags that the rm command accepts."""
     return [
         {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
-        {'name': 'recursive', 'short': 'R', 'takes_value': False},
+        {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
+        {'name': 'interactive', 'short': 'i', 'long': 'interactive', 'takes_value': False},
+        # Internal flag for post-confirmation execution
+        {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, 'hidden': True},
     ]
 
 def run(args, flags, user_context, stdin_data=None):
     """
-    Removes files or directories.
-    Requires '-r' or '--recursive' flag to remove directories.
+    Removes files or directories with interactive and force options.
     """
     if not args:
-        return help(args, flags, user_context)
+        return "rm: missing operand"
 
     is_recursive = flags.get('recursive', False)
+    is_force = flags.get('force', False)
+    is_interactive = flags.get('interactive', False)
+    confirmed_path = flags.get("confirmed")
+
     output_messages = []
 
     for path in args:
-        try:
-            node = fs_manager.get_node(path)
-            if not node:
+        abs_path = fs_manager.get_absolute_path(path)
+        node = fs_manager.get_node(abs_path)
+
+        if not node:
+            if not is_force:
                 output_messages.append(f"rm: cannot remove '{path}': No such file or directory")
-                continue
+            continue
 
-            if node.get('type') == 'directory' and not is_recursive:
-                output_messages.append(f"rm: cannot remove '{path}': Is a directory")
-                continue
+        if node.get('type') == 'directory' and not is_recursive:
+            output_messages.append(f"rm: cannot remove '{path}': Is a directory")
+            continue
 
-            # The underlying fs_manager function handles the actual removal logic
-            fs_manager.remove(path, recursive=is_recursive)
+        if is_interactive and abs_path != confirmed_path:
+            prompt_type = "directory" if node.get('type') == 'directory' else "regular file"
+            return {
+                "effect": "confirm",
+                "message": [f"rm: remove {prompt_type} '{path}'?"],
+                "on_confirm_command": f"rm {'-r ' if is_recursive else ''}{'-f ' if is_force else ''} --confirmed={shlex.quote(abs_path)} {shlex.quote(path)}"
+            }
 
+        try:
+            fs_manager.remove(abs_path, recursive=True)
         except Exception as e:
-            output_messages.append(f"rm: an unexpected error occurred with '{path}': {repr(e)}")
+            if not is_force:
+                output_messages.append(f"rm: cannot remove '{path}': {repr(e)}")
 
+    fs_manager._save_state()
     return "\n".join(output_messages)
 
+
 def man(args, flags, user_context, stdin_data=None):
-    """
-    Displays the manual page for the rm command.
-    """
     return """
 NAME
     rm - remove files or directories
@@ -53,15 +70,13 @@ SYNOPSIS
 DESCRIPTION
     Removes each specified file. By default, it does not remove directories.
 
+    -f, --force
+          ignore nonexistent files and arguments, never prompt
+    -i
+          prompt before every removal
     -r, -R, --recursive
           remove directories and their contents recursively
-
-AUTHOR
-    Built with love by the Pawnee-SamwiseOS Unification Committee.
 """
 
 def help(args, flags, user_context, stdin_data=None):
-    """
-    Provides help information for the rm command.
-    """
-    return "Usage: rm [-r] [FILE...]"
+    return "Usage: rm [OPTION]... [FILE]..."

@@ -3,6 +3,7 @@
 import os
 from filesystem import fs_manager
 from datetime import datetime
+import shlex
 
 def define_flags():
     """Declares the flags that the cp command accepts."""
@@ -10,6 +11,8 @@ def define_flags():
         {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
         {'name': 'recursive', 'short': 'R', 'takes_value': False},
         {'name': 'preserve', 'short': 'p', 'long': 'preserve', 'takes_value': False},
+        {'name': 'interactive', 'short': 'i', 'long': 'interactive', 'takes_value': False},
+        {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, "hidden": True},
     ]
 
 def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, preserve=False):
@@ -42,6 +45,9 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     is_recursive = flags.get('recursive', False)
     is_preserve = flags.get('preserve', False)
+    is_interactive = flags.get('interactive', False)
+
+    confirmed_path = flags.get("confirmed")
 
     dest_node = fs_manager.get_node(dest_path_arg)
 
@@ -64,6 +70,15 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
         new_name = os.path.basename(source_path) if dest_node and dest_node.get('type') == 'directory' else os.path.basename(dest_path_arg)
 
+        final_dest_path = os.path.join(dest_parent_path, new_name)
+
+        if is_interactive and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
+            return {
+                "effect": "confirm",
+                "message": [f"cp: overwrite '{final_dest_path}'?"],
+                "on_confirm_command": f"cp {'-r ' if is_recursive else ''}{'-p ' if is_preserve else ''} --confirmed={shlex.quote(final_dest_path)} {shlex.quote(source_path)} {shlex.quote(dest_path_arg)}"
+            }
+
         _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, is_preserve)
 
     fs_manager._save_state()
@@ -80,6 +95,8 @@ SYNOPSIS
 DESCRIPTION
     Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
 
+    -i, --interactive
+           prompt before overwrite
     -p, --preserve
            same as --preserve=mode,ownership,timestamps
     -r, -R, --recursive
