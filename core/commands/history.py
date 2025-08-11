@@ -2,27 +2,29 @@
 
 from session import history_manager
 
+def define_flags():
+    """Declares the flags that the history command accepts."""
+    return [
+        {'name': 'clear', 'short': 'c', 'long': 'clear', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, **kwargs):
     """
     Handles displaying and clearing the command history.
     """
-    if "-c" in flags or "--clear" in flags:
-        # This will now call our Python history manager's clear method
+    if flags.get('clear', False):
         history_manager.clear_history()
-        return "Command history cleared."
+        return "" # Successful clear has no output
 
     history = history_manager.get_full_history()
-    # The history from the manager is already a Python list
     if not history:
-        return "No commands in history."
+        return ""
 
     output = []
     for i, cmd in enumerate(history):
-        # Pad the line number for that classic, aligned look
-        output.append(f"  {str(i + 1).rjust(3)}  {cmd}")
+        output.append(f"  {str(i + 1).rjust(4)}  {cmd}")
 
     return "\n".join(output)
-
 
 def man(args, flags, user_context, **kwargs):
     return """

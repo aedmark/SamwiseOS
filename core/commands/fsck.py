@@ -2,12 +2,17 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def define_flags():
+    """Declares the flags that the fsck command accepts."""
+    return [
+        {'name': 'repair', 'long': 'repair', 'takes_value': False},
+    ]
+
+def run(args, flags, user_context, users=None, groups=None, **kwargs):
     if user_context.get('name') != 'root':
         return "fsck: permission denied. You must be root to run this command."
 
-    is_repair = "--repair" in flags
-
+    is_repair = flags.get('repair', False)
     report, changes_made = fs_manager.fsck(users, groups, repair=is_repair)
 
     if not report:
@@ -23,13 +28,13 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     return "\n".join(output)
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     fsck - check and repair a file system
 
 SYNOPSIS
-    fsck [OPTION]...
+    fsck [--repair]
 
 DESCRIPTION
     fsck is used to check and optionally repair one or more file systems.
@@ -37,6 +42,3 @@ DESCRIPTION
     --repair
           Attempt to repair any issues found.
 """
-
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
-    return "Usage: fsck [--repair]"

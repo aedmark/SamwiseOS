@@ -2,6 +2,12 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the df command accepts."""
+    return [
+        {'name': 'human-readable', 'short': 'h', 'long': 'human-readable', 'takes_value': False},
+    ]
+
 def _format_bytes(byte_count):
     if byte_count is None:
         return "0B"
@@ -22,23 +28,25 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     available_size = total_size - used_size
     use_percentage = int((used_size / total_size) * 100) if total_size > 0 else 0
 
-    is_human_readable = "-h" in flags or "--human-readable" in flags
+    is_human_readable = flags.get('human-readable', False)
 
     if is_human_readable:
         total_str = _format_bytes(total_size).rjust(8)
         used_str = _format_bytes(used_size).rjust(8)
         avail_str = _format_bytes(available_size).rjust(8)
     else:
-        total_str = str(total_size).rjust(8)
-        used_str = str(used_size).rjust(8)
-        avail_str = str(available_size).rjust(8)
+        total_str = str(total_size // 1024).rjust(8) # Show in 1K-blocks by default
+        used_str = str(used_size // 1024).rjust(8)
+        avail_str = str(available_size // 1024).rjust(8)
 
-    header = "Filesystem      Size      Used     Avail   Use%  Mounted on"
-    separator = "----------  --------  --------  --------  ----  ----------"
-    data = (f"{'OopisVFS'.ljust(10)}  {total_str}  {used_str}  {avail_str}  "
-            f"{str(use_percentage).rjust(3)}%  {'/'}")
+    header = "Filesystem     1K-blocks     Used Available Use% Mounted on"
+    if is_human_readable:
+        header = "Filesystem      Size      Used     Avail Use% Mounted on"
 
-    return f"{header}\n{separator}\n{data}"
+    data = (f"{'SamwiseVFS'.ljust(10)}  {total_str}  {used_str}  {avail_str}  "
+            f"{str(use_percentage).rjust(3)}% /")
+
+    return f"{header}\n{data}"
 
 def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
     return """
@@ -54,6 +62,3 @@ DESCRIPTION
     -h, --human-readable
           print sizes in powers of 1024 (e.g., 1023M)
 """
-
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
-    return "Usage: df [-h]"

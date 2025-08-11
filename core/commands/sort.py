@@ -2,6 +2,14 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the sort command accepts."""
+    return [
+        {'name': 'numeric-sort', 'short': 'n', 'long': 'numeric-sort', 'takes_value': False},
+        {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
+        {'name': 'unique', 'short': 'u', 'long': 'unique', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     """
     Sorts lines of text from files or standard input.
@@ -21,9 +29,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     else:
         return "" # No input, no output
 
-    is_numeric = "-n" in flags or "--numeric-sort" in flags
-    is_reverse = "-r" in flags or "--reverse" in flags
-    is_unique = "-u" in flags or "--unique" in flags
+    is_numeric = flags.get('numeric-sort', False)
+    is_reverse = flags.get('reverse', False)
+    is_unique = flags.get('unique', False)
 
     def sort_key(line):
         if is_numeric:

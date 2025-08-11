@@ -1,18 +1,23 @@
 # gem/core/commands/clearfs.py
 import os
 from filesystem import fs_manager
+from datetime import datetime
+
+def define_flags():
+    """Declares the flags that the clearfs command accepts."""
+    return [
+        {'name': 'confirmed', 'long': 'confirmed', 'takes_value': False},
+    ]
 
 def run(args, flags, user_context, **kwargs):
     """
     Clears all files and directories from the current user's home directory
     after a confirmation prompt.
     """
-    # This checks if the command is being run after the user has confirmed.
-    if '--confirmed' in flags:
+    if flags.get('confirmed', False):
         return _perform_clear(user_context)
 
     username = user_context.get('name')
-
     if username == 'root':
         return {"success": False, "error": "clearfs: cannot clear the root user's home directory for safety."}
 
@@ -20,8 +25,6 @@ def run(args, flags, user_context, **kwargs):
     home_node = fs_manager.get_node(home_path)
 
     if home_node and home_node.get('type') == 'directory':
-        # This effect will ask the JS side for confirmation.
-        # If confirmed, it will re-run this same command with the '--confirmed' flag.
         return {
             "effect": "confirm",
             "message": [
@@ -30,7 +33,6 @@ def run(args, flags, user_context, **kwargs):
             ],
             "on_confirm_command": "clearfs --confirmed"
         }
-
     return {"success": False, "error": "clearfs: Could not find home directory to clear."}
 
 def _perform_clear(user_context):
@@ -44,24 +46,17 @@ def _perform_clear(user_context):
         home_node['mtime'] = datetime.utcnow().isoformat() + "Z"
         fs_manager._save_state()
         return "Home directory cleared."
-
     return {"success": False, "error": "clearfs: Something went wrong after confirmation."}
-
 
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    clearfs - Clears all files and directories from the current user's home directory.
+    clearfs - Clears all files from the current user's home directory.
 
 SYNOPSIS
     clearfs
 
 DESCRIPTION
-    The clearfs command removes all files and subdirectories within the
-    current user's home directory, effectively resetting it to a clean slate.
-    This command is useful for cleaning up test files or starting fresh without
-    affecting other users on the system.
-    
-    WARNING: This operation is irreversible and will permanently delete all data from
-    your home directory. The command will prompt for confirmation.
+    Removes all files and subdirectories within the current user's home
+    directory, resetting it to a clean slate. This is irreversible.
 """

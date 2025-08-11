@@ -2,6 +2,14 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the uniq command accepts."""
+    return [
+        {'name': 'count', 'short': 'c', 'long': 'count', 'takes_value': False},
+        {'name': 'repeated', 'short': 'd', 'long': 'repeated', 'takes_value': False},
+        {'name': 'unique', 'short': 'u', 'long': 'unique', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None):
     lines = []
     if stdin_data is not None:
@@ -20,9 +28,9 @@ def run(args, flags, user_context, stdin_data=None):
     if not lines:
         return ""
 
-    is_count = "-c" in flags
-    is_repeated = "-d" in flags
-    is_unique = "-u" in flags
+    is_count = flags.get('count', False)
+    is_repeated = flags.get('repeated', False)
+    is_unique = flags.get('unique', False)
 
     if is_repeated and is_unique:
         return "uniq: printing only unique and repeated lines is mutually exclusive"
@@ -76,6 +84,3 @@ DESCRIPTION
     -u, --unique
           only print lines that are not repeated
 """
-
-def help(args, flags, user_context, stdin_data=None):
-    return "Usage: uniq [OPTION]... [FILE]..."

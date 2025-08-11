@@ -2,6 +2,13 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the head command accepts."""
+    return [
+        {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
+        {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': True},
+    ]
+
 def run(args, flags, user_context, stdin_data=None):
     lines = []
 
@@ -18,30 +25,27 @@ def run(args, flags, user_context, stdin_data=None):
     else:
         return "" # No input, no output
 
-    line_count = 10
-    if "-n" in flags:
-        try:
-            line_count = int(flags["-n"])
-            if line_count < 0:
-                raise ValueError
-        except (ValueError, TypeError):
-            # The JS side handles parsing, but we check again for safety
-            return f"head: invalid number of lines: '{flags['-n']}'"
+    line_count_str = flags.get('lines')
+    byte_count_str = flags.get('bytes')
 
-    byte_count = None
-    if "-c" in flags:
+    if byte_count_str is not None:
         try:
-            byte_count = int(flags["-c"])
-            if byte_count < 0:
-                raise ValueError
+            byte_count = int(byte_count_str)
+            if byte_count < 0: raise ValueError
+            full_content = "\n".join(lines)
+            return full_content[:byte_count]
         except (ValueError, TypeError):
-            return f"head: invalid number of bytes: '{flags['-c']}'"
-
-    if byte_count is not None:
-        full_content = "\n".join(lines)
-        return full_content[:byte_count]
+            return f"head: invalid number of bytes: '{byte_count_str}'"
     else:
+        line_count = 10
+        if line_count_str is not None:
+            try:
+                line_count = int(line_count_str)
+                if line_count < 0: raise ValueError
+            except (ValueError, TypeError):
+                return f"head: invalid number of lines: '{line_count_str}'"
         return "\n".join(lines[:line_count])
+
 
 def man(args, flags, user_context, stdin_data=None):
     return """
@@ -60,6 +64,3 @@ DESCRIPTION
     -c, --bytes=COUNT
           print the first COUNT bytes
 """
-
-def help(args, flags, user_context, stdin_data=None):
-    return "Usage: head [-n lines | -c bytes] [FILE]..."

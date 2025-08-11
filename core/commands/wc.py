@@ -2,17 +2,25 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the wc command accepts."""
+    return [
+        {'name': 'lines', 'short': 'l', 'long': 'lines', 'takes_value': False},
+        {'name': 'words', 'short': 'w', 'long': 'words', 'takes_value': False},
+        {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': False},
+    ]
+
 def _count_content(content):
     """Calculates lines, words, and bytes for a string."""
     lines = len(content.splitlines()) if content else 0
     words = len(content.split())
-    bytes_count = len(content)
+    bytes_count = len(content.encode('utf-8')) # Correctly count bytes
     return lines, words, bytes_count
 
 def run(args, flags, user_context, stdin_data=None):
-    show_lines = "-l" in flags
-    show_words = "-w" in flags
-    show_bytes = "-c" in flags
+    show_lines = flags.get('lines', False)
+    show_words = flags.get('words', False)
+    show_bytes = flags.get('bytes', False)
 
     # If no flags are specified, show all counts
     if not (show_lines or show_words or show_bytes):
@@ -82,6 +90,3 @@ DESCRIPTION
     -w, --words
           print the word counts
 """
-
-def help(args, flags, user_context, stdin_data=None):
-    return "Usage: wc [OPTION]... [FILE]..."

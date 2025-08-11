@@ -2,24 +2,30 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the tail command accepts."""
+    return [
+        {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
+        {'name': 'follow', 'short': 'f', 'long': 'follow', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
-    if "-f" in flags or "--follow" in flags:
+    if flags.get('follow', False):
         # This case should ideally not be hit if the JS command is set up correctly,
         # but it's a good safeguard.
         return {"success": False, "error": "tail: -f is handled by the JavaScript layer and should not reach the Python kernel."}
 
-
     lines = []
-
-    # Determine the number of lines to show
     line_count = 10
-    if "-n" in flags:
+    line_count_str = flags.get('lines')
+
+    if line_count_str is not None:
         try:
-            line_count = int(flags["-n"])
+            line_count = int(line_count_str)
             if line_count < 0:
                 line_count = 10 # Default on invalid negative number
         except (ValueError, TypeError):
-            return f"tail: invalid number of lines: '{flags['-n']}'"
+            return f"tail: invalid number of lines: '{line_count_str}'"
 
     if stdin_data is not None:
         lines.extend(stdin_data.splitlines())
@@ -54,6 +60,3 @@ DESCRIPTION
           output appended data as the file grows
           (NOTE: This feature is handled by the JS command layer)
 """
-
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
-    return "Usage: tail [-n lines] [-f] [FILE]..."

@@ -4,13 +4,26 @@ import re
 import os
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the grep command accepts."""
+    return [
+        {'name': 'ignore-case', 'short': 'i', 'long': 'ignore-case', 'takes_value': False},
+        {'name': 'invert-match', 'short': 'v', 'long': 'invert-match', 'takes_value': False},
+        {'name': 'line-number', 'short': 'n', 'long': 'line-number', 'takes_value': False},
+        {'name': 'count', 'short': 'c', 'long': 'count', 'takes_value': False},
+        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+        {'name': 'recursive', 'short': 'R', 'takes_value': False},
+    ]
+
 def _process_content(content, pattern, flags, file_path_for_display, display_file_name):
     """Processes a string of content, finds matching lines, and returns formatted output."""
     lines = content.splitlines()
     file_match_count = 0
     file_output = []
 
-    is_invert = "-v" in flags or "--invert-match" in flags
+    is_invert = flags.get('invert-match', False)
+    is_count = flags.get('count', False)
+    is_line_number = flags.get('line-number', False)
 
     for i, line in enumerate(lines):
         is_match = pattern.search(line)
@@ -18,16 +31,16 @@ def _process_content(content, pattern, flags, file_path_for_display, display_fil
 
         if effective_match:
             file_match_count += 1
-            if "-c" not in flags and "--count" not in flags:
+            if not is_count:
                 output_line = ""
                 if display_file_name:
                     output_line += f"{file_path_for_display}:"
-                if "-n" in flags or "--line-number" in flags:
+                if is_line_number:
                     output_line += f"{i + 1}:"
                 output_line += line
                 file_output.append(output_line)
 
-    if "-c" in flags or "--count" in flags:
+    if is_count:
         count_output = ""
         if display_file_name:
             count_output += f"{file_path_for_display}:"
@@ -62,7 +75,7 @@ def run(args, flags, user_context, stdin_data=None):
     file_paths = args[1:]
 
     try:
-        re_flags = re.IGNORECASE if "-i" in flags or "--ignore-case" in flags else 0
+        re_flags = re.IGNORECASE if flags.get('ignore-case', False) else 0
         pattern = re.compile(pattern_str, re_flags)
     except re.error as e:
         return f"grep: invalid regular expression: {e}"
@@ -76,7 +89,7 @@ def run(args, flags, user_context, stdin_data=None):
         return "grep: requires file paths to search when not used with a pipe."
     else:
         # File input mode
-        is_recursive = "-r" in flags or "-R" in flags or "--recursive" in flags
+        is_recursive = flags.get('recursive', False)
         display_file_names = len(file_paths) > 1 or is_recursive
 
         for path in file_paths:
