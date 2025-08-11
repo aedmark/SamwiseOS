@@ -20,10 +20,10 @@ import traceback
 # --- Module Initialization ---
 sudo_manager = SudoManager(fs_manager)
 ai_manager = AIManager(fs_manager, command_executor)
+# This is the crucial fix: inject the ai_manager into the command_executor
+command_executor.set_ai_manager(ai_manager)
 
 # --- Module to Manager Mapping ---
-
-# Our dispatcher is now fully populated with our new app logic modules!
 
 MODULE_DISPATCHER = {
     "executor": command_executor,

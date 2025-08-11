@@ -18,12 +18,19 @@ def run(args, flags, user_context, **kwargs):
     command_to_test = " ".join(args)
     check_empty_output = flags.get('check-empty', False)
 
-    # We need to execute the command within the same context
-    # The command_executor instance is passed in via kwargs from the kernel
-    test_result_json = command_executor.execute(command_to_test)
+    # We need to reconstruct the context to pass to the nested execution.
+    # The kwargs dictionary contains all the necessary context from the kernel.
+    js_context_json = json.dumps({
+        "user_context": user_context,
+        **kwargs
+    })
+
+    # Pass the reconstructed context to the executor.
+    test_result_json = command_executor.execute(command_to_test, js_context_json)
     test_result = json.loads(test_result_json)
 
     if check_empty_output:
+        # Check if 'output' key is missing, None, or an empty/whitespace-only string
         output_is_empty = not test_result.get("output") or not test_result.get("output").strip()
         if output_is_empty:
             return f"CHECK_FAIL: SUCCESS - Command <{command_to_test}> produced empty output as expected."
