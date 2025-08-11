@@ -4,6 +4,12 @@ from filesystem import fs_manager
 from datetime import datetime
 import json
 
+def define_flags():
+    """Declares the flags that the ls command accepts."""
+    return [
+        {'name': 'long', 'short': 'l', 'long': 'long', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None):
     """
     Lists the contents of a directory.
@@ -22,7 +28,7 @@ def run(args, flags, user_context, stdin_data=None):
     # If we are here, node is a directory
     children = sorted(node.get('children', {}).keys())
 
-    if "-l" in flags:
+    if flags.get('long', False):
         output = []
         for name in children:
             child_node = node['children'][name]
@@ -66,7 +72,8 @@ DESCRIPTION
     List information about the FILEs (the current directory by default).
     Sort entries alphabetically.
 
-    -l    use a long listing format, showing permissions, owner, size,
+    -l, --long
+          use a long listing format, showing permissions, owner, size,
           and modification date.
 """
 

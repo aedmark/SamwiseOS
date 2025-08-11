@@ -2,6 +2,13 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the rm command accepts."""
+    return [
+        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+        {'name': 'recursive', 'short': 'R', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None):
     """
     Removes files or directories.
@@ -10,7 +17,7 @@ def run(args, flags, user_context, stdin_data=None):
     if not args:
         return help(args, flags, user_context)
 
-    is_recursive = "-r" in flags or "--recursive" in flags
+    is_recursive = flags.get('recursive', False)
     output_messages = []
 
     for path in args:

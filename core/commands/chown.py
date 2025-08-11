@@ -2,6 +2,13 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the chown command accepts."""
+    return [
+        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+        {'name': 'recursive', 'short': 'R', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None):
     if len(args) < 2:
         return "chown: missing operand. Usage: chown [-R] <owner> <path>..."
@@ -11,7 +18,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     new_owner = args[0]
     paths = args[1:]
-    is_recursive = "-R" in flags or "-r" in flags or "--recursive" in flags
+    is_recursive = flags.get('recursive', False)
 
     if new_owner not in users:
         return f"chown: invalid user: '{new_owner}'"

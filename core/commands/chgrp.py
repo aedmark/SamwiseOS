@@ -2,6 +2,13 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the chgrp command accepts."""
+    return [
+        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+        {'name': 'recursive', 'short': 'R', 'takes_value': False},
+    ]
+
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if len(args) < 2:
         return "chgrp: missing operand. Usage: chgrp [-R] <group> <path>..."
@@ -13,7 +20,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     new_group = args[0]
     paths = args[1:]
-    is_recursive = "-R" in flags or "-r" in flags or "--recursive" in flags
+    is_recursive = flags.get('recursive', False)
 
     if groups is None or new_group not in groups:
         return f"chgrp: invalid group: '{new_group}'"

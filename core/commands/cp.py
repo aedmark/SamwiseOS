@@ -4,6 +4,14 @@ import os
 from filesystem import fs_manager
 from datetime import datetime
 
+def define_flags():
+    """Declares the flags that the cp command accepts."""
+    return [
+        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+        {'name': 'recursive', 'short': 'R', 'takes_value': False},
+        {'name': 'preserve', 'short': 'p', 'long': 'preserve', 'takes_value': False},
+    ]
+
 def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, preserve=False):
     """Recursively copies a node."""
     now_iso = datetime.utcnow().isoformat() + "Z"
@@ -32,8 +40,8 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     source_paths = args[:-1]
     dest_path_arg = args[-1]
 
-    is_recursive = "-r" in flags or "-R" in flags
-    is_preserve = "-p" in flags
+    is_recursive = flags.get('recursive', False)
+    is_preserve = flags.get('preserve', False)
 
     dest_node = fs_manager.get_node(dest_path_arg)
 
@@ -72,7 +80,8 @@ SYNOPSIS
 DESCRIPTION
     Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
 
-    -p     same as --preserve=mode,ownership,timestamps
+    -p, --preserve
+           same as --preserve=mode,ownership,timestamps
     -r, -R, --recursive
            copy directories recursively
 """
