@@ -127,7 +127,7 @@ echo "Verifying file rename:"
 ls new_name.txt
 check_fail "ls old_name.txt"
 mkdir old_dir
-rename old_dir new_dir
+mv old_dir new_dir
 echo "Verifying directory rename:"
 ls -d new_dir/
 check_fail "ls -d old_dir"

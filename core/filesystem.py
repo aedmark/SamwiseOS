@@ -328,7 +328,6 @@ class FileSystemManager:
         if not old_parent_node or old_name not in old_parent_node.get('children', {}):
             raise FileNotFoundError(f"Cannot rename '{old_path}': No such file or directory.")
 
-        # Check if new_path is a directory; if so, move the node into it
         new_node_target = self.get_node(abs_new_path)
         if new_node_target and new_node_target.get('type') == 'directory':
             new_parent_node = new_node_target
@@ -344,13 +343,20 @@ class FileSystemManager:
         if new_name in new_parent_node.get('children', {}):
             raise FileExistsError(f"Cannot rename to '{new_path}': Destination already exists.")
 
-        # Move the node and update timestamps
         now_iso = datetime.utcnow().isoformat() + "Z"
-        node_to_move = old_parent_node['children'].pop(old_name)
+
+        # Explicitly remove the old entry before adding the new one.
+        # This avoids any potential subtle bugs with dict.pop() when the source
+        # and destination parent nodes are the same object.
+        node_to_move = old_parent_node['children'][old_name]
+        del old_parent_node['children'][old_name]
+
         node_to_move['mtime'] = now_iso
         new_parent_node['children'][new_name] = node_to_move
+
         old_parent_node['mtime'] = now_iso
-        new_parent_node['mtime'] = now_iso
+        if old_parent_node is not new_parent_node:
+            new_parent_node['mtime'] = now_iso
 
         self._save_state()
 
@@ -394,7 +400,7 @@ class FileSystemManager:
         if node.get('owner') == user_context.get('name'):
             return (owner_perms & required_perm) == required_perm
 
-        user_groups = self.user_groups.get(user_context.get('name'), [])
+        user_groups = self.user_groups.get(user_context.get('name', ''), [])
         if node.get('group') in user_groups:
             return (group_perms & required_perm) == required_perm
 
