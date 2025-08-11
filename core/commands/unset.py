@@ -9,7 +9,12 @@ def run(args, flags, user_context, stdin_data=None):
     for var_name in args:
         env_manager.unset(var_name)
 
-    return "" # Success
+    return {
+        "success": True,
+        "output": "",
+        "effect": "sync_session_state",
+        "env": env_manager.get_all()
+    }
 
 def man(args, flags, user_context, stdin_data=None):
     return """

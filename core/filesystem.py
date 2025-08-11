@@ -436,17 +436,16 @@ class FileSystemManager:
         # --- NEW SECURE TRAVERSAL LOGIC ---
         if abs_path != '/':
             parts = [part for part in abs_path.split('/') if part]
-            current_node = self.fs_data.get('/')
             current_path_for_traversal = '/'
+            current_node = self.fs_data.get('/')
 
-            # Check permissions on all parent directories up to the target's parent.
-            # We iterate up to the second-to-last part of the path.
+            # Check execute permission on all parent directories of the final target
             for part in parts[:-1]:
                 if not self._check_permission(current_node, user_context, 'execute'):
-                    return {"success": False, "error": f"Permission denied to traverse {current_path_for_traversal}"}
+                    return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
 
                 if 'children' not in current_node or part not in current_node['children']:
-                    return {"success": False, "error": "No such file or directory"}
+                    return {"success": False, "error": f"No such file or directory"}
 
                 current_node = current_node['children'][part]
                 current_path_for_traversal = os.path.join(current_path_for_traversal, part)
@@ -454,12 +453,17 @@ class FileSystemManager:
                 if current_node.get('type') != 'directory':
                     return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
 
+            # After the loop, current_node is the parent of the final target.
+            # We must check execute permission on it as well to access the target.
+            if not self._check_permission(current_node, user_context, 'execute'):
+                return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
+
         # --- ORIGINAL LOGIC (Now applied only to the final node) ---
         node = self.get_node(abs_path)
 
         if not node:
             if allow_missing:
-                # Check write permission on the parent directory before allowing creation.
+                # We already checked traversal permissions above, so this is safe.
                 parent_path = os.path.dirname(abs_path)
                 parent_node = self.get_node(parent_path)
                 if not parent_node or not self._check_permission(parent_node, user_context, 'write'):

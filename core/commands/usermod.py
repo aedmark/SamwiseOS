@@ -29,7 +29,12 @@ def run(args, flags, user_context, **kwargs):
         if not group_manager.group_exists(group_to_add):
             return {"success": False, "error": f"usermod: group '{group_to_add}' does not exist."}
         if group_manager.add_user_to_group(username, group_to_add):
-            return {"success": True, "output": f"Added user '{username}' to group '{group_to_add}'."}
+            return {
+                "success": True,
+                "output": f"Added user '{username}' to group '{group_to_add}'.",
+                "effect": "sync_group_state",
+                "groups": group_manager.get_all_groups()
+            }
         else:
             return {"success": True, "output": f"User '{username}' is already a member of '{group_to_add}'."}
 

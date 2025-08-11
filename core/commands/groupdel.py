@@ -21,6 +21,11 @@ def run(args, flags, user_context, users=None, **kwargs):
                 return f"groupdel: cannot remove group '{group_name}': it is the primary group of user '{user}'"
 
     if group_manager.delete_group(group_name):
-        return "" # Success
+        return {
+            "success": True,
+            "output": "",
+            "effect": "sync_group_state",
+            "groups": group_manager.get_all_groups()
+        }
     else:
         return f"groupdel: failed to delete group '{group_name}'."

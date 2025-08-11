@@ -43,6 +43,20 @@ class GroupManager {
         );
     }
 
+    /**
+     * Takes an updated group state object from a Python effect, syncs it with
+     * the Python kernel's state (just to be safe), and saves it to localStorage.
+     * @param {object} groupsData The complete groups object from the Python kernel.
+     */
+    syncAndSave(groupsData) {
+        const { StorageManager, Config } = this.dependencies;
+        // The data from the effect is the new source of truth.
+        // 1. Save it to localStorage so it persists across sessions.
+        StorageManager.saveItem(Config.STORAGE_KEYS.USER_GROUPS, groupsData, "User Groups");
+        // 2. Ensure Python's in-memory state is identical to what we're saving.
+        OopisOS_Kernel.syscall("groups", "load_groups", [groupsData]);
+    }
+
     getAllGroups() {
         try {
             // Use syscall to get all groups

@@ -27,7 +27,12 @@ def run(args, flags, user_context, stdin_data=None):
                 value = " ".join(value_parts)
 
             alias_manager.set_alias(name, value)
-            return "" # Success
+            return {
+                "success": True,
+                "output": "",
+                "effect": "sync_session_state",
+                "aliases": alias_manager.get_all_aliases()
+            }
         except ValueError:
             return f"alias: invalid format: {arg_string}"
     else:

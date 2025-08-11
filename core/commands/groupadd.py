@@ -18,6 +18,11 @@ def run(args, flags, user_context, **kwargs):
         return f"groupadd: group '{group_name}' already exists."
 
     if group_manager.create_group(group_name):
-        return "" # Success
+        return {
+            "success": True,
+            "output": "",
+            "effect": "sync_group_state",
+            "groups": group_manager.get_all_groups()
+        }
     else:
         return f"groupadd: failed to create group '{group_name}'."

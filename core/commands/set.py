@@ -22,7 +22,12 @@ def run(args, flags, user_context, stdin_data=None):
                 return f"set: invalid variable name: '{name}'"
 
             env_manager.set(name, value)
-            return "" # Success
+            return {
+                "success": True,
+                "output": "",
+                "effect": "sync_session_state",
+                "env": env_manager.get_all()
+            }
         except ValueError:
             return f"set: invalid format: {arg_string}"
     else:
@@ -31,7 +36,12 @@ def run(args, flags, user_context, stdin_data=None):
         if not name.isidentifier():
             return f"set: invalid variable name: '{name}'"
         env_manager.set(name, "")
-        return ""
+        return {
+            "success": True,
+            "output": "",
+            "effect": "sync_session_state",
+            "env": env_manager.get_all()
+        }
 
 
 def man(args, flags, user_context, stdin_data=None):

@@ -339,6 +339,12 @@ class CommandExecutor {
             case 'delay':
                 await new Promise(resolve => setTimeout(resolve, result.milliseconds));
                 break;
+            case 'sync_group_state':
+                this.dependencies.GroupManager.syncAndSave(result.groups);
+                break;
+            case 'sync_session_state':
+                this.dependencies.SessionManager.syncAndSave(result);
+                break;
             case 'useradd':
                 return await UserManager.registerWithPrompt(result.username, options);
             case 'play_sound':

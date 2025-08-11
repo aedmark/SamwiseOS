@@ -68,7 +68,12 @@ def run(args, flags, user_context, **kwargs):
         f"  - Group '{committee_name}' created with members: {', '.join(members)}",
         f"  - Project directory created at '{project_path}'"
     ]
-    return "\n".join(output)
+    return {
+        "success": True,
+        "output": "\n".join(output),
+        "effect": "sync_group_state",
+        "groups": group_manager.get_all_groups()
+    }
 
 
 def man(args, flags, user_context, **kwargs):
