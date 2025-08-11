@@ -1,49 +1,53 @@
 # gem/core/commands/rename.py
-
 from filesystem import fs_manager
 import os
 
 def run(args, flags, user_context, **kwargs):
     """
-    Renames a source file to a destination. Fails if the destination is an existing directory.
+    Renames a file. A strict command that only renames files within the current directory.
     """
     if len(args) != 2:
-        return {"success": False, "error": "rename: missing operand after ‘{}’".format(args[0]) if args else "rename: missing file operand"}
+        return {"success": False, "error": "rename: missing operand"}
 
-    old_path = args[0]
-    new_path = args[1]
+    old_name = args[0]
+    new_name = args[1]
 
-    # Explicitly prevent renaming to a directory
-    dest_node = fs_manager.get_node(new_path)
-    if dest_node and dest_node.get('type') == 'directory':
-        return {"success": False, "error": f"rename: cannot overwrite directory '{new_path}'"}
+    # A true 'rename' command should not handle file paths. It should only
+    # rename a file in its current directory. The presence of a '/' indicates
+    # an attempt to move a file, which should be handled by 'mv'.
+    if '/' in old_name or '/' in new_name:
+        return {"success": False, "error": "rename: invalid argument. Use 'mv' to move files across directories."}
 
     try:
-        # The core logic is already in our robust FileSystemManager
-        fs_manager.rename_node(old_path, new_path)
-        return ""  # Success
+        fs_manager.rename_node(old_name, new_name)
+        return "" # Success
     except FileNotFoundError:
-        return {"success": False, "error": f"rename: cannot rename '{old_path}': No such file or directory"}
+        return {"success": False, "error": f"rename: cannot find '{old_name}'"}
     except FileExistsError:
-        return {"success": False, "error": f"rename: cannot create file '{new_path}': File exists"}
+        return {"success": False, "error": f"rename: cannot create file '{new_name}': File exists"}
     except Exception as e:
-        return {"success": False, "error": f"rename: an unexpected error occurred: {repr(e)}"}
+        return {"success": False, "error": f"An unexpected error occurred: {e}"}
+
 
 def man(args, flags, user_context, **kwargs):
+    """
+    Displays the manual page for the rename command.
+    """
     return """
 NAME
     rename - rename a file
 
 SYNOPSIS
-    rename OLD_PATH NEW_PATH
+    rename [OLD_NAME] [NEW_NAME]
 
 DESCRIPTION
-    Renames OLD_PATH to NEW_PATH. Unlike 'mv', this command will not move a
-    file into a directory. It is used exclusively for renaming.
+    Renames a file from OLD_NAME to NEW_NAME. This is a simplified command
+    and does not move files across directories. For that, use 'mv'.
+    Arguments for rename cannot contain path separators ('/').
 """
 
 def help(args, flags, user_context, **kwargs):
     """
     Provides help information for the rename command.
     """
-    return "Usage: rename <old_path> <new_path>"
+    return "Usage: rename [OLD_NAME] [NEW_NAME]"
