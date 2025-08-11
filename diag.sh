@@ -34,7 +34,7 @@ chown diagUser /home/diagUser/diag_workspace/
 chgrp testgroup /home/diagUser/diag_workspace/
 # Permissions allow owner (diagUser) and group (testgroup) full access
 chmod 770 /home/diagUser/diag_workspace/
-# Permissions on the parent directory must allow others to pass through
+# Grant others (including testuser) execute/traverse permission on the parent directory.
 chmod 755 /home/diagUser
 
 echo "sudouser ALL" >> /etc/sudoers
@@ -156,7 +156,6 @@ usermod -aG testgroup testuser
 groups testuser
 mkdir -p /tmp/no_exec_dir
 chmod 644 /tmp/no_exec_dir
-chmod 755 /home/diagUser
 cd /home/diagUser/diag_workspace
 delay 200
 echo "Initial content" > group_test_file.txt
@@ -447,7 +446,7 @@ shuf -e one two three four five
 delay 400
 echo "--- Test: tree (-L, -d) ---"
 mkdir -p recursive_test/level2/level3
-echo "I am a secret" > recursive_test/secret.txt
+echo "I am a secret" > recursive_test.txt
 echo "I am a deeper secret" > recursive_test/level2/level3/deep_secret.txt
 tree -L 2 ./recursive_test
 tree -d ./recursive_test

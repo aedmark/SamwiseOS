@@ -15,14 +15,39 @@ def define_flags():
         {'name': 'sort-size', 'short': 'S', 'takes_value': False},
         {'name': 'sort-extension', 'short': 'X', 'takes_value': False},
         {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
-        # This is the crucial addition:
         {'name': 'directory', 'short': 'd', 'long': 'directory', 'takes_value': False},
     ]
 
 def _format_long(path, name, node):
-    """Formats a single line for the long listing format."""
-    perms = "d" if node.get('type') == 'directory' else "-"
-    perms += "rwx" * 3
+    """Formats a single line for the long listing format with full permission parsing."""
+    mode = node.get('mode', 0)
+
+    # Determine file type character
+    type_char = "-"
+    if node.get('type') == 'directory':
+        type_char = "d"
+    elif node.get('type') == 'symlink':
+        type_char = "l"
+
+    # --- FULL PERMISSION PARSING ---
+    # Owner permissions
+    owner_perms = 'r' if (mode >> 8) & 1 else '-'
+    owner_perms += 'w' if (mode >> 7) & 1 else '-'
+    owner_perms += 'x' if (mode >> 6) & 1 else '-'
+
+    # Group permissions
+    group_perms = 'r' if (mode >> 5) & 1 else '-'
+    group_perms += 'w' if (mode >> 4) & 1 else '-'
+    group_perms += 'x' if (mode >> 3) & 1 else '-'
+
+    # Other permissions
+    other_perms = 'r' if (mode >> 2) & 1 else '-'
+    other_perms += 'w' if (mode >> 1) & 1 else '-'
+    other_perms += 'x' if (mode >> 0) & 1 else '-'
+
+    perms = type_char + owner_perms + group_perms + other_perms
+    # --- END OF FULL PARSING ---
+
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
     size = str(fs_manager.calculate_node_size(os.path.join(path, name))).rjust(6)
@@ -32,7 +57,13 @@ def _format_long(path, name, node):
         mtime_formatted = mtime_dt.strftime('%b %d %H:%M')
     except (ValueError, TypeError):
         mtime_formatted = "Jan 01 00:00"
-    return f"{perms} 1 {owner} {group} {size} {mtime_formatted} {name}"
+
+    # Handle symlinks in long format
+    display_name = name
+    if node.get('type') == 'symlink':
+        display_name += f" -> {node.get('target', '')}"
+
+    return f"{perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
 
 def _get_sort_key(flags, path):
     """Returns a key function for sorting based on flags."""
@@ -80,28 +111,27 @@ def run(args, flags, user_context, stdin_data=None):
     output = []
     error_occurred = False
 
-    # This check is vital for the diag.sh script to work correctly.
     if len(paths) == 1 and not fs_manager.get_node(fs_manager.get_absolute_path(paths[0])):
         return {"success": False, "error": f"ls: cannot access '{paths[0]}': No such file or directory"}
 
     for i, path in enumerate(paths):
         target_path = fs_manager.get_absolute_path(path)
-        node = fs_manager.get_node(target_path)
+        # For symlinks, we want to show info about the link itself with -l, not the target
+        node = fs_manager.get_node(target_path, resolve_symlink=not flags.get('long'))
 
         if not node:
             output.append(f"ls: cannot access '{path}': No such file or directory")
             error_occurred = True
             continue
 
-        # This logic handles the -d flag by treating directories like files.
         is_dir_as_file = flags.get('directory') and node.get('type') == 'directory'
 
-        if node.get('type') == 'file' or is_dir_as_file:
+        if node.get('type') != 'directory' or is_dir_as_file:
             if flags.get('long'):
                 output.append(_format_long(os.path.dirname(target_path), os.path.basename(target_path), node))
             else:
                 output.append(path.rstrip('/'))
-        elif node.get('type') == 'directory':
+        else: # It's a directory and -d is not specified
             if len(paths) > 1:
                 if i > 0: output.append("")
                 output.append(f"{path}:")
@@ -111,7 +141,6 @@ def run(args, flags, user_context, stdin_data=None):
         return {"success": False, "error": "\n".join(output)}
 
     return "\n".join(output)
-
 
 def man(args, flags, user_context, stdin_data=None):
     return """
