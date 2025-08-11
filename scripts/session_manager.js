@@ -121,6 +121,24 @@ class SessionManager {
     _getAutomaticSessionStateKey(user) { return `${this.config.STORAGE_KEYS.USER_TERMINAL_STATE_PREFIX}${user}`; }
     _getManualUserTerminalStateKey(user) { const userName = typeof user === "object" && user !== null && user.name ? user.name : String(user); return `${this.config.STORAGE_KEYS.MANUAL_TERMINAL_STATE_PREFIX}${userName}`; }
 
+    /**
+     * Receives an updated session state object from a Python effect, syncs it with
+     * the Python kernel's state (just to be safe), and saves it to localStorage.
+     * @param {object} effectData The data object from the Python effect.
+     */
+    syncAndSave(effectData) {
+        const { AliasManager, EnvironmentManager, StorageManager, Config, UserManager } = this.dependencies;
+        if (effectData.aliases) {
+            AliasManager.aliases = effectData.aliases; // Update local JS cache/proxy
+            StorageManager.saveItem(Config.STORAGE_KEYS.ALIAS_DEFINITIONS, effectData.aliases, "Aliases");
+        }
+        if (effectData.env) {
+            EnvironmentManager.env = effectData.env; // Update local JS cache/proxy
+            this.saveAutomaticState(UserManager.getCurrentUser().name);
+        }
+    }
+
+
     saveAutomaticState(username) {
         if (!username) { console.warn("saveAutomaticState: No username provided."); return; }
         const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_session_state_for_saving"));
