@@ -9,33 +9,15 @@ echo "--- Phase 1: Setting up test users/groups ---"
 # Create all users and groups needed for the entire test run at the beginning.
 # The 'run' command will correctly pipe the next two lines as password and confirmation.
 echo "Creating users: diagUser, testuser, sudouser, limitedsudo..."
-useradd diagUser
-testpass
-testpass
-useradd testuser
-testpass
-testpass
-useradd sudouser
-testpass
-testpass
-useradd limitedsudo
-testpass
-testpass
-useradd paradoxuser
-testpass
-testpass
-useradd comm_user1
-testpass
-testpass
-useradd comm_user2
-testpass
-testpass
-useradd sudouser2
-testpass
-testpass
-useradd recursive_test_user
-testpass
-testpass
+echo -e "testpass\ntestpass" | useradd diagUser
+echo -e "testpass\ntestpass" | useradd testuser
+echo -e "testpass\ntestpass" | useradd sudouser
+echo -e "testpass\ntestpass" | useradd limitedsudo
+echo -e "testpass\ntestpass" | useradd paradoxuser
+echo -e "testpass\ntestpass" | useradd comm_user1
+echo -e "testpass\ntestpass" | useradd comm_user2
+echo -e "testpass\ntestpass" | useradd sudouser2
+echo -e "testpass\ntestpass" | useradd recursive_test_user
 
 echo "Creating groups: testgroup, recursive_test_group, harvest_festival..."
 groupadd testgroup
@@ -1313,12 +1295,8 @@ delay 500
 
 echo "--- Phase 1: Setup and User Creation ---"
 echo "Creating test users 'plan_user1' and 'plan_user2'..."
-useradd plan_user1
-testpass
-testpass
-useradd plan_user2
-testpass
-testpass
+echo -e "testpass\ntestpass" | useradd plan_user1
+echo -e "testpass\ntestpass" | useradd plan_user2
 
 echo "Users created. Proceeding with tests..."
 delay 300

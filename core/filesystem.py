@@ -428,15 +428,38 @@ class FileSystemManager:
     def validate_path(self, path, user_context, options_json):
         options = json.loads(options_json)
         expected_type = options.get('expectedType')
-        permissions = options.get('permissions', [])
+        permissions_to_check = options.get('permissions', [])
         allow_missing = options.get('allowMissing', False)
 
         abs_path = self.get_absolute_path(path)
+
+        # --- NEW SECURE TRAVERSAL LOGIC ---
+        if abs_path != '/':
+            parts = [part for part in abs_path.split('/') if part]
+            current_node = self.fs_data.get('/')
+            current_path_for_traversal = '/'
+
+            # Check permissions on all parent directories up to the target's parent.
+            # We iterate up to the second-to-last part of the path.
+            for part in parts[:-1]:
+                if not self._check_permission(current_node, user_context, 'execute'):
+                    return {"success": False, "error": f"Permission denied to traverse {current_path_for_traversal}"}
+
+                if 'children' not in current_node or part not in current_node['children']:
+                    return {"success": False, "error": "No such file or directory"}
+
+                current_node = current_node['children'][part]
+                current_path_for_traversal = os.path.join(current_path_for_traversal, part)
+
+                if current_node.get('type') != 'directory':
+                    return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
+
+        # --- ORIGINAL LOGIC (Now applied only to the final node) ---
         node = self.get_node(abs_path)
 
         if not node:
             if allow_missing:
-                # Need to check parent directory permissions before allowing
+                # Check write permission on the parent directory before allowing creation.
                 parent_path = os.path.dirname(abs_path)
                 parent_node = self.get_node(parent_path)
                 if not parent_node or not self._check_permission(parent_node, user_context, 'write'):
@@ -447,10 +470,11 @@ class FileSystemManager:
         if expected_type and node.get('type') != expected_type:
             return {"success": False, "error": f"Is not a {expected_type}"}
 
-        for perm in permissions:
+        for perm in permissions_to_check:
             if not self._check_permission(node, user_context, perm):
                 return {"success": False, "error": "Permission denied"}
 
         return {"success": True, "node": node, "resolvedPath": abs_path}
+
 
 fs_manager = FileSystemManager()

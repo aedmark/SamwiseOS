@@ -18,11 +18,17 @@ def run(args, flags, user_context, **kwargs):
     command_to_test = " ".join(args)
     check_empty_output = flags.get('check-empty', False)
 
-    # We need to reconstruct the context to pass to the nested execution.
-    # The kwargs dictionary contains all the necessary context from the kernel.
+    # Create a serializable copy of the context. We filter out any values
+    # that are not JSON-serializable, like the live AI Manager instance.
+    # The CommandExecutor will re-inject its own AI Manager for the nested command.
+    serializable_kwargs = {}
+    for key, value in kwargs.items():
+        if isinstance(value, (dict, list, str, int, float, bool, type(None))):
+            serializable_kwargs[key] = value
+
     js_context_json = json.dumps({
         "user_context": user_context,
-        **kwargs
+        **serializable_kwargs
     })
 
     # Pass the reconstructed context to the executor.
