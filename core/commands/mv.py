@@ -7,7 +7,7 @@ def run(args, flags, user_context, **kwargs):
     Moves or renames a source file/directory to a destination.
     """
     if len(args) != 2:
-        return {"success": False, "error": help(args, flags, user_context)}
+        return {"success": False, "error": "mv: missing destination file operand after ‘{}’".format(args[0]) if args else "mv: missing file operand"}
 
     source_path = args[0]
     destination_path = args[1]
@@ -38,7 +38,6 @@ SYNOPSIS
 DESCRIPTION
     Renames SOURCE to DESTINATION, or moves SOURCE(s) to DIRECTORY.
     If the last argument is an existing directory, the source file is moved into that directory.
-    Otherwise, the source file is renamed to the destination name.
 
     This command is powered by the core Python filesystem for maximum reliability.
 """

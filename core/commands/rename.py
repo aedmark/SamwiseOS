@@ -8,12 +8,12 @@ def run(args, flags, user_context, **kwargs):
     Renames a source file to a destination. Fails if the destination is an existing directory.
     """
     if len(args) != 2:
-        return {"success": False, "error": help(args, flags, user_context)}
+        return {"success": False, "error": "rename: missing operand after ‘{}’".format(args[0]) if args else "rename: missing file operand"}
 
     old_path = args[0]
     new_path = args[1]
 
-    # Check if the destination is an existing directory
+    # Explicitly prevent renaming to a directory
     dest_node = fs_manager.get_node(new_path)
     if dest_node and dest_node.get('type') == 'directory':
         return {"success": False, "error": f"rename: cannot overwrite directory '{new_path}'"}
