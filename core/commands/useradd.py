@@ -1,7 +1,3 @@
-# gem/core/commands/useradd.py
-
-from users import user_manager
-
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_context.get('name') != 'root':
         return {"success": False, "error": "useradd: only root can add users."}
@@ -14,8 +10,10 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_manager.user_exists(username):
         return {"success": False, "error": f"useradd: user '{username}' already exists"}
 
+    # This is the new, more robust logic for handling passwords from scripts.
     if stdin_data:
         try:
+            # The input from diag.sh will have two lines for the password.
             lines = stdin_data.strip().split('\\n')
             password = lines[0]
             confirm_password = lines[1] if len(lines) > 1 else ''
@@ -23,10 +21,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             if password != confirm_password:
                 return {"success": False, "error": "passwd: passwords do not match."}
 
+            # Now, we register the user AND create their home directory all in one go!
             registration_result = user_manager.register_user(username, password, username)
             if registration_result["success"]:
                 from filesystem import fs_manager
                 home_path = f"/home/{username}"
+                # Create the directory, then set the correct owner and group.
                 fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
                 fs_manager.chown(home_path, username)
                 fs_manager.chgrp(home_path, username)
@@ -41,25 +41,8 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         except IndexError:
             return {"success": False, "error": "useradd: insufficient password lines from stdin"}
     else:
+        # This part handles interactive `useradd` and stays the same.
         return {
             "effect": "useradd",
             "username": username
         }
-
-def man(args, flags, user_context, **kwargs):
-    return """
-NAME
-    useradd - create a new user or update default new user information
-
-SYNOPSIS
-    useradd [username]
-
-DESCRIPTION
-    Creates a new user account with the specified username. If run
-    interactively, it will prompt for a new password. This command
-    requires root privileges.
-"""
-
-def help(args, flags, user_context, **kwargs):
-    """Provides help information for the useradd command."""
-    return "Usage: useradd <username>"

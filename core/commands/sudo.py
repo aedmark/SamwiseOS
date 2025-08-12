@@ -13,9 +13,14 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     if not sudo_manager.can_user_run_command(username, user_groups.get(username, []), command_to_run_parts[0]):
         return {"success": False, "error": f"sudo: user {username} is not allowed to execute '{full_command_str}' as root."}
 
+    password = None
+    if stdin_data:
+        password = stdin_data.strip().split('\\n')[0]
+
     return {
         "effect": "sudo_exec",
-        "command": full_command_str
+        "command": full_command_str,
+        "password": password
     }
 
 def man(args, flags, user_context, **kwargs):

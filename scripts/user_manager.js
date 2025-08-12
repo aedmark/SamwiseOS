@@ -55,6 +55,11 @@ class UserManager {
         return result.success && result.data;
     }
 
+    async hasPassword(username) {
+        const result = JSON.parse(OopisOS_Kernel.syscall("users", "has_password", [username]));
+        return result.success && result.data;
+    }
+
     async register(username, password) {
         const { Utils, ErrorHandler } = this.dependencies;
         const formatValidation = Utils.validateUsernameFormat(username);
@@ -127,17 +132,75 @@ class UserManager {
     }
 
     async sudoExecute(commandStr, options) {
-        // This is a JS-side concern, no syscall changes needed here.
-        const { ErrorHandler } = this.dependencies;
-        const originalUser = this.currentUser;
-        try {
-            this.currentUser = { name: "root" };
-            return await this.commandExecutor.processSingleCommand(commandStr, options);
-        } catch (e) {
-            return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
-        } finally {
-            this.currentUser = originalUser;
+        const { ErrorHandler, SudoManager, ModalManager } = this.dependencies;
+        const currentUserName = this.getCurrentUser().name;
+
+        const authSuccess = SudoManager.isUserTimestampValid(currentUserName);
+
+        if (authSuccess) {
+            const originalUser = this.currentUser;
+            try {
+                this.currentUser = { name: "root" };
+                return await this.commandExecutor.processSingleCommand(commandStr, options);
+            } catch (e) {
+                return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
+            } finally {
+                this.currentUser = originalUser;
+            }
         }
+
+        // Check if the user even has a password before prompting!
+        const userHasPassword = await this.hasPassword(currentUserName);
+
+        if (!userHasPassword) {
+            // If there's no password, we can just proceed as root. No questions asked!
+            const originalUser = this.currentUser;
+            try {
+                this.currentUser = { name: "root" };
+                return await this.commandExecutor.processSingleCommand(commandStr, options);
+            } catch (e) {
+                return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
+            } finally {
+                this.currentUser = originalUser;
+            }
+        }
+
+        // If we get here, it means the timestamp is invalid AND the user has a password.
+        // NOW it's okay to ask.
+        return new Promise(async (resolve) => {
+            const handleSudoAuth = async (password) => {
+                const verifyResult = await this.verifyPassword(currentUserName, password);
+                if (!verifyResult.success) {
+                    resolve(ErrorHandler.createError("sudo: sorry, try again"));
+                    return;
+                }
+                SudoManager.updateUserTimestamp(currentUserName);
+                const originalUser = this.currentUser;
+                try {
+                    this.currentUser = { name: "root" };
+                    const cmdResult = await this.commandExecutor.processSingleCommand(commandStr, options);
+                    resolve(cmdResult);
+                } catch (e) {
+                    resolve(ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`));
+                } finally {
+                    this.currentUser = originalUser;
+                }
+            };
+
+            if (options.password) {
+                await handleSudoAuth(options.password);
+            } else {
+                ModalManager.request({
+                    context: "terminal",
+                    type: "input",
+                    messageLines: [`[sudo] password for ${currentUserName}:`],
+                    obscured: true,
+                    onConfirm: handleSudoAuth,
+                    onCancel: () => resolve(ErrorHandler.createError("sudo: password entry cancelled.")),
+                    options,
+                });
+            }
+        });
     }
 
     async changePassword(actorUsername, targetUsername, oldPassword, newPassword) {
@@ -168,14 +231,11 @@ class UserManager {
             return ErrorHandler.createError(failureMessage);
         }
 
-        // If no password was provided interactively or on the command line,
-        // and this is an interactive session, we must prompt.
         if (providedPassword === null && options?.isInteractive !== false) {
             return new Promise((resolve) => {
                 ModalManager.request({
                     context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
                     onConfirm: async (passwordFromPrompt) => {
-                        // Now, we ask the Python kernel to verify.
                         const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
                         if (verifyResult.success && verifyResult.data) {
                             resolve(await successCallback(username));
@@ -190,9 +250,6 @@ class UserManager {
             });
         }
 
-        // For non-interactive sessions or when a password IS provided,
-        // let the Python kernel make the final decision. This single call
-        // correctly handles users with passwords AND passwordless users like Guest.
         const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
 
         if (verifyResult.success && verifyResult.data) {
@@ -280,7 +337,6 @@ class UserManager {
         const { ErrorHandler } = this.dependencies;
         const oldUser = this.currentUser.name;
 
-        // We handle the error message case.
         if (this.sessionManager.getStack().length <= 1) {
             return ErrorHandler.createSuccess(
                 `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`,
@@ -290,7 +346,6 @@ class UserManager {
             );
         }
 
-        // This part was already correct from our last fix!
         this.sessionManager.saveAutomaticState(oldUser);
         this.sudoManager.clearUserTimestamp(oldUser);
         this.sessionManager.popUserFromStack();

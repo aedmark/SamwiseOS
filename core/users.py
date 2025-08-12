@@ -43,6 +43,11 @@ class UserManager:
         """Gets data for a single user."""
         return self.users.get(username)
 
+    def has_password(self, username):
+        """Checks if a user has a password set."""
+        user_entry = self.get_user(username)
+        return bool(user_entry and user_entry.get('passwordData'))
+
     def _secure_hash_password(self, password):
         """Securely hashes a password using PBKDF2 with a random salt."""
         salt = os.urandom(16)
