@@ -161,8 +161,14 @@ class UserManager {
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler } = this.dependencies;
 
-        // If a password was provided as an argument, use it directly for both
-        // interactive and non-interactive sessions. No need to show a prompt.
+        // THIS IS THE FIX: First, check if the user has a password at all.
+        const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
+        if (userResult.success && userResult.data && !userResult.data.passwordData) {
+            // No password exists for this user, so we can proceed without authentication.
+            return await successCallback(username);
+        }
+
+        // If a password was provided as an argument, use it directly.
         if (providedPassword !== null && providedPassword !== undefined) {
             const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
             if (verifyResult.success && verifyResult.data) {
@@ -174,8 +180,7 @@ class UserManager {
             }
         }
 
-        // Only show a prompt if no password was provided as an argument.
-        // This flow is intended for interactive use.
+        // Only prompt for a password if one exists and was not provided.
         return new Promise((resolve) => {
             this.modalManager.request({
                 context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
@@ -193,6 +198,7 @@ class UserManager {
             });
         });
     }
+
 
     async login(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;

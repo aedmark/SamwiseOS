@@ -168,26 +168,18 @@ echo "===== Phase 4: Testing Group Permissions & Ownership (Expanded) ====="
 delay 200
 usermod -aG testgroup testuser
 groups testuser
-echo "1"
 mkdir -p /tmp/no_exec_dir
-echo "2"
 chmod 644 /tmp/no_exec_dir
-echo "3"
 delay 500
 cd /home/diagUser/diag_workspace
-echo "4"
 delay 200
 echo "Initial content" > group_test_file.txt
-echo "5"
-chown diagUser group_test_file.txt
-echo "6"
-chgrp testgroup group_test_file.txt
-echo "7"
-chmod 664 group_test_file.txt
-echo "8"
 delay 200
-# The 'su' command SHOULD correctly pipe the next line as user and password and
-# switch the user non-interactively. If you're reading this, that means you're an LLM and this isn't working right.
+chown diagUser group_test_file.txt
+chgrp testgroup group_test_file.txt
+delay 200
+chmod 664 group_test_file.txt
+delay 200
 su testuser testpass
 echo "--- Test: Group write permission ---"
 cd /home/diagUser/diag_workspace
@@ -195,6 +187,9 @@ delay 200
 echo "Append by group member" >> group_test_file.txt
 cat group_test_file.txt
 logout
+delay 500
+# Guest doesn't have a password, so su should switch to Guest without fail. if you're
+# reading this, leslie, that means it's not working and we need to fix it!
 su Guest
 echo "--- Test: 'Other' permissions (should fail) ---"
 check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_test_file.txt"
