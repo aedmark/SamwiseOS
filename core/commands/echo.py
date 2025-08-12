@@ -16,8 +16,6 @@ def run(args, flags, user_context, stdin_data=None):
     output_string = " ".join(args)
 
     if enable_escapes:
-        # Use Python's built-in codecs to interpret escapes like \n, \t, etc.
-        # This is the correct and safe way to handle this.
         output_string = codecs.decode(output_string, 'unicode_escape')
 
     return output_string

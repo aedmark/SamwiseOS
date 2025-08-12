@@ -3,25 +3,30 @@
 import difflib
 from filesystem import fs_manager
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
-    if len(args) != 2:
-        return "diff: missing operand after '{}'".format(args[0] if args else 'diff')
+def define_flags():
+    """Declares the flags that the diff command accepts."""
+    return [
+        {'name': 'unified', 'short': 'u', 'long': 'unified', 'takes_value': False},
+    ]
 
-    file1_path = args[0]
-    file2_path = args[1]
+def run(args, flags, user_context, **kwargs):
+    if len(args) != 2:
+        return {"success": False, "error": "diff: missing operand. Usage: diff [-u] FILE1 FILE2"}
+
+    file1_path, file2_path = args[0], args[1]
 
     node1 = fs_manager.get_node(file1_path)
-    node2 = fs_manager.get_node(file2_path)
-
     if not node1:
-        return f"diff: {file1_path}: No such file or directory"
+        return {"success": False, "error": f"diff: {file1_path}: No such file or directory"}
+
+    node2 = fs_manager.get_node(file2_path)
     if not node2:
-        return f"diff: {file2_path}: No such file or directory"
+        return {"success": False, "error": f"diff: {file2_path}: No such file or directory"}
 
     content1 = node1.get('content', '').splitlines()
     content2 = node2.get('content', '').splitlines()
 
-    is_unified = "-u" in flags or "--unified" in flags
+    is_unified = flags.get('unified', False)
 
     if is_unified:
         diff = difflib.unified_diff(
@@ -31,6 +36,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
             lineterm=''
         )
     else:
+        # Standard context diff is a good default
         diff = difflib.context_diff(
             content1, content2,
             fromfile=file1_path,
@@ -40,7 +46,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     return "\\n".join(list(diff))
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     diff - compare files line by line
@@ -52,8 +58,9 @@ DESCRIPTION
     Compare files line by line.
 
     -u, --unified
-          Output 3 lines of unified context.
+          Output 3 lines of unified context, the most common format.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the diff command."""
     return "Usage: diff [-u] <file1> <file2>"

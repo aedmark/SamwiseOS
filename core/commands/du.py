@@ -32,13 +32,13 @@ def run(args, flags, user_context, **kwargs):
     for path in paths:
         node = fs_manager.get_node(path)
         if not node:
-            output_lines.append(f"du: cannot access '{path}': No such file or directory")
-            continue
+            # Standardize error output
+            return {"success": False, "error": f"du: cannot access '{path}': No such file or directory"}
 
         if is_summarize:
             total_size = fs_manager.calculate_node_size(path)
             size_str = _format_bytes(total_size) if is_human_readable else str(total_size // 1024)
-            output_lines.append(f"{size_str}\t{path}")
+            output_lines.append(f"{size_str}\\t{path}")
         else:
             sizes = []
             def recurse_du(current_path, current_node):
@@ -51,9 +51,9 @@ def run(args, flags, user_context, **kwargs):
             recurse_du(path, node)
             for size, p in sorted(sizes, key=lambda x: x[1]):
                 size_str = _format_bytes(size) if is_human_readable else str(size // 1024)
-                output_lines.append(f"{size_str}\t{p}")
+                output_lines.append(f"{size_str}\\t{p}")
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -71,3 +71,7 @@ DESCRIPTION
     -s, --summarize
           display only a total for each argument
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the du command."""
+    return "Usage: du [-sh] [FILE]..."
