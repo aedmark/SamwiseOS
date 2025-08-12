@@ -7,8 +7,6 @@ def run(args, flags, user_context, **kwargs):
     if args:
         return {"success": False, "error": "top: command takes no arguments"}
 
-    # The check for an interactive session is handled by the JavaScript
-    # AppLayerManager, so we just need to send the effect.
     return {
         "effect": "launch_app",
         "app_name": "Top",
@@ -28,3 +26,7 @@ DESCRIPTION
     The top command opens a full-screen application that lists all active
     background jobs and system processes. The list is updated in real-time.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the top command."""
+    return "Usage: top"

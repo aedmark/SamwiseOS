@@ -9,23 +9,20 @@ def define_flags():
         {'name': 'follow', 'short': 'f', 'long': 'follow', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     if flags.get('follow', False):
-        # This case should ideally not be hit if the JS command is set up correctly,
-        # but it's a good safeguard.
         return {"success": False, "error": "tail: -f is handled by the JavaScript layer and should not reach the Python kernel."}
 
     lines = []
     line_count = 10
-    line_count_str = flags.get('lines')
 
-    if line_count_str is not None:
+    if flags.get('lines'):
         try:
-            line_count = int(line_count_str)
+            line_count = int(flags['lines'])
             if line_count < 0:
-                line_count = 10 # Default on invalid negative number
+                line_count = 10
         except (ValueError, TypeError):
-            return f"tail: invalid number of lines: '{line_count_str}'"
+            return {"success": False, "error": f"tail: invalid number of lines: '{flags['lines']}'"}
 
     if stdin_data is not None:
         lines.extend(stdin_data.splitlines())
@@ -33,16 +30,16 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return f"tail: cannot open '{path}' for reading: No such file or directory"
+                return {"success": False, "error": f"tail: cannot open '{path}' for reading: No such file or directory"}
             if node.get('type') != 'file':
-                return f"tail: error reading '{path}': Is a directory"
+                return {"success": False, "error": f"tail: error reading '{path}': Is a directory"}
             lines.extend(node.get('content', '').splitlines())
     else:
         return ""
 
-    return "\n".join(lines[-line_count:])
+    return "\\n".join(lines[-line_count:])
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     tail - output the last part of files
@@ -60,3 +57,7 @@ DESCRIPTION
           output appended data as the file grows
           (NOTE: This feature is handled by the JS command layer)
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the tail command."""
+    return "Usage: tail [-n COUNT] [-f] [FILE]..."

@@ -2,15 +2,16 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def run(args, flags, user_context, **kwargs):
+    if args:
+        return {"success": False, "error": "sync: command takes no arguments"}
     try:
-        # This protected method call is a special case for sync
         fs_manager._save_state()
         return "" # Success, no output
     except Exception as e:
-        return f"sync: an error occurred: {repr(e)}"
+        return {"success": False, "error": f"sync: an error occurred: {repr(e)}"}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     sync - synchronize data on disk with memory
@@ -23,5 +24,6 @@ DESCRIPTION
     to the underlying persistent storage.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the sync command."""
     return "Usage: sync"

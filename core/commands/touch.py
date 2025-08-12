@@ -14,17 +14,12 @@ def define_flags():
 def _parse_date_string(date_str):
     """Parses a flexible date string like '1 day ago'."""
     try:
-        # Simple relative parser
-        match = re.match(r'(\d+)\s+(day|hour|minute)s?\s+ago', date_str)
+        match = re.match(r'(\\d+)\\s+(day|hour|minute)s?\\s+ago', date_str)
         if match:
             amount, unit = int(match.group(1)), match.group(2)
-            if unit == 'day':
-                return datetime.utcnow() - timedelta(days=amount)
-            elif unit == 'hour':
-                return datetime.utcnow() - timedelta(hours=amount)
-            elif unit == 'minute':
-                return datetime.utcnow() - timedelta(minutes=amount)
-        # Fallback to direct parsing
+            if unit == 'day': return datetime.utcnow() - timedelta(days=amount)
+            if unit == 'hour': return datetime.utcnow() - timedelta(hours=amount)
+            if unit == 'minute': return datetime.utcnow() - timedelta(minutes=amount)
         return datetime.fromisoformat(date_str)
     except Exception:
         return None
@@ -32,43 +27,32 @@ def _parse_date_string(date_str):
 def _parse_stamp(stamp_str):
     """Parses a [[CC]YY]MMDDhhmm[.ss] timestamp."""
     try:
-        if '.' in stamp_str:
-            main_part, seconds_str = stamp_str.split('.')
-            seconds = int(seconds_str)
-        else:
-            main_part, seconds = stamp_str, 0
-
+        main_part, seconds = (stamp_str.split('.') + ['0'])[:2]
+        seconds = int(seconds)
         now = datetime.utcnow()
         if len(main_part) == 12: # CCYYMMDDhhmm
-            year, month, day, hour, minute = [int(main_part[i:i+2]) for i in (2, 4, 6, 8, 10)]
-            year = int(main_part[0:4])
+            year, month, day, hour, minute = int(main_part[0:4]), int(main_part[4:6]), int(main_part[6:8]), int(main_part[8:10]), int(main_part[10:12])
         elif len(main_part) == 10: # YYMMDDhhmm
-            yy, month, day, hour, minute = [int(main_part[i:i+2]) for i in (0, 2, 4, 6, 8)]
+            yy, month, day, hour, minute = int(main_part[0:2]), int(main_part[2:4]), int(main_part[4:6]), int(main_part[6:8]), int(main_part[8:10])
             year = (1900 if yy >= 69 else 2000) + yy
-        else:
-            return None
+        else: return None
         return datetime(year, month, day, hour, minute, seconds)
     except Exception:
         return None
 
-
-def run(args, flags, user_context, stdin_data=None):
-    """
-    Updates the access and modification times of a file to the current time.
-    If the file does not exist, it is created with empty content.
-    """
+def run(args, flags, user_context, **kwargs):
     if not args:
-        return help(args, flags, user_context)
+        return {"success": False, "error": "touch: missing file operand"}
 
     mtime_dt = None
     if flags.get('date'):
         mtime_dt = _parse_date_string(flags['date'])
         if not mtime_dt:
-            return f"touch: invalid date format: {flags['date']}"
+            return {"success": False, "error": f"touch: invalid date format: {flags['date']}"}
     elif flags.get('stamp'):
         mtime_dt = _parse_stamp(flags['stamp'])
         if not mtime_dt:
-            return f"touch: invalid date format: {flags['stamp']}"
+            return {"success": False, "error": f"touch: invalid date format: {flags['stamp']}"}
     else:
         mtime_dt = datetime.utcnow()
 
@@ -79,27 +63,18 @@ def run(args, flags, user_context, stdin_data=None):
             node = fs_manager.get_node(path)
             if node:
                 node['mtime'] = mtime_iso
-                # No need to re-write content, just update the timestamp
             else:
                 fs_manager.write_file(path, '', user_context)
-                # write_file sets current time, so we need to update it
                 new_node = fs_manager.get_node(path)
-                if new_node:
-                    new_node['mtime'] = mtime_iso
-
+                if new_node: new_node['mtime'] = mtime_iso
         except IsADirectoryError:
-            pass # `touch` on a directory should silently do nothing
+            pass
         except Exception as e:
-            return f"touch: an unexpected error occurred with '{path}': {repr(e)}"
+            return {"success": False, "error": f"touch: an unexpected error occurred with '{path}': {repr(e)}"}
 
-    fs_manager._save_state()
-    return "" # Success
+    return ""
 
-
-def man(args, flags, user_context, stdin_data=None):
-    """
-    Displays the manual page for the touch command.
-    """
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     touch - change file timestamps
@@ -118,8 +93,5 @@ DESCRIPTION
           use [[CC]YY]MMDDhhmm[.ss] instead of current time
 """
 
-def help(args, flags, user_context, stdin_data=None):
-    """
-    Provides help information for the touch command.
-    """
+def help(args, flags, user_context, **kwargs):
     return "Usage: touch [OPTION]... [FILE...]"

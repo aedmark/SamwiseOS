@@ -24,12 +24,9 @@ def _get_files_for_analysis(start_path, user_context):
     start_node = fs_manager.get_node(start_path)
 
     def recurse(current_path, node):
-        if current_path in visited:
-            return
+        if current_path in visited: return
         visited.add(current_path)
-
-        if not fs_manager.has_permission(current_path, user_context, "read"):
-            return
+        if not fs_manager.has_permission(current_path, user_context, "read"): return
 
         if node.get('type') == 'file':
             _, ext = os.path.splitext(current_path)
@@ -40,48 +37,31 @@ def _get_files_for_analysis(start_path, user_context):
                     "content": node.get('content', '')
                 })
         elif node.get('type') == 'directory':
-            if not fs_manager.has_permission(current_path, user_context, "execute"):
-                return
+            if not fs_manager.has_permission(current_path, user_context, "execute"): return
             for child_name in sorted(node.get('children', {}).keys()):
                 child_path = fs_manager.get_absolute_path(os.path.join(current_path, child_name))
-                child_node = node['children'][child_name]
-                recurse(child_path, child_node)
+                recurse(child_path, node['children'][child_name])
 
     if start_node:
         recurse(start_path, start_node)
     return files
 
 def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=None, **kwargs):
-    """
-    Gathers files and uses the AI Manager to generate a project storyboard.
-    """
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
 
     files_to_analyze = []
-
     if stdin_data:
-        # Piped Mode
         paths_from_pipe = stdin_data.strip().splitlines()
         for path in paths_from_pipe:
             if not path.strip(): continue
             node = fs_manager.get_node(path)
-            if not node or node.get('type') != 'file': continue # Skip invalid paths
+            if not node or node.get('type') != 'file': continue
             _, ext = os.path.splitext(path)
             if ext.lower() in SUPPORTED_EXTENSIONS:
-                files_to_analyze.append({
-                    "name": os.path.basename(path),
-                    "path": path,
-                    "content": node.get('content', '')
-                })
-    elif args:
-        # Path Argument Mode
-        start_path_arg = args[0]
-        start_path = fs_manager.get_absolute_path(start_path_arg)
-        files_to_analyze = _get_files_for_analysis(start_path, user_context)
+                files_to_analyze.append({"name": os.path.basename(path), "path": path, "content": node.get('content', '')})
     else:
-        # Default to current directory if no args and no pipe
-        start_path = fs_manager.get_absolute_path(".")
+        start_path = fs_manager.get_absolute_path(args[0] if args else ".")
         files_to_analyze = _get_files_for_analysis(start_path, user_context)
 
     if not files_to_analyze:
@@ -119,3 +99,7 @@ DESCRIPTION
     Analyzes a set of files to describe their collective purpose and structure.
     ... (Full man page) ...
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the storyboard command."""
+    return "Usage: storyboard [OPTIONS] [path]"
