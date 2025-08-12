@@ -9,10 +9,11 @@ def run(args, flags, user_context, **kwargs):
     """
     if not args:
         return {"success": False, "error": "export: missing file operand"}
+    if len(args) > 1:
+        return {"success": False, "error": "export: too many arguments"}
 
     file_path = args[0]
 
-    # Use our robust validation from the filesystem manager
     validation_result = fs_manager.validate_path(
         file_path,
         user_context,
@@ -26,7 +27,6 @@ def run(args, flags, user_context, **kwargs):
     file_content = file_node.get('content', '')
     file_name = os.path.basename(validation_result.get("resolvedPath"))
 
-    # This effect tells the JavaScript CommandExecutor to trigger a browser download
     return {
         "effect": "export_file",
         "content": file_content,
@@ -45,3 +45,7 @@ DESCRIPTION
     Initiates a browser download for the specified FILE, allowing you to save
     it from the virtual file system to your computer.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the export command."""
+    return "Usage: export <file>"

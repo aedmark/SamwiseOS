@@ -35,7 +35,6 @@ def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
             fs_manager.write_file(output_file, generated_content, user_context)
 
             if output_file.endswith('.sh'):
-                # Return an effect to make the script executable
                 chmod_command = f"chmod 755 {shlex.quote(output_file)}"
                 return {
                     "effect": "execute_commands",
@@ -47,7 +46,6 @@ def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
         except Exception as e:
             return {"success": False, "error": f"forge: Failed to write file: {repr(e)}"}
     else:
-        # If no output file, print content to stdout
         return {"success": True, "output": generated_content}
 
 def man(args, flags, user_context, **kwargs):
@@ -63,3 +61,7 @@ DESCRIPTION
     output_file is specified, the content is saved. If no output file is
     provided, the content is printed to standard output.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the forge command."""
+    return 'Usage: forge [OPTIONS] "<description>" [output_file]'

@@ -7,10 +7,7 @@ from filesystem import fs_manager
 def _parse_expression(args):
     """
     Parses the find expression arguments into a structured list of predicates and actions.
-    This is a more robust parser that handles operators like -o.
     """
-    # This will be a list of lists. Each inner list is a group of ANDed predicates.
-    # e.g., [ [pred1, pred2], [pred3] ] is (pred1 AND pred2) OR (pred3)
     predicate_groups = [[]]
     actions = []
     i = 0
@@ -38,7 +35,6 @@ def _parse_expression(args):
             predicate_groups[-1].append(lambda p, n: (n.get('mode', 0) & 0o777) == mode_octal)
             i += 2
         elif token == '-o':
-            # OR operator: starts a new group of ANDed predicates
             predicate_groups.append([])
             i += 1
         elif token == '-exec':
@@ -59,7 +55,7 @@ def _parse_expression(args):
             raise ValueError(f"unknown predicate `{token}`")
 
     if not actions:
-        actions.append({'type': 'print'}) # Default action is to print the path
+        actions.append({'type': 'print'})
 
     return predicate_groups, actions
 
@@ -78,7 +74,7 @@ def run(args, flags, user_context, **kwargs):
             break
         paths.append(arg)
 
-    if not paths: paths = ['.'] # Default path is current directory
+    if not paths: paths = ['.']
 
     try:
         predicate_groups, actions = _parse_expression(expression_args)
@@ -92,11 +88,10 @@ def run(args, flags, user_context, **kwargs):
         node = fs_manager.get_node(current_path)
         if not node: return
 
-        # Evaluate predicates: True if ANY group of ANDed predicates is true
         matches = any(
             all(p(current_path, node) for p in group)
             for group in predicate_groups if group
-        )
+        ) if any(predicate_groups) else True
 
         if matches:
             for action in actions:
@@ -125,10 +120,10 @@ def run(args, flags, user_context, **kwargs):
         return {
             "effect": "execute_commands",
             "commands": commands_to_exec,
-            "output": "\n".join(output_lines)
+            "output": "\\n".join(output_lines)
         }
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -149,3 +144,7 @@ EXPRESSIONS:
     -delete             Delete found files and directories.
     -exec <cmd> {} ;    Execute command on found file ({} is replaced by file path).
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the find command."""
+    return "Usage: find [path...] [expression]"

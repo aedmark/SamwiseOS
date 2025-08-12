@@ -17,14 +17,12 @@ def run(args, flags, user_context, jobs=None, **kwargs):
         except ValueError:
             return {"success": False, "error": f"fg: invalid job ID: {job_id_str[1:]}"}
     else:
-        # If no job id is provided, find the most recent one (highest ID)
         if not jobs:
             return {"success": False, "error": "fg: no current jobs"}
         job_id = max(map(int, jobs.keys())) if jobs else None
         if job_id is None:
             return {"success": False, "error": "fg: no current jobs"}
 
-    # This effect tells the JS CommandExecutor to signal the job
     return {
         "effect": "signal_job",
         "job_id": job_id,
@@ -43,3 +41,7 @@ DESCRIPTION
     Resumes a stopped or background job and brings it to the foreground.
     If no job_id is specified, the most recently backgrounded job is used.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the fg command."""
+    return "Usage: fg [%job_id]"

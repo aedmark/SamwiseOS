@@ -16,7 +16,6 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
         return {"success": False, "error": "AI Manager is not available."}
 
     if flags.get('chat', False):
-        # This effect will launch the existing JavaScript-based chat UI
         return {
             "effect": "launch_app",
             "app_name": "GeminiChat",
@@ -31,14 +30,17 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
 
     user_prompt = " ".join(args)
 
-    # For now, we'll just pass through. The real logic will be in AIManager.
-    # We'll need to pass conversation history and other context from JS.
     result = ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'gemini'), flags.get('model'), {"apiKey": api_key})
 
     if result["success"]:
-        return result["data"]
+        # The data from agentic search is already formatted Markdown
+        return {
+            "effect": "display_prose",
+            "header": "### Gemini Response",
+            "content": result.get("data")
+        }
     else:
-        return result["error"]
+        return {"success": False, "error": result["error"]}
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -51,4 +53,9 @@ SYNOPSIS
 DESCRIPTION
     The gemini command sends a prompt to a configured AI model, acting as a powerful
     assistant capable of using system tools to answer questions about your files.
+    Use the --chat flag to open an interactive, graphical chat session.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the gemini command."""
+    return 'Usage: gemini [-c] "<prompt>"'
