@@ -158,31 +158,26 @@ class UserManager {
         return ErrorHandler.createError("Failed to save updated password.");
     }
 
-    // gem/scripts/user_manager.js
-
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler, AuditManager, ModalManager, Config } = this.dependencies;
 
-        // First, let's get the user's data from our reliable Python kernel.
         const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
 
         if (!userResult.success || !userResult.data) {
-            // If the user doesn't exist, we can stop right here.
             AuditManager.log(username, 'auth_failure', `Attempted login for non-existent user '${username}'.`);
             return ErrorHandler.createError(failureMessage);
         }
 
         const hasPassword = !!userResult.data.passwordData;
 
-        // This logic is now clear and follows a simple, direct path.
-
+        // Case 1: The user has NO password. Always let them in.
+        // This correctly handles `su Guest` in both interactive and script modes.
         if (!hasPassword) {
-            // Case 1: The user (like Guest) has no password. Let them right in!
             return await successCallback(username);
         }
 
+        // Case 2: A password WAS provided on the command line. Verify it.
         if (providedPassword !== null && providedPassword !== undefined) {
-            // Case 2: A password was provided (e.g., `su root mypass`). Let's verify it.
             const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
             if (verifyResult.success && verifyResult.data) {
                 return await successCallback(username);
@@ -193,7 +188,15 @@ class UserManager {
             }
         }
 
-        // Case 3: The user has a password, but none was provided. NOW we can prompt them.
+        // Case 3: A password is required, but we are in a non-interactive context (like a script)
+        // and no password was provided. This is an immediate failure.
+        if (hasPassword && options?.isInteractive === false) {
+            AuditManager.log(username, 'auth_failure', `Non-interactive login for '${username}' failed: Password required but not provided.`);
+            return ErrorHandler.createError(failureMessage);
+        }
+
+        // Case 4: The user has a password, none was provided, AND we are in an INTERACTIVE session.
+        // Now (and only now) we can prompt them.
         return new Promise((resolve) => {
             ModalManager.request({
                 context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
@@ -283,12 +286,18 @@ class UserManager {
     async logout() {
         const { ErrorHandler } = this.dependencies;
         const oldUser = this.currentUser.name;
+
+        // We handle the error message case.
         if (this.sessionManager.getStack().length <= 1) {
-            return ErrorHandler.createSuccess({
-                message: `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`,
-                noAction: true,
-            });
+            return ErrorHandler.createSuccess(
+                `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`,
+                {
+                    noAction: true,
+                }
+            );
         }
+
+        // This part was already correct from our last fix!
         this.sessionManager.saveAutomaticState(oldUser);
         this.sudoManager.clearUserTimestamp(oldUser);
         this.sessionManager.popUserFromStack();
@@ -300,11 +309,14 @@ class UserManager {
         this.fsManager.setCurrentPath(
             homeNode ? homePath : this.config.FILESYSTEM.ROOT_PATH
         );
-        return ErrorHandler.createSuccess({
-            message: `Logged out from ${oldUser}. Now logged in as ${newUsername}.`,
-            isLogout: true,
-            newUser: newUsername,
-        });
+
+        return ErrorHandler.createSuccess(
+            `Logged out from ${oldUser}. Now logged in as ${newUsername}.`,
+            {
+                isLogout: true,
+                newUser: newUsername,
+            }
+        );
     }
 
     async initializeDefaultUsers() {
