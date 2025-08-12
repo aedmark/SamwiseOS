@@ -1,24 +1,42 @@
-# Simplified version for now.
+# gem/core/commands/man.py
+from importlib import import_module
 
-MAN_PAGES = {
-    "ls": """
-NAME
-       ls - Lists directory contents and file information.
-
-SYNOPSIS
-       ls [-l] [-a] [path...]
-
-DESCRIPTION
-       The ls command lists files and directories.
-"""
-}
-
-def run(args, flags, user_context, stdin_data=None):
+def run(args, flags, user_context, **kwargs):
     """
-    Displays the manual page for a command.
+    Dynamically retrieves and displays the manual page for a given command.
     """
     if not args:
-        return "what manual page do you want?"
+        return {"success": False, "error": "man: what manual page do you want?"}
 
     cmd_name = args[0]
-    return MAN_PAGES.get(cmd_name, f"No manual entry for {cmd_name}")
+
+    try:
+        command_module = import_module(f"commands.{cmd_name}")
+        man_func = getattr(command_module, 'man', None)
+
+        if man_func and callable(man_func):
+            # We pass through the kwargs in case the man page function ever needs them.
+            return man_func(args, flags, user_context, **kwargs)
+        else:
+            return {"success": False, "error": f"man: no manual entry for {cmd_name}"}
+
+    except ImportError:
+        return {"success": False, "error": f"man: command '{cmd_name}' not found"}
+
+def man(args, flags, user_context, **kwargs):
+    """Displays the manual page for the man command itself."""
+    return """
+NAME
+    man - format and display the on-line manual pages
+
+SYNOPSIS
+    man [command_name]
+
+DESCRIPTION
+    man is the system's manual pager. It formats and displays the
+    on-line manual page for a given command.
+"""
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the man command."""
+    return "Usage: man <command>"

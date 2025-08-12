@@ -9,12 +9,10 @@ def run(args, flags, user_context, **kwargs):
     Launches the Log application or performs a quick-add entry.
     """
     if args:
-        # Quick Add Mode remains the same
         user_home = f"/home/{user_context.get('name', 'guest')}"
         log_dir_path = os.path.join(user_home, ".journal")
 
-        log_dir_node = fs_manager.get_node(log_dir_path)
-        if not log_dir_node:
+        if not fs_manager.get_node(log_dir_path):
             try:
                 fs_manager.create_directory(log_dir_path, user_context)
             except Exception as e:
@@ -31,7 +29,6 @@ def run(args, flags, user_context, **kwargs):
         except Exception as e:
             return {"success": False, "error": f"log: failed to save entry: {repr(e)}"}
     else:
-        # Application Mode: Launch the graphical UI
         return {
             "effect": "launch_app",
             "app_name": "Log",
@@ -51,3 +48,7 @@ DESCRIPTION
     - Quick Add Mode: Running 'log' with a quoted string creates a new entry.
     - Application Mode: Running 'log' with no arguments launches the graphical app.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the log command."""
+    return 'Usage: log ["entry text"]'

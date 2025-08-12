@@ -13,22 +13,20 @@ def run(args, flags, user_context, stdin_data=None):
     Creates new directories.
     """
     if not args:
-        return help(args, flags, user_context)
+        return {"success": False, "error": "mkdir: missing operand"}
 
     is_parents = flags.get('parents', False)
 
     for path in args:
         try:
-            # The create_directory function already supports parent creation
             fs_manager.create_directory(path, user_context)
         except FileExistsError:
-            # Only return an error if the directory exists AND '-p' was not used.
             if not is_parents:
-                return f"mkdir: cannot create directory ‘{path}’: File exists"
+                return {"success": False, "error": f"mkdir: cannot create directory ‘{path}’: File exists"}
         except FileNotFoundError as e:
-            return f"mkdir: cannot create directory ‘{path}’: {e}"
+            return {"success": False, "error": f"mkdir: cannot create directory ‘{path}’: {e}"}
         except Exception as e:
-            return f"mkdir: an unexpected error occurred with '{path}': {repr(e)}"
+            return {"success": False, "error": f"mkdir: an unexpected error occurred with '{path}': {repr(e)}"}
 
     return "" # Success
 

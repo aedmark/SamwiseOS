@@ -8,27 +8,26 @@ def define_flags():
         {'name': 'symbolic', 'short': 's', 'long': 'symbolic', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, **kwargs):
     if not flags.get('symbolic'):
-        return "ln: only symbolic links (-s) are supported in this version."
+        return {"success": False, "error": "ln: only symbolic links (-s) are supported in this version."}
 
     if len(args) != 2:
-        return "ln: missing file operand. Usage: ln -s <target> <link_name>"
+        return {"success": False, "error": "ln: missing file operand. Usage: ln -s <target> <link_name>"}
 
-    target = args[0]
-    link_name = args[1]
+    target, link_name = args[0], args[1]
 
     try:
         fs_manager.ln(target, link_name, user_context)
         return "" # Success
     except FileExistsError as e:
-        return f"ln: {e}"
+        return {"success": False, "error": f"ln: {e}"}
     except FileNotFoundError as e:
-        return f"ln: {e}"
+        return {"success": False, "error": f"ln: {e}"}
     except Exception as e:
-        return f"ln: an unexpected error occurred: {repr(e)}"
+        return {"success": False, "error": f"ln: an unexpected error occurred: {repr(e)}"}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     ln - make links between files
@@ -40,5 +39,6 @@ DESCRIPTION
     Create a symbolic link named LINK_NAME which points to TARGET.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the ln command."""
     return "Usage: ln -s <target> <link_name>"

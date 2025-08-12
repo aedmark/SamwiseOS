@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     lines = []
 
     if stdin_data is not None:
@@ -11,9 +11,9 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return f"nl: {path}: No such file or directory"
+                return {"success": False, "error": f"nl: {path}: No such file or directory"}
             if node.get('type') != 'file':
-                return f"nl: {path}: Is a directory"
+                return {"success": False, "error": f"nl: {path}: Is a directory"}
             lines.extend(node.get('content', '').splitlines())
     else:
         return "" # No input, no output
@@ -22,15 +22,14 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     line_number = 1
     for line in lines:
         if line.strip():
-            # Pad the line number to 6 spaces
-            output_lines.append(f"{str(line_number).rjust(6)}\t{line}")
+            output_lines.append(f"{str(line_number).rjust(6)}\\t{line}")
             line_number += 1
         else:
             output_lines.append("")
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     nl - number lines of files
@@ -43,5 +42,5 @@ DESCRIPTION
     non-empty lines. With no FILE, read standard input.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: nl [FILE]..."

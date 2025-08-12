@@ -20,7 +20,6 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     else:
         return "" # No input, no output
 
-    # This effect tells the JS CommandExecutor to launch the PagerManager UI
     return {
         "effect": "page_output",
         "content": content,
@@ -39,3 +38,7 @@ DESCRIPTION
     Less is a program similar to more, but it allows backward
     movement in the file as well as forward movement.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the less command."""
+    return "Usage: less [file...]"

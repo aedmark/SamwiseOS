@@ -6,6 +6,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     """
     Prepares content for the pager in 'more' mode.
     """
+    if len(args) > 1:
+        return {"success": False, "error": "more: command takes at most one file argument"}
+
     content = ""
     if stdin_data is not None:
         content = stdin_data
@@ -20,7 +23,6 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     else:
         return "" # No input, no output
 
-    # This effect tells the JS CommandExecutor to launch the PagerManager UI
     return {
         "effect": "page_output",
         "content": content,
@@ -38,3 +40,7 @@ SYNOPSIS
 DESCRIPTION
     more is a filter for paging through text one screenful at a time.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the more command."""
+    return "Usage: more [file...]"
