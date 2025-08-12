@@ -18,9 +18,6 @@ def run(args, flags, user_context, **kwargs):
     command_to_test = " ".join(args)
     check_empty_output = flags.get('check-empty', False)
 
-    # Create a serializable copy of the context. We filter out any values
-    # that are not JSON-serializable, like the live AI Manager instance.
-    # The CommandExecutor will re-inject its own AI Manager for the nested command.
     serializable_kwargs = {}
     for key, value in kwargs.items():
         if isinstance(value, (dict, list, str, int, float, bool, type(None))):
@@ -31,12 +28,10 @@ def run(args, flags, user_context, **kwargs):
         **serializable_kwargs
     })
 
-    # Pass the reconstructed context to the executor.
     test_result_json = command_executor.execute(command_to_test, js_context_json)
     test_result = json.loads(test_result_json)
 
     if check_empty_output:
-        # Check if 'output' key is missing, None, or an empty/whitespace-only string
         output_is_empty = not test_result.get("output") or not test_result.get("output").strip()
         if output_is_empty:
             return f"CHECK_FAIL: SUCCESS - Command <{command_to_test}> produced empty output as expected."
@@ -61,3 +56,7 @@ DESCRIPTION
     A testing utility that executes a command and succeeds if the command fails,
     or, with the -z flag, if the command produces no output.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the check_fail command."""
+    return 'Usage: check_fail [-z] "<command>"'

@@ -11,27 +11,25 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if len(args) < 2:
-        return "chgrp: missing operand. Usage: chgrp [-R] <group> <path>..."
+        return {"success": False, "error": "chgrp: missing operand. Usage: chgrp [-R] <group> <path>..."}
 
     if user_context.get('name') != 'root':
-        # In a real system, the owner could also chgrp, but only to a group they are a member of.
-        # For simplicity in OopisOS, we'll restrict it to root for now.
-        return "chgrp: you must be root to change group ownership."
+        return {"success": False, "error": "chgrp: you must be root to change group ownership."}
 
     new_group = args[0]
     paths = args[1:]
     is_recursive = flags.get('recursive', False)
 
     if groups is None or new_group not in groups:
-        return f"chgrp: invalid group: '{new_group}'"
+        return {"success": False, "error": f"chgrp: invalid group: '{new_group}'"}
 
     for path in paths:
         try:
             fs_manager.chgrp(path, new_group, recursive=is_recursive)
         except FileNotFoundError:
-            return f"chgrp: cannot access '{path}': No such file or directory"
+            return {"success": False, "error": f"chgrp: cannot access '{path}': No such file or directory"}
         except Exception as e:
-            return f"chgrp: an unexpected error occurred on '{path}': {repr(e)}"
+            return {"success": False, "error": f"chgrp: an unexpected error occurred on '{path}': {repr(e)}"}
 
     return "" # Success
 

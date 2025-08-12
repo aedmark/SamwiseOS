@@ -9,6 +9,8 @@ def run(args, flags, user_context, **kwargs):
     if not args:
         # cd with no arguments typically goes to the user's home directory
         path_arg = f"/home/{user_context.get('name', 'guest')}"
+    elif len(args) > 1:
+        return {"success": False, "error": "cd: too many arguments"}
     else:
         path_arg = args[0]
 
@@ -16,7 +18,8 @@ def run(args, flags, user_context, **kwargs):
     validation_result = fs_manager.validate_path(path_arg, user_context, '{"expectedType": "directory", "permissions": ["execute"]}')
 
     if not validation_result.get("success"):
-        return {"success": False, "error": f"cd: {validation_result.get('error')}"}
+        # The error message from validate_path is already well-formed.
+        return {"success": False, "error": f"cd: {path_arg}: {validation_result.get('error')}"}
 
     # If validation passes, send an effect to the JS side to update the state.
     return {
@@ -36,3 +39,7 @@ DESCRIPTION
     Changes the current working directory of the shell to the specified
     directory. If no directory is given, it defaults to the user's home.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the cd command."""
+    return "Usage: cd [directory]"

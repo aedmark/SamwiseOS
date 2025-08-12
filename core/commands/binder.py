@@ -132,7 +132,7 @@ def run(args, flags, user_context, **kwargs):
             if success:
                 return f"Removed '{path_to_remove}' from '{binder_path}'."
             return {"success": False, "error": error}
-        return f"Path '{path_to_remove}' not found in binder."
+        return {"success": False, "error": f"Path '{path_to_remove}' not found in binder."}
 
     elif sub_command == "exec":
         try:
@@ -169,4 +169,25 @@ def run(args, flags, user_context, **kwargs):
         return {"success": False, "error": f"binder: unknown sub-command '{sub_command}'."}
 
 def man(args, flags, user_context, **kwargs):
-    return "Man page for binder - use 'help binder' for now."
+    return """
+NAME
+    binder - A tool for creating and managing collections of files.
+
+SYNOPSIS
+    binder <sub-command> [options]
+
+DESCRIPTION
+    Manages .binder files, which are JSON files that group related project
+    files together into sections, allowing for bulk operations.
+
+SUB-COMMANDS:
+    create <name>            - Creates a new, empty binder file.
+    add <binder> <path> [-s] - Adds a file/dir path to a binder section.
+    list <binder>            - Lists the contents of a binder.
+    remove <binder> <path>   - Removes a path from a binder.
+    exec <binder> -- <cmd>   - Executes a command for each path in a binder.
+"""
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the binder command."""
+    return "Usage: binder <create|add|list|remove|exec> [options]"

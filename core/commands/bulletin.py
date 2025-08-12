@@ -11,23 +11,21 @@ def _ensure_bulletin_exists(user_context):
     log_dir_path = "/var/log"
     if not fs_manager.get_node(log_dir_path):
         try:
-            # Create /var if it doesn't exist, then /var/log
             if not fs_manager.get_node("/var"):
                 fs_manager.create_directory("/var", {"name": "root", "group": "root"})
             fs_manager.create_directory(log_dir_path, {"name": "root", "group": "root"})
         except Exception:
-            return False # Failed to create parent dirs
+            return False
 
     if not fs_manager.get_node(BULLETIN_PATH):
         try:
             initial_content = "# OopisOS Town Bulletin\n"
             fs_manager.write_file(BULLETIN_PATH, initial_content, user_context)
-            # Set permissions after creation
             fs_manager.chown(BULLETIN_PATH, "root")
             fs_manager.chgrp(BULLETIN_PATH, "towncrier")
             fs_manager.chmod(BULLETIN_PATH, "0o666")
         except Exception:
-            return False # Failed to create bulletin file
+            return False
     return True
 
 def run(args, flags, user_context, **kwargs):
@@ -49,7 +47,6 @@ def run(args, flags, user_context, **kwargs):
         message = " ".join(args[1:])
         timestamp = datetime.utcnow().isoformat() + "Z"
 
-        # The user_groups are passed from the kernel's context
         user_groups = kwargs.get('user_groups', {}).get(user_context.get('name', ''), [])
         is_town_crier = 'towncrier' in user_groups or 'root' in user_groups
         post_header = "Official Announcement" if is_town_crier else "Message"
@@ -103,3 +100,7 @@ SUB-COMMANDS:
     list               Displays all messages on the board.
     clear              Clears all messages from the board (root only).
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the bulletin command."""
+    return "Usage: bulletin <post|list|clear> [options]"
