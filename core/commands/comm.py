@@ -10,19 +10,19 @@ def define_flags():
         {'name': 'suppress-col3', 'short': '3', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, **kwargs):
     if len(args) != 2:
-        return "comm: missing operand. Usage: comm FILE1 FILE2"
+        return {"success": False, "error": "comm: missing operand. Usage: comm FILE1 FILE2"}
 
     file1_path, file2_path = args
 
     node1 = fs_manager.get_node(file1_path)
     if not node1:
-        return f"comm: {file1_path}: No such file or directory"
+        return {"success": False, "error": f"comm: {file1_path}: No such file or directory"}
 
     node2 = fs_manager.get_node(file2_path)
     if not node2:
-        return f"comm: {file2_path}: No such file or directory"
+        return {"success": False, "error": f"comm: {file2_path}: No such file or directory"}
 
     lines1 = node1.get('content', '').splitlines()
     lines2 = node2.get('content', '').splitlines()
@@ -31,7 +31,6 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     suppress_col2 = flags.get('suppress-col2', False)
     suppress_col3 = flags.get('suppress-col3', False)
 
-    # Pre-calculate prefixes for performance
     col2_prefix = "" if suppress_col1 else "\t"
     col3_prefix = "\t\t"
     if suppress_col1 and suppress_col2:
@@ -56,7 +55,6 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
             i += 1
             j += 1
 
-    # Append remaining lines from either file
     while i < len(lines1):
         if not suppress_col1:
             output_lines.append(lines1[i])
@@ -69,7 +67,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     return "\n".join(output_lines)
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     comm - compare two sorted files line by line
@@ -89,5 +87,6 @@ DESCRIPTION
     -3     suppress column 3 (lines that appear in both files)
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the comm command."""
     return "Usage: comm [OPTION]... FILE1 FILE2"

@@ -28,7 +28,6 @@ def run(args, flags, user_context, **kwargs):
     members = [m.strip() for m in members_str.split(',')]
     project_path = f"/home/project_{committee_name}"
 
-    # --- Pre-flight checks ---
     for member in members:
         if not user_manager.user_exists(member):
             return {"success": False, "error": f"committee: user '{member}' does not exist."}
@@ -39,25 +38,16 @@ def run(args, flags, user_context, **kwargs):
     if fs_manager.get_node(project_path):
         return {"success": False, "error": f"committee: directory '{project_path}' already exists."}
 
-    # --- Execution ---
     try:
-        # 1. Create the group
         group_manager.create_group(committee_name)
-
-        # 2. Add members to the group
         for member in members:
             group_manager.add_user_to_group(member, committee_name)
 
-        # 3. Create the project directory
-        # The user context for directory creation should be root
         fs_manager.create_directory(project_path, {"name": "root", "group": "root"})
-
-        # 4. Change group ownership and permissions of the new directory
         fs_manager.chgrp(project_path, committee_name)
         fs_manager.chmod(project_path, "0o770") # rwxrwx---
 
     except Exception as e:
-        # Rollback on failure
         group_manager.delete_group(committee_name)
         if fs_manager.get_node(project_path):
             fs_manager.remove(project_path, recursive=True)
@@ -89,3 +79,7 @@ DESCRIPTION
     and the assignment of appropriate permissions for collaborative work.
     This command can only be run by the root user.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the committee command."""
+    return "Usage: committee --create <name> --members <user1>,<user2>..."

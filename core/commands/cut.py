@@ -2,6 +2,14 @@
 
 from filesystem import fs_manager
 
+def define_flags():
+    """Declares the flags that the cut command accepts."""
+    return [
+        {'name': 'characters', 'short': 'c', 'takes_value': True},
+        {'name': 'fields', 'short': 'f', 'takes_value': True},
+        {'name': 'delimiter', 'short': 'd', 'takes_value': True},
+    ]
+
 def _parse_range(list_str):
     """Parses a comma-separated list of numbers and ranges into a sorted list of zero-based indices."""
     indices = set()
@@ -18,48 +26,47 @@ def _parse_range(list_str):
                 if num > 0:
                     indices.add(num - 1)
     except ValueError:
-        return None # Indicates a parsing error
+        return None
     return sorted(list(indices))
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
-    if not flags.get('-f') and not flags.get('-c'):
-        return "cut: you must specify a list of bytes, characters, or fields"
+def run(args, flags, user_context, stdin_data=None, **kwargs):
+    field_list_str = flags.get('fields')
+    char_list_str = flags.get('characters')
 
-    if flags.get('-f') and flags.get('-c'):
-        return "cut: only one type of list may be specified"
+    if not field_list_str and not char_list_str:
+        return {"success": False, "error": "cut: you must specify a list of bytes, characters, or fields"}
+    if field_list_str and char_list_str:
+        return {"success": False, "error": "cut: only one type of list may be specified"}
 
     lines = []
     if stdin_data is not None:
         lines.extend(stdin_data.splitlines())
-    elif len(args) > 1: # The program is the first arg for cut.js, here it's part of flags
+    elif args:
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return f"cut: {path}: No such file or directory"
+                return {"success": False, "error": f"cut: {path}: No such file or directory"}
             if node.get('type') != 'file':
-                return f"cut: {path}: Is a directory"
+                return {"success": False, "error": f"cut: {path}: Is a directory"}
             lines.extend(node.get('content', '').splitlines())
-    else:
-        # If no stdin and no file, but flags are present, it should process empty input
-        pass
 
     output_lines = []
 
-    if '-f' in flags:
-        field_list = _parse_range(flags['-f'])
+    if field_list_str:
+        field_list = _parse_range(field_list_str)
         if field_list is None:
-            return "cut: invalid field value"
-        delimiter = flags.get('-d', '\t')
+            return {"success": False, "error": "cut: invalid field value"}
+        delimiter = flags.get('delimiter', '\t')
 
         for line in lines:
             fields = line.split(delimiter)
             selected_fields = [fields[i] for i in field_list if i < len(fields)]
             output_lines.append(delimiter.join(selected_fields))
 
-    elif '-c' in flags:
-        char_list = _parse_range(flags['-c'])
+    elif char_list_str:
+        char_list = _parse_range(char_list_str)
         if char_list is None:
-            return "cut: invalid character value"
+            return {"success": False, "error": "cut: invalid character value"}
 
         for line in lines:
             new_line = "".join([line[i] for i in char_list if i < len(line)])
@@ -68,7 +75,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     return "\n".join(output_lines)
 
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     cut - remove sections from each line of files
@@ -87,5 +94,5 @@ DESCRIPTION
           select only these fields
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: cut -c LIST [FILE]... or cut -f LIST [-d DELIM] [FILE]..."

@@ -2,27 +2,26 @@
 
 import time
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def run(args, flags, user_context, **kwargs):
     if len(args) != 1:
-        return "delay: Invalid number of arguments. Usage: delay <milliseconds>"
+        return {"success": False, "error": "delay: Invalid number of arguments. Usage: delay <milliseconds>"}
 
     try:
         milliseconds = int(args[0])
         if milliseconds < 0:
-            return "delay: Invalid delay time. Must be a non-negative integer."
+            return {"success": False, "error": "delay: Invalid delay time. Must be a non-negative integer."}
 
-        # Return an effect to be handled by the JS CommandExecutor
         return {
             "effect": "delay",
             "milliseconds": milliseconds
         }
 
     except ValueError:
-        return f"delay: Invalid delay time '{args[0]}'. Must be an integer."
+        return {"success": False, "error": f"delay: Invalid delay time '{args[0]}'. Must be an integer."}
     except Exception as e:
-        return f"delay: An unexpected error occurred: {repr(e)}"
+        return {"success": False, "error": f"delay: An unexpected error occurred: {repr(e)}"}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     delay - pause script or command execution for a specified time
@@ -36,5 +35,6 @@ DESCRIPTION
     to create timed sequences or demonstrations.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the delay command."""
     return "Usage: delay <milliseconds>"
