@@ -9,31 +9,31 @@ def define_flags():
         {'name': 'recursive', 'short': 'R', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None):
+def run(args, flags, user_context, stdin_data=None, users=None, **kwargs):
     if len(args) < 2:
-        return "chown: missing operand. Usage: chown [-R] <owner> <path>..."
+        return {"success": False, "error": "chown: missing operand. Usage: chown [-R] <owner> <path>..."}
 
     if user_context.get('name') != 'root':
-        return "chown: you must be root to change ownership."
+        return {"success": False, "error": "chown: you must be root to change ownership."}
 
     new_owner = args[0]
     paths = args[1:]
     is_recursive = flags.get('recursive', False)
 
-    if new_owner not in users:
-        return f"chown: invalid user: '{new_owner}'"
+    if users and new_owner not in users:
+        return {"success": False, "error": f"chown: invalid user: '{new_owner}'"}
 
     for path in paths:
         try:
             fs_manager.chown(path, new_owner, recursive=is_recursive)
         except FileNotFoundError:
-            return f"chown: cannot access '{path}': No such file or directory"
+            return {"success": False, "error": f"chown: cannot access '{path}': No such file or directory"}
         except Exception as e:
-            return f"chown: an unexpected error occurred on '{path}': {repr(e)}"
+            return {"success": False, "error": f"chown: an unexpected error occurred on '{path}': {repr(e)}"}
 
     return "" # Success
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     chown - change file owner
@@ -48,5 +48,5 @@ DESCRIPTION
           operate on files and directories recursively
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: chown [-R] <owner> <path>..."

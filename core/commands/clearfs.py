@@ -14,6 +14,9 @@ def run(args, flags, user_context, **kwargs):
     Clears all files and directories from the current user's home directory
     after a confirmation prompt.
     """
+    if args:
+        return {"success": False, "error": "clearfs: command takes no arguments"}
+
     if flags.get('confirmed', False):
         return _perform_clear(user_context)
 
@@ -58,5 +61,10 @@ SYNOPSIS
 
 DESCRIPTION
     Removes all files and subdirectories within the current user's home
-    directory, resetting it to a clean slate. This is irreversible.
+    directory, resetting it to a clean slate. This is irreversible and
+    requires confirmation.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the clearfs command."""
+    return "Usage: clearfs"

@@ -31,7 +31,6 @@ def run(args, flags, user_context, stdin_data=None):
             content = node.get('content', '')
             output_lines.append(process_content(content, path))
     else:
-        # Mimics behavior of `cksum` with no input file and no stdin
         output_lines.append(process_content(""))
 
     return "\n".join(output_lines)
@@ -49,9 +48,10 @@ DESCRIPTION
     for each input file. The line consists of the CRC checksum of the file,
     the number of bytes in the file, and the name of the file.
 
-    If no file is specified, or if the file is -, cksum reads from
-    standard input, and no filename is printed in the output.
+    If no file is specified, cksum reads from standard input, and no
+    filename is printed in the output.
 """
 
 def help(args, flags, user_context, stdin_data=None):
+    """Provides help information for the cksum command."""
     return "Usage: cksum [FILE]..."
