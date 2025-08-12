@@ -12,6 +12,9 @@ def run(args, flags, user_context, **kwargs):
     """
     Handles displaying and clearing the command history.
     """
+    if args:
+        return {"success": False, "error": "history: command takes no arguments"}
+
     if flags.get('clear', False):
         history_manager.clear_history()
         return "" # Successful clear has no output
@@ -24,7 +27,7 @@ def run(args, flags, user_context, **kwargs):
     for i, cmd in enumerate(history):
         output.append(f"  {str(i + 1).rjust(4)}  {cmd}")
 
-    return "\n".join(output)
+    return "\\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -39,3 +42,7 @@ DESCRIPTION
 
     -c, --clear     clear the history list by deleting all entries.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the history command."""
+    return "Usage: history [-c]"

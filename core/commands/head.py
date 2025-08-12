@@ -11,16 +11,16 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None):
     lines = []
-
+    # Logic to handle both piped data and file arguments
     if stdin_data is not None:
         lines.extend(stdin_data.splitlines())
     elif args:
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return f"head: {path}: No such file or directory"
+                return {"success": False, "error": f"head: {path}: No such file or directory"}
             if node.get('type') != 'file':
-                return f"head: error reading '{path}': Is a directory"
+                return {"success": False, "error": f"head: error reading '{path}': Is a directory"}
             lines.extend(node.get('content', '').splitlines())
     else:
         return "" # No input, no output
@@ -32,10 +32,10 @@ def run(args, flags, user_context, stdin_data=None):
         try:
             byte_count = int(byte_count_str)
             if byte_count < 0: raise ValueError
-            full_content = "\n".join(lines)
+            full_content = "\\n".join(lines)
             return full_content[:byte_count]
         except (ValueError, TypeError):
-            return f"head: invalid number of bytes: '{byte_count_str}'"
+            return {"success": False, "error": f"head: invalid number of bytes: '{byte_count_str}'"}
     else:
         line_count = 10
         if line_count_str is not None:
@@ -43,8 +43,8 @@ def run(args, flags, user_context, stdin_data=None):
                 line_count = int(line_count_str)
                 if line_count < 0: raise ValueError
             except (ValueError, TypeError):
-                return f"head: invalid number of lines: '{line_count_str}'"
-        return "\n".join(lines[:line_count])
+                return {"success": False, "error": f"head: invalid number of lines: '{line_count_str}'"}
+        return "\\n".join(lines[:line_count])
 
 
 def man(args, flags, user_context, stdin_data=None):
@@ -64,3 +64,7 @@ DESCRIPTION
     -c, --bytes=COUNT
           print the first COUNT bytes
 """
+
+def help(args, flags, user_context, stdin_data=None):
+    """Provides help information for the head command."""
+    return "Usage: head [-n COUNT] [-c BYTES] [FILE]..."

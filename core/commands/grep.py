@@ -69,7 +69,7 @@ def _search_directory(directory_path, pattern, flags, user_context, output_lines
 
 def run(args, flags, user_context, stdin_data=None):
     if not args and stdin_data is None:
-        return "grep: (pattern) regular expression is required"
+        return {"success": False, "error": "grep: (pattern) regular expression is required"}
 
     pattern_str = args[0]
     file_paths = args[1:]
@@ -78,17 +78,15 @@ def run(args, flags, user_context, stdin_data=None):
         re_flags = re.IGNORECASE if flags.get('ignore-case', False) else 0
         pattern = re.compile(pattern_str, re_flags)
     except re.error as e:
-        return f"grep: invalid regular expression: {e}"
+        return {"success": False, "error": f"grep: invalid regular expression: {e}"}
 
     output_lines = []
 
     if stdin_data is not None:
-        # Piped input mode
         output_lines.extend(_process_content(stdin_data, pattern, flags, "(stdin)", False))
     elif not file_paths:
-        return "grep: requires file paths to search when not used with a pipe."
+        return {"success": False, "error": "grep: requires file paths to search when not used with a pipe."}
     else:
-        # File input mode
         is_recursive = flags.get('recursive', False)
         display_file_names = len(file_paths) > 1 or is_recursive
 
@@ -103,13 +101,13 @@ def run(args, flags, user_context, stdin_data=None):
                     _search_directory(path, pattern, flags, user_context, output_lines)
                 else:
                     output_lines.append(f"grep: {path}: is a directory")
-            else: # It's a file
+            else:
                 content = node.get('content', '')
                 output_lines.extend(_process_content(content, pattern, flags, path, display_file_names))
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
-def man(args, flags, user_context):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     grep - print lines that match patterns
@@ -132,5 +130,5 @@ DESCRIPTION
           Read all files under each directory, recursively.
 """
 
-def help(args, flags, user_context):
+def help(args, flags, user_context, **kwargs):
     return "Usage: grep [OPTION]... PATTERN [FILE]..."
