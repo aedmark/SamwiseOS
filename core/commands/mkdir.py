@@ -8,7 +8,7 @@ def define_flags():
         {'name': 'parents', 'short': 'p', 'long': 'parents', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, stdin_data=None):
+def run(args, flags, user_context, **kwargs):
     """
     Creates new directories.
     """
@@ -30,7 +30,7 @@ def run(args, flags, user_context, stdin_data=None):
 
     return "" # Success
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     """
     Displays the manual page for the mkdir command.
     """
@@ -48,7 +48,7 @@ DESCRIPTION
           no error if existing, make parent directories as needed
 """
 
-def help(args, flags, user_context, stdin_data=None):
+def help(args, flags, user_context, **kwargs):
     """
     Provides help information for the mkdir command.
     """

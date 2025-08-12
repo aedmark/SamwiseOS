@@ -23,59 +23,46 @@ def _derive_key(password: bytes, salt: bytes) -> bytes:
     )
     return base64.urlsafe_b64encode(kdf.derive(password))
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def run(args, flags, user_context, **kwargs):
     if len(args) < 2:
-        return "ocrypt: missing operands. Usage: ocrypt [-d] <password> <input_file> [output_file]"
+        return {"success": False, "error": "ocrypt: missing operands. Usage: ocrypt [-d] <password> <input_file> [output_file]"}
 
     is_decrypt = flags.get('decrypt', False)
-
-    password = args[0]
-    input_file_path = args[1]
+    password, input_file_path = args[0], args[1]
     output_file_path = args[2] if len(args) > 2 else None
 
     input_node = fs_manager.get_node(input_file_path)
     if not input_node:
-        return f"ocrypt: {input_file_path}: No such file or directory"
+        return {"success": False, "error": f"ocrypt: {input_file_path}: No such file or directory"}
 
     input_content = input_node.get('content', '')
+    password_bytes = password.encode('utf-8')
 
     try:
-        password_bytes = password.encode('utf-8')
-
         if is_decrypt:
-            # When decrypting, we expect the format to be salt + encrypted_data
-            try:
-                decoded_data = base64.b64decode(input_content)
-                salt = decoded_data[:16]
-                encrypted_data = decoded_data[16:]
-                key = _derive_key(password_bytes, salt)
-                f = Fernet(key)
-                decrypted_data = f.decrypt(encrypted_data)
-                output_content = decrypted_data.decode('utf-8')
-            except Exception:
-                return "ocrypt: decryption failed. Incorrect password or corrupt data."
+            decoded_data = base64.b64decode(input_content)
+            salt, encrypted_data = decoded_data[:16], decoded_data[16:]
+            key = _derive_key(password_bytes, salt)
+            f = Fernet(key)
+            decrypted_data = f.decrypt(encrypted_data)
+            output_content = decrypted_data.decode('utf-8')
         else: # Encrypt
             salt = os.urandom(16)
             key = _derive_key(password_bytes, salt)
             f = Fernet(key)
             encrypted_data = f.encrypt(input_content.encode('utf-8'))
-            # Prepend the salt to the data so we can retrieve it for decryption
             output_content = base64.b64encode(salt + encrypted_data).decode('utf-8')
 
         if output_file_path:
-            # Use the binary file write effect for the encrypted/decrypted content
-            return {
-                "effect": "write_binary_file",
-                "path": output_file_path,
-                "b64_content": base64.b64encode(output_content.encode('utf-8')).decode('utf-8')
-            }
+            fs_manager.write_file(output_file_path, output_content, user_context)
+            return "" # Success, no output to stdout
         else:
             return output_content
 
-    except Exception as e:
-        return f"ocrypt: an unexpected error occurred: {repr(e)}"
+    except Exception:
+        return {"success": False, "error": "ocrypt: decryption failed. Incorrect password or corrupt data."}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     ocrypt - securely encrypt and decrypt files
@@ -91,5 +78,5 @@ DESCRIPTION
           Decrypt the input file.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: ocrypt [-d] <password> <input_file> [output_file]"

@@ -15,7 +15,6 @@ def run(args, flags, user_context, **kwargs):
         man_func = getattr(command_module, 'man', None)
 
         if man_func and callable(man_func):
-            # We pass through the kwargs in case the man page function ever needs them.
             return man_func(args, flags, user_context, **kwargs)
         else:
             return {"success": False, "error": f"man: no manual entry for {cmd_name}"}

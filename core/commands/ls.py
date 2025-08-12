@@ -2,7 +2,6 @@
 
 from filesystem import fs_manager
 from datetime import datetime
-import json
 import os
 
 def define_flags():
@@ -19,16 +18,10 @@ def define_flags():
     ]
 
 def _format_long(path, name, node):
-    """Formats a single line for the long listing format with full permission parsing."""
+    """Formats a single line for the long listing format."""
     mode = node.get('mode', 0)
-    type_char = "-"
-    if node.get('type') == 'directory': type_char = "d"
-    elif node.get('type') == 'symlink': type_char = "l"
-
-    owner_perms = f"{'r' if (mode >> 8) & 1 else '-'}{'w' if (mode >> 7) & 1 else '-'}{'x' if (mode >> 6) & 1 else '-'}"
-    group_perms = f"{'r' if (mode >> 5) & 1 else '-'}{'w' if (mode >> 4) & 1 else '-'}{'x' if (mode >> 3) & 1 else '-'}"
-    other_perms = f"{'r' if (mode >> 2) & 1 else '-'}{'w' if (mode >> 1) & 1 else '-'}{'x' if (mode >> 0) & 1 else '-'}"
-    perms = type_char + owner_perms + group_perms + other_perms
+    type_char = {"directory": "d", "file": "-", "symlink": "l"}.get(node.get('type'), '-')
+    perms = f"{type_char}{''.join(['r' if (mode >> i) & 1 else '-' for i in range(8, -1, -1)])}"
 
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
@@ -51,17 +44,15 @@ def _get_sort_key(flags, path):
     if flags.get('sort-extension'): return lambda name: (get_ext(name), name)
     return lambda name: name.lower()
 
-def _list_directory(path, flags, user_context, output, is_recursive_call=False):
+def _list_directory(path, flags, output):
     """Helper to list a single directory's contents."""
     node = fs_manager.get_node(path)
     if not node or node.get('type') != 'directory':
-        if not is_recursive_call: output.append(f"ls: cannot access '{path}': No such file or directory or not a directory")
         return
 
-    if is_recursive_call or (len(output) > 0 and output[-1]): output.append(f"\\n{path}:")
-
     children_names = sorted(node.get('children', {}).keys())
-    if not flags.get('all'): children_names = [name for name in children_names if not name.startswith('.')]
+    if not flags.get('all'):
+        children_names = [name for name in children_names if not name.startswith('.')]
 
     sort_key_func = _get_sort_key(flags, path)
     sorted_children = sorted(children_names, key=sort_key_func, reverse=flags.get('reverse', False))
@@ -72,24 +63,15 @@ def _list_directory(path, flags, user_context, output, is_recursive_call=False):
     else:
         output.append("  ".join(sorted_children))
 
-    if flags.get('recursive'):
-        for name in sorted_children:
-            child_path = os.path.join(path, name)
-            child_node = fs_manager.get_node(child_path)
-            if child_node and child_node.get('type') == 'directory':
-                _list_directory(child_path, flags, user_context, output, True)
-
 def run(args, flags, user_context, **kwargs):
     paths = args if args else ["."]
-    output, file_args, dir_args = [], [], []
-    error_occurred = False
+    output, file_args, dir_args, error_lines = [], [], [], []
 
     for path in paths:
         target_path = fs_manager.get_absolute_path(path)
         node = fs_manager.get_node(target_path, resolve_symlink=not flags.get('long'))
         if not node:
-            output.append(f"ls: cannot access '{path}': No such file or directory")
-            error_occurred = True
+            error_lines.append(f"ls: cannot access '{path}': No such file or directory")
             continue
         if node.get('type') != 'directory' or flags.get('directory'):
             file_args.append((path, target_path, node))
@@ -111,11 +93,12 @@ def run(args, flags, user_context, **kwargs):
             if len(paths) > 1:
                 if i > 0 or file_args: output.append("")
                 output.append(f"{path}:")
-            _list_directory(target_path, flags, user_context, output, is_recursive_call=False)
+            _list_directory(target_path, flags, output)
 
-    if error_occurred:
-        return {"success": False, "error": "\\n".join(output)}
-    return "\\n".join(output)
+    final_output = error_lines + output
+    if error_lines:
+        return {"success": False, "error": "\\n".join(final_output)}
+    return "\\n".join(final_output)
 
 def man(args, flags, user_context, **kwargs):
     return """
