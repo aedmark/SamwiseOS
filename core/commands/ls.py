@@ -154,12 +154,11 @@ def run(args, flags, user_context, **kwargs):
             recursive_lister(path, target_path, node)
 
     # 4. Finalize output and return status.
-    # Use '\\n' for newlines to be correctly interpreted by the JS terminal.
-    final_output_str = "\\n".join(output)
-    final_error_str = "\\n".join(error_lines)
+    final_output_str = "\n".join(output)
+    final_error_str = "\n".join(error_lines)
 
     if error_lines:
-        full_message = f"{final_error_str}\\n{final_output_str}".strip()
+        full_message = f"{final_error_str}\n{final_output_str}".strip()
         return {"success": False, "error": full_message}
 
     return final_output_str

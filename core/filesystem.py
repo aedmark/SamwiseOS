@@ -437,59 +437,72 @@ class FileSystemManager:
         return 0
 
     def validate_path(self, path, user_context, options_json):
+        """
+        A robust path validator that checks for existence, type, and permissions
+        for both the final node and all parent directories in the path.
+        """
         options = json.loads(options_json)
         expected_type = options.get('expectedType')
         permissions_to_check = options.get('permissions', [])
         allow_missing = options.get('allowMissing', False)
 
         abs_path = self.get_absolute_path(path)
+        parts = [part for part in abs_path.split('/') if part]
 
-        # --- NEW SECURE TRAVERSAL LOGIC ---
-        if abs_path != '/':
-            parts = [part for part in abs_path.split('/') if part]
-            current_path_for_traversal = '/'
-            current_node = self.fs_data.get('/')
+        # Start traversal from the root directory
+        current_node_for_traversal = self.fs_data.get('/')
+        current_path_for_traversal = '/'
 
-            # Check execute permission on all parent directories of the final target
-            for part in parts[:-1]:
-                if not self._check_permission(current_node, user_context, 'execute'):
-                    return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
-
-                if 'children' not in current_node or part not in current_node['children']:
-                    return {"success": False, "error": f"No such file or directory"}
-
-                current_node = current_node['children'][part]
-                current_path_for_traversal = os.path.join(current_path_for_traversal, part)
-
-                if current_node.get('type') != 'directory':
-                    return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
-
-            # After the loop, current_node is the parent of the final target.
-            # We must check execute permission on it as well to access the target.
-            if not self._check_permission(current_node, user_context, 'execute'):
+        # Check traversal permissions on all parent directories of the target
+        for part in parts[:-1]:
+            if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
                 return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
 
-        # --- ORIGINAL LOGIC (Now applied only to the final node) ---
-        node = self.get_node(abs_path)
+            # Descend to the next part of the path
+            if 'children' not in current_node_for_traversal or part not in current_node_for_traversal['children']:
+                return {"success": False, "error": "No such file or directory"}
+            current_node_for_traversal = current_node_for_traversal['children'][part]
+            current_path_for_traversal = os.path.join(current_path_for_traversal, part)
 
-        if not node:
+            if current_node_for_traversal.get('type') != 'directory':
+                return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
+
+        # After the loop, `current_node_for_traversal` is the immediate parent of the target.
+        # Now we can check the final target node.
+        final_name = parts[-1] if parts else None
+        final_node = None
+
+        if final_name:
+            # We need 'execute' permission on the PARENT to access children.
+            if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
+                return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
+            final_node = current_node_for_traversal.get('children', {}).get(final_name)
+        elif abs_path == '/':
+            final_node = self.fs_data.get('/')
+        else: # Should only happen for paths like '/home/'
+            final_node = current_node_for_traversal
+
+        # --- Validation logic for the FINAL node ---
+        if not final_node:
             if allow_missing:
-                # We already checked traversal permissions above, so this is safe.
-                parent_path = os.path.dirname(abs_path)
-                parent_node = self.get_node(parent_path)
-                if not parent_node or not self._check_permission(parent_node, user_context, 'write'):
-                    return {"success": False, "error": f"Permission denied to create in '{parent_path}'"}
+                # We already checked 'execute' on the parent, now check 'write'
+                if not self._check_permission(current_node_for_traversal, user_context, 'write'):
+                    return {"success": False, "error": f"Permission denied to create in '{current_path_for_traversal}'"}
                 return {"success": True, "node": None, "resolvedPath": abs_path}
             return {"success": False, "error": "No such file or directory"}
 
-        if expected_type and node.get('type') != expected_type:
+        if expected_type and final_node.get('type') != expected_type:
+            # Special case for directories, e.g., 'cd /path/to/file'
+            if expected_type == 'directory' and final_node.get('type') == 'file':
+                return {"success": False, "error": "Not a directory"}
             return {"success": False, "error": f"Is not a {expected_type}"}
 
+        # Check the final set of permissions on the target node itself
         for perm in permissions_to_check:
-            if not self._check_permission(node, user_context, perm):
+            if not self._check_permission(final_node, user_context, perm):
                 return {"success": False, "error": "Permission denied"}
 
-        return {"success": True, "node": node, "resolvedPath": abs_path}
+        return {"success": True, "node": final_node, "resolvedPath": abs_path}
 
 
 fs_manager = FileSystemManager()
