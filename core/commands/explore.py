@@ -6,15 +6,15 @@ def run(args, flags, user_context, **kwargs):
     """
     Validates an optional path and returns an effect to launch the Explorer UI.
     """
+    if len(args) > 1:
+        return {"success": False, "error": "explore: too many arguments"}
+
     start_path_arg = args[0] if args else None
     resolved_path = None
 
     if start_path_arg:
-        # We'll just resolve the path here. The Explorer app itself
-        # handles the detailed validation and error display.
         resolved_path = fs_manager.get_absolute_path(start_path_arg)
 
-    # This effect launches the existing JavaScript-based Explorer UI
     return {
         "effect": "launch_app",
         "app_name": "Explorer",
@@ -35,3 +35,7 @@ DESCRIPTION
     Launches the graphical file explorer application. If an optional [path]
     is provided, the explorer will attempt to start at that location.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the explore command."""
+    return "Usage: explore [path]"
