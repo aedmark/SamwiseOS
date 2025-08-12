@@ -26,7 +26,6 @@ def run(args, flags, user_context, **kwargs):
                 return {"success": False, "error": f"basic: cannot open '{file_path_arg}': Permission denied"}
             file_content = node.get('content', '')
         else:
-            # If the file is missing, the manager expects empty content, not null.
             file_content = ""
 
     return {
@@ -50,3 +49,7 @@ DESCRIPTION
     Launches a full-screen IDE for Oopis Basic. If a filename is
     provided, that file will be loaded into the editor buffer.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the basic command."""
+    return "Usage: basic [filename.bas]"

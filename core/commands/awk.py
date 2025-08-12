@@ -3,14 +3,20 @@
 import re
 from filesystem import fs_manager
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def define_flags():
+    """Declares the flags that the awk command accepts."""
+    return [
+        {'name': 'field-separator', 'short': 'F', 'takes_value': True},
+    ]
+
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not args:
-        return "awk: missing program"
+        return {"success": False, "error": "awk: missing program"}
 
     program = args[0]
     file_path = args[1] if len(args) > 1 else None
 
-    delimiter = flags.get('-F')
+    delimiter = flags.get('field-separator')
 
     lines = []
     if stdin_data is not None:
@@ -18,25 +24,23 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     elif file_path:
         node = fs_manager.get_node(file_path)
         if not node:
-            return f"awk: {file_path}: No such file or directory"
+            return {"success": False, "error": f"awk: {file_path}: No such file or directory"}
+        if node.get('type') != 'file':
+            return {"success": False, "error": f"awk: {file_path}: Is a directory"}
         lines = node.get('content', '').splitlines()
     else:
-        return "" # Awaiting stdin
+        return "" # Awaiting stdin, success with no output
 
     output_lines = []
 
-    # This is a simplified parser for '{ print $N }' or simple regex matches
     action_match = re.match(r'{\s*print\s*(\$(\d+)|(\$0))\s*}', program)
     regex_match = re.match(r'/(.*)/', program)
 
     for line in lines:
         fields = line.split(delimiter) if delimiter else line.split()
-
-        # Prepend the full line as $0
         fields.insert(0, line)
 
         if action_match:
-            # Handle '{ print $N }'
             field_index_str = action_match.group(2)
             if field_index_str:
                 field_index = int(field_index_str)
@@ -44,21 +48,19 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
                     output_lines.append(fields[field_index])
             else: # $0
                 output_lines.append(fields[0])
-
         elif regex_match:
-            # Handle '/pattern/'
             pattern = regex_match.group(1)
             try:
                 if re.search(pattern, line):
                     output_lines.append(line)
             except re.error:
-                return f"awk: invalid regex: {pattern}"
+                return {"success": False, "error": f"awk: invalid regex: {pattern}"}
         else:
-            return f"awk: syntax error in program: {program}"
+            return {"success": False, "error": f"awk: syntax error in program: {program}"}
 
     return "\n".join(output_lines)
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     awk - pattern scanning and processing language
@@ -76,5 +78,5 @@ DESCRIPTION
     A simple program is '/regexp/' or '{ print $N }'
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: awk [-F fs] 'program' [file ...]"

@@ -3,7 +3,7 @@ import json
 import zlib
 from datetime import datetime
 from filesystem import fs_manager
-from session import session_manager # Assuming session_manager can give us all session data
+from session import session_manager
 from users import user_manager
 from groups import group_manager
 
@@ -11,28 +11,29 @@ def run(args, flags, user_context, **kwargs):
     """
     Gathers all system state and returns an effect to trigger a backup download.
     """
+    if args:
+        return {"success": False, "error": "backup: command takes no arguments"}
+
     try:
         # 1. Gather all data from Python managers
         fs_data_str = fs_manager.save_state_to_json()
         fs_data = json.loads(fs_data_str)
 
-        # These functions return native Python dicts, no conversion needed.
         all_users = user_manager.get_all_users()
         all_groups = group_manager.get_all_groups()
 
-        # This assumes the session_manager can provide all session data needed
         session_state_str = session_manager.get_session_state_for_saving()
         session_data = json.loads(session_state_str)
 
         # 2. Assemble the data package
         data_to_backup = {
             "dataType": "SamwiseOS_System_State_Backup_v5.0_Python",
-            "osVersion": "0.1", # This could be fetched from a config object later
+            "osVersion": "0.1",
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "fsDataSnapshot": fs_data,
             "userCredentials": all_users,
             "userGroups": all_groups,
-            "sessionState": session_data # Includes aliases, history, etc.
+            "sessionState": session_data
         }
 
         # 3. Create a checksum for data integrity
@@ -74,3 +75,7 @@ DESCRIPTION
     including the filesystem, users, groups, and session data. The backup
     includes a checksum for integrity verification.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the backup command."""
+    return "Usage: backup"

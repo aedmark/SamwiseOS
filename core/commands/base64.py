@@ -18,9 +18,9 @@ def run(args, flags, user_context, stdin_data=None):
         path = args[0]
         node = fs_manager.get_node(path)
         if not node:
-            return f"base64: {path}: No such file or directory"
+            return {"success": False, "error": f"base64: {path}: No such file or directory"}
         if node.get('type') != 'file':
-            return f"base64: {path}: Is a directory"
+            return {"success": False, "error": f"base64: {path}: Is a directory"}
         input_data = node.get('content', '')
     else:
         return "" # No input, no output
@@ -29,22 +29,18 @@ def run(args, flags, user_context, stdin_data=None):
 
     try:
         if is_decode:
-            # The input from JS is a string, but b64decode expects bytes.
-            # We must handle potential padding errors.
             input_bytes = input_data.encode('utf-8')
-            # Add padding if it's missing.
             missing_padding = len(input_bytes) % 4
             if missing_padding:
                 input_bytes += b'=' * (4 - missing_padding)
             decoded_bytes = base64.b64decode(input_bytes)
             return decoded_bytes.decode('utf-8')
         else:
-            # b64encode also works on bytes.
             input_bytes = input_data.encode('utf-8')
             encoded_bytes = base64.b64encode(input_bytes)
             return encoded_bytes.decode('utf-8')
     except Exception as e:
-        return f"base64: invalid input"
+        return {"success": False, "error": "base64: invalid input"}
 
 def man(args, flags, user_context, stdin_data=None):
     return """

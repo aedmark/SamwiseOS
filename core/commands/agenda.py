@@ -106,3 +106,7 @@ SUB-COMMANDS:
     list                 - Lists all scheduled commands.
     remove <id>          - Removes a scheduled command by its ID. (Requires root)
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the agenda command."""
+    return "Usage: agenda <add|list|remove> [options]"
