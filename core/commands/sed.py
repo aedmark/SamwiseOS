@@ -5,21 +5,18 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the sed command accepts."""
-    return [
-        {'name': 'field-separator', 'short': 'F', 'long': 'field-separator', 'takes_value': True},
-    ]
+    return []
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not args:
-        return "sed: missing expression"
+        return {"success": False, "error": "sed: missing expression"}
 
     expression = args[0]
     file_path = args[1] if len(args) > 1 else None
 
-    # Simple substitution parser: s/pattern/replacement/flags
     match = re.match(r's/(.*?)/(.*?)/([g]*)', expression)
     if not match:
-        return f"sed: unknown command: {expression}"
+        return {"success": False, "error": f"sed: unknown command: {expression}"}
 
     pattern, replacement, s_flags = match.groups()
 
@@ -29,27 +26,26 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     elif file_path:
         node = fs_manager.get_node(file_path)
         if not node:
-            return f"sed: {file_path}: No such file or directory"
+            return {"success": False, "error": f"sed: {file_path}: No such file or directory"}
         if node.get('type') != 'file':
-            return f"sed: {file_path}: Is a directory"
+            return {"success": False, "error": f"sed: {file_path}: Is a directory"}
         lines = node.get('content', '').splitlines()
     else:
-        # sed waits for stdin if no file is provided
         return ""
 
     output_lines = []
-    count = 1 if 'g' not in s_flags else 0
+    count = 0 if 'g' in s_flags else 1
 
     for line in lines:
         try:
             new_line = re.sub(pattern, replacement, line, count=count)
             output_lines.append(new_line)
         except re.error as e:
-            return f"sed: regex error: {e}"
+            return {"success": False, "error": f"sed: regex error: {e}"}
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     sed - stream editor for filtering and transforming text
@@ -60,12 +56,10 @@ SYNOPSIS
 DESCRIPTION
     sed is a stream editor. A stream editor is used to perform basic
     text transformations on an input stream (a file or input from a
-    pipeline). While in some ways similar to an editor which permits
-    scripted edits (such as ed), sed works by making only one pass over
-    the input(s), and is consequently more efficient.
+    pipeline).
 
     Currently supports simple substitution: s/regexp/replacement/g
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: sed 's/pattern/replacement/g' [FILE]"

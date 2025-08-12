@@ -2,24 +2,28 @@
 from filesystem import fs_manager
 import os
 
+def define_flags():
+    """Declares the flags that the rename command accepts."""
+    return []
+
 def run(args, flags, user_context, **kwargs):
     """
-    Renames a file. A strict command that only renames files within the current directory.
+    Renames a file. This command only renames files within the current directory.
     """
     if len(args) != 2:
-        return {"success": False, "error": "rename: missing operand"}
+        return {"success": False, "error": "rename: missing operand. Usage: rename OLD_NAME NEW_NAME"}
 
-    old_name = args[0]
-    new_name = args[1]
+    old_name, new_name = args[0], args[1]
 
-    # A true 'rename' command should not handle file paths. It should only
-    # rename a file in its current directory. The presence of a '/' indicates
-    # an attempt to move a file, which should be handled by 'mv'.
     if '/' in old_name or '/' in new_name:
         return {"success": False, "error": "rename: invalid argument. Use 'mv' to move files across directories."}
 
     try:
-        fs_manager.rename_node(old_name, new_name)
+        current_path = fs_manager.current_path
+        old_abs_path = os.path.join(current_path, old_name)
+        new_abs_path = os.path.join(current_path, new_name)
+
+        fs_manager.rename_node(old_abs_path, new_abs_path)
         return "" # Success
     except FileNotFoundError:
         return {"success": False, "error": f"rename: cannot find '{old_name}'"}
@@ -41,9 +45,8 @@ SYNOPSIS
     rename [OLD_NAME] [NEW_NAME]
 
 DESCRIPTION
-    Renames a file from OLD_NAME to NEW_NAME. This is a simplified command
-    and does not move files across directories. For that, use 'mv'.
-    Arguments for rename cannot contain path separators ('/').
+    Renames a file from OLD_NAME to NEW_NAME within the current directory.
+    This command does not move files across directories. For that, use 'mv'.
 """
 
 def help(args, flags, user_context, **kwargs):

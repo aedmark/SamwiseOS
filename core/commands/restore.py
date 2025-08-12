@@ -7,7 +7,9 @@ def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
         return {"success": False, "error": "restore: you must be root to run this command."}
 
-    # This effect will be handled by the JavaScript CommandExecutor.
+    if args:
+        return {"success": False, "error": "restore: command takes no arguments"}
+
     return {
         "effect": "trigger_restore_flow"
     }
@@ -26,3 +28,7 @@ DESCRIPTION
     The command will prompt you to select a backup file and confirm before
     proceeding. This command can only be run by the root user.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the restore command."""
+    return "Usage: restore"

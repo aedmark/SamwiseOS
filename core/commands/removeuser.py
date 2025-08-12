@@ -18,9 +18,28 @@ def run(args, flags, user_context, **kwargs):
     username = args[0]
     remove_home = flags.get('remove-home', False)
 
-    # This effect triggers the confirmation prompt and removal flow in JS
     return {
         "effect": "removeuser",
         "username": username,
         "remove_home": remove_home
     }
+
+def man(args, flags, user_context, **kwargs):
+    return """
+NAME
+    removeuser - remove a user from the system
+
+SYNOPSIS
+    removeuser [-r] username
+
+DESCRIPTION
+    Removes a user account from the system. This command requires root
+    privileges.
+
+    -r, --remove-home
+          Remove the user's home directory.
+"""
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the removeuser command."""
+    return "Usage: removeuser [-r] <username>"

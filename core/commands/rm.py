@@ -10,7 +10,6 @@ def define_flags():
         {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
         {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
         {'name': 'interactive', 'short': 'i', 'long': 'interactive', 'takes_value': False},
-        # Internal flag for post-confirmation execution
         {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, 'hidden': True},
     ]
 
@@ -19,7 +18,7 @@ def run(args, flags, user_context, stdin_data=None):
     Removes files or directories with interactive and force options.
     """
     if not args:
-        return "rm: missing operand"
+        return {"success": False, "error": "rm: missing operand"}
 
     is_recursive = flags.get('recursive', False)
     is_force = flags.get('force', False)
@@ -50,14 +49,16 @@ def run(args, flags, user_context, stdin_data=None):
             }
 
         try:
+            # For rm, recursive is always true in the backend call to handle both files and non-empty dirs (with -r).
             fs_manager.remove(abs_path, recursive=True)
         except Exception as e:
             if not is_force:
                 output_messages.append(f"rm: cannot remove '{path}': {repr(e)}")
 
-    fs_manager._save_state()
-    return "\n".join(output_messages)
+    if output_messages:
+        return {"success": False, "error": "\\n".join(output_messages)}
 
+    return "" # Success
 
 def man(args, flags, user_context, stdin_data=None):
     return """

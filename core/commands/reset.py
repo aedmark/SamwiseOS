@@ -1,16 +1,18 @@
 # gem/core/commands/reset.py
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def run(args, flags, user_context, **kwargs):
     """
     Signals the JavaScript front end to perform a full factory reset.
     """
     if user_context.get('name') != 'root':
         return {"success": False, "error": "reset: you must be root to run this command."}
 
-    # This effect will be caught by the JavaScript command executor.
+    if args:
+        return {"success": False, "error": "reset: command takes no arguments"}
+
     return {"effect": "full_reset"}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     reset - reset the filesystem to its initial state
@@ -27,5 +29,6 @@ DESCRIPTION
     The system will automatically reboot after a successful reset.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None, jobs=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the reset command."""
     return "Usage: reset"

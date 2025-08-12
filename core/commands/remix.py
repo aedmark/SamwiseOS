@@ -58,3 +58,7 @@ DESCRIPTION
     understand the core ideas of each, and then generate a new,
     summarized article that synthesizes the information from both.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the remix command."""
+    return "Usage: remix <file1> <file2>"
