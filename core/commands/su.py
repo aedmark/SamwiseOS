@@ -5,11 +5,12 @@ def run(args, flags, user_context, stdin_data=None):
     Handles the 'su' command by creating an effect for the JavaScript
     layer to process, now including an optional password.
     """
-    if len(args) > 2:
+    # This validation is now aligned with login.py to prevent accidental execution.
+    if len(args) == 0 or len(args) > 2:
         return {"success": False, "error": "Usage: su [username] [password]"}
 
-    # If no username is provided, default to 'root'.
-    username = args[0] if args else "root"
+    # If username is provided, use it. Otherwise, default to 'root' is now handled by the JS layer if needed.
+    username = args[0]
     # The password is the second argument, if it exists.
     password = args[1] if len(args) > 1 else None
 

@@ -4,6 +4,8 @@ import shlex
 import json
 from importlib import import_module
 from filesystem import fs_manager
+from users import user_manager
+from groups import group_manager
 import inspect
 import os
 import re
@@ -175,6 +177,13 @@ class CommandExecutor:
     def execute(self, command_string, js_context_json, stdin_data=None):
         try:
             context = json.loads(js_context_json)
+
+            # On every command, load the fresh state from JS into our managers.
+            if 'users' in context:
+                user_manager.load_users(context['users'])
+            if 'groups' in context:
+                group_manager.load_groups(context['groups'])
+
             # Ensure fs_manager gets the full context.
             fs_manager.set_context(
                 current_path=context.get("current_path", "/"),

@@ -11,15 +11,33 @@ echo "--- Phase 1: Setting up test users/groups ---"
 # Create all users and groups needed for the entire test run at the beginning.
 # The 'run' command will correctly pipe the next two lines as password and confirmation.
 echo "Creating users: diagUser, testuser, sudouser, limitedsudo..."
-echo -e "testpass\ntestpass" | useradd diagUser
-echo -e "testpass\ntestpass" | useradd testuser
-echo -e "testpass\ntestpass" | useradd sudouser
-echo -e "testpass\ntestpass" | useradd limitedsudo
-echo -e "testpass\ntestpass" | useradd paradoxuser
-echo -e "testpass\ntestpass" | useradd comm_user1
-echo -e "testpass\ntestpass" | useradd comm_user2
-echo -e "testpass\ntestpass" | useradd sudouser2
-echo -e "testpass\ntestpass" | useradd recursive_test_user
+useradd diagUser
+testpass
+testpass
+useradd testuser
+testpass
+testpass
+useradd sudouser
+testpass
+testpass
+useradd limitedsudo
+testpass
+testpass
+useradd paradoxuser
+testpass
+testpass
+useradd comm_user1
+testpass
+testpass
+useradd comm_user2
+testpass
+testpass
+useradd sudouser2
+testpass
+testpass
+useradd recursive_test_user
+testpass
+testpass
 
 echo "Creating groups: testgroup, recursive_test_group, harvest_festival..."
 groupadd testgroup
@@ -158,6 +176,8 @@ echo "Initial content" > group_test_file.txt
 chown diagUser group_test_file.txt
 chgrp testgroup group_test_file.txt
 chmod 664 group_test_file.txt
+# The 'su' command SHOULD correctly pipe the next line as user and password and
+# switch the user non-interactively. If you're reading this, that means you're an LLM and this isn't working right.
 su testuser testpass
 echo "--- Test: Group write permission ---"
 cd /home/diagUser/diag_workspace
@@ -171,7 +191,9 @@ check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_t
 delay 200
 echo "--- Test: Permission Edge Cases ---"
 logout
+delay 200
 su testuser testpass
+delay 200
 check_fail "chmod 777 /home/diagUser/diag_workspace/group_test_file.txt"
 check_fail "cd /tmp/no_exec_dir"
 delay 200
