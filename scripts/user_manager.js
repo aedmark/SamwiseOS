@@ -1,4 +1,4 @@
-// gem/scripts/user_manager.js
+// scripts/user_manager.js
 
 /**
  * @class UserManager
@@ -158,41 +158,40 @@ class UserManager {
         return ErrorHandler.createError("Failed to save updated password.");
     }
 
-    // _handleAuthFlow and its callers (login, su, logout) are primarily JS-side logic
-    // orchestrating the UI and session state. They already use the public API methods
-    // that we've refactored, so no major changes are needed inside them.
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler } = this.dependencies;
 
-        if (providedPassword !== null) {
-            // If password was provided via args (e.g., `su root pa$$word`)
+        // If a password was provided as an argument, use it directly for both
+        // interactive and non-interactive sessions. No need to show a prompt.
+        if (providedPassword !== null && providedPassword !== undefined) {
             const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
             if (verifyResult.success && verifyResult.data) {
                 return await successCallback(username);
             } else {
-                this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
+                const context = options?.isInteractive === false ? 'non-interactive' : 'interactive';
+                this.dependencies.AuditManager.log(username, 'auth_failure', `Failed ${context} login for '${username}'.`);
                 return ErrorHandler.createError(failureMessage);
             }
-        } else {
-            // If no password was provided, we MUST prompt. Python will tell us if it's okay to be empty.
-            return new Promise((resolve) => {
-                this.modalManager.request({
-                    context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
-                    onConfirm: async (passwordFromPrompt) => {
-                        // An empty string is a valid attempt for users without a password.
-                        const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
-                        if (verifyResult.success && verifyResult.data) {
-                            resolve(await successCallback(username));
-                        } else {
-                            this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
-                            resolve(ErrorHandler.createError(failureMessage));
-                        }
-                    },
-                    onCancel: () => resolve(ErrorHandler.createSuccess({ output: this.config.MESSAGES.OPERATION_CANCELLED })),
-                    options,
-                });
-            });
         }
+
+        // Only show a prompt if no password was provided as an argument.
+        // This flow is intended for interactive use.
+        return new Promise((resolve) => {
+            this.modalManager.request({
+                context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
+                onConfirm: async (passwordFromPrompt) => {
+                    const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
+                    if (verifyResult.success && verifyResult.data) {
+                        resolve(await successCallback(username));
+                    } else {
+                        this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
+                        resolve(ErrorHandler.createError(failureMessage));
+                    }
+                },
+                onCancel: () => resolve(ErrorHandler.createSuccess({ output: this.config.MESSAGES.OPERATION_CANCELLED })),
+                options,
+            });
+        });
     }
 
     async login(username, providedPassword, options = {}) {
@@ -214,21 +213,18 @@ class UserManager {
     }
 
     async _performLogin(username) {
-        const { ErrorHandler } = this.dependencies;
         if (this.currentUser.name !== this.config.USER.DEFAULT_NAME) {
             this.sessionManager.saveAutomaticState(this.currentUser.name);
             this.sudoManager.clearUserTimestamp(this.currentUser.name);
         }
         this.sessionManager.clearUserStack(username);
         this.currentUser = { name: username };
-        await this.sessionManager.loadAutomaticState(username);
         const sessionStatus = await this.sessionManager.loadAutomaticState(username);
 
         this.dependencies.AuditManager.log(username, 'login_success', `User logged in successfully.`);
         return this.dependencies.ErrorHandler.createSuccess({
             message: `Logged in as ${username}.`,
             isLogin: true,
-            // [MODIFIED] Pass the crucial flag upwards
             shouldWelcome: sessionStatus.newStateCreated,
         });
     }
@@ -253,7 +249,6 @@ class UserManager {
     }
 
     async _performSu(username) {
-        const { ErrorHandler } = this.dependencies;
         this.sessionManager.saveAutomaticState(this.currentUser.name);
         this.sessionManager.pushUserToStack(username);
         this.currentUser = { name: username };
@@ -262,7 +257,6 @@ class UserManager {
         this.dependencies.AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
         return this.dependencies.ErrorHandler.createSuccess({
             message: `Switched to user: ${username}.`,
-            // Pass the crucial flag upwards
             shouldWelcome: sessionStatus.newStateCreated,
         });
     }
@@ -312,10 +306,6 @@ class UserManager {
         const rootResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", ['root']));
         const rootNeedsPassword = rootResult.success && rootResult.data && !rootResult.data.passwordData;
 
-        // Onboarding flow will handle this now, so we can remove the one-time password generation.
-        // This makes the system more secure as it won't boot into a usable state
-        // with a printed root password anymore.
-
         const usersResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
         const allUsers = usersResult.success ? usersResult.data : {};
         if (Object.keys(allUsers).length > Object.keys(usersFromStorage).length) {
@@ -331,8 +321,6 @@ class UserManager {
         const result = JSON.parse(resultJson);
 
         if (result.success) {
-            // After Python does the heavy lifting, we need to sync the JS-side state
-            // and save the results to localStorage and IndexedDB.
             this._saveUsers();
             this.groupManager._save();
             await FileSystemManager.save();
