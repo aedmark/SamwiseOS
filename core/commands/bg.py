@@ -45,3 +45,7 @@ DESCRIPTION
     Resumes a stopped background job, keeping it in the background.
     If no job_id is specified, the most recently stopped job is used.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the bg command."""
+    return "Usage: bg [%job_id]"

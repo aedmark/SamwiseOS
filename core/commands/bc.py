@@ -17,7 +17,7 @@ def _safe_eval(expression):
     # Using eval() here is now safe because we've heavily sanitized the input string.
     return eval(clean_expr)
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     expression = ""
     if stdin_data:
         expression = stdin_data
@@ -36,11 +36,11 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
             return str(int(result))
         return str(result)
     except ZeroDivisionError:
-        return "bc: division by zero"
+        return {"success": False, "error": "bc: division by zero"}
     except Exception as e:
-        return f"bc: error in expression: {repr(e)}"
+        return {"success": False, "error": f"bc: error in expression: {repr(e)}"}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     bc - An arbitrary precision calculator language
@@ -54,5 +54,5 @@ DESCRIPTION
     Otherwise, it reads from standard input.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: bc [expression]"
