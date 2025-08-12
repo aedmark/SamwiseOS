@@ -45,7 +45,7 @@ def run(args, flags, user_context, **kwargs):
 
         fs_manager.create_directory(project_path, {"name": "root", "group": "root"})
         fs_manager.chgrp(project_path, committee_name)
-        fs_manager.chmod(project_path, "0o770") # rwxrwx---
+        fs_manager.chmod(project_path, "770") # rwxrwx---
 
     except Exception as e:
         group_manager.delete_group(committee_name)
