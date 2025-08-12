@@ -158,6 +158,8 @@ class UserManager {
         return ErrorHandler.createError("Failed to save updated password.");
     }
 
+    // gem/scripts/user_manager.js
+
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler, AuditManager, ModalManager, Config } = this.dependencies;
 
@@ -168,15 +170,13 @@ class UserManager {
             return ErrorHandler.createError(failureMessage);
         }
 
-        const hasPassword = !!userResult.data.passwordData;
-
-        // Case 1: The user has NO password. Always let them in.
-        // This correctly handles `su Guest` in both interactive and script modes.
-        if (!hasPassword) {
+        // Step 1: The most important check! If the user has no password, let them in immediately.
+        // This fixes the regression for interactive `su Guest`.
+        if (!userResult.data.passwordData) {
             return await successCallback(username);
         }
 
-        // Case 2: A password WAS provided on the command line. Verify it.
+        // Step 2: Handle cases where a password was provided on the command line.
         if (providedPassword !== null && providedPassword !== undefined) {
             const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
             if (verifyResult.success && verifyResult.data) {
@@ -188,15 +188,15 @@ class UserManager {
             }
         }
 
-        // Case 3: A password is required, but we are in a non-interactive context (like a script)
-        // and no password was provided. This is an immediate failure.
-        if (hasPassword && options?.isInteractive === false) {
+        // Step 3: If we're here, a password is required but wasn't provided.
+        // If this is a script, we must fail now.
+        if (options?.isInteractive === false) {
             AuditManager.log(username, 'auth_failure', `Non-interactive login for '${username}' failed: Password required but not provided.`);
             return ErrorHandler.createError(failureMessage);
         }
 
-        // Case 4: The user has a password, none was provided, AND we are in an INTERACTIVE session.
-        // Now (and only now) we can prompt them.
+        // Step 4: If (and only if) all the above checks fail, we are an interactive
+        // user who needs a password. Now we can show the prompt.
         return new Promise((resolve) => {
             ModalManager.request({
                 context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
