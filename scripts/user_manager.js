@@ -158,8 +158,6 @@ class UserManager {
         return ErrorHandler.createError("Failed to save updated password.");
     }
 
-    // gem/scripts/user_manager.js
-
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler, AuditManager, ModalManager, Config } = this.dependencies;
 
@@ -220,10 +218,10 @@ class UserManager {
         const { ErrorHandler } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
         if (username === currentUserName) {
-            return ErrorHandler.createSuccess({
-                message: `${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`,
-                noAction: true,
-            });
+            return ErrorHandler.createSuccess(
+                `${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`,
+                { noAction: true }
+            );
         }
         return this._handleAuthFlow(
             username,
@@ -244,21 +242,23 @@ class UserManager {
         const sessionStatus = await this.sessionManager.loadAutomaticState(username);
 
         this.dependencies.AuditManager.log(username, 'login_success', `User logged in successfully.`);
-        return this.dependencies.ErrorHandler.createSuccess({
-            message: `Logged in as ${username}.`,
-            isLogin: true,
-            shouldWelcome: sessionStatus.newStateCreated,
-        });
+        return this.dependencies.ErrorHandler.createSuccess(
+            `Logged in as ${username}.`,
+            {
+                isLogin: true,
+                shouldWelcome: sessionStatus.newStateCreated,
+            }
+        );
     }
 
     async su(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
         if (username === currentUserName) {
-            return ErrorHandler.createSuccess({
-                message: `Already user '${username}'.`,
-                noAction: true,
-            });
+            return ErrorHandler.createSuccess(
+                `Already user '${username}'.`,
+                { noAction: true }
+            );
         }
 
         return this._handleAuthFlow(
@@ -277,10 +277,12 @@ class UserManager {
         const sessionStatus = await this.sessionManager.loadAutomaticState(username);
 
         this.dependencies.AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
-        return this.dependencies.ErrorHandler.createSuccess({
-            message: `Switched to user: ${username}.`,
-            shouldWelcome: sessionStatus.newStateCreated,
-        });
+        return this.dependencies.ErrorHandler.createSuccess(
+            `Switched to user: ${username}.`,
+            {
+                shouldWelcome: sessionStatus.newStateCreated,
+            }
+        );
     }
 
     async logout() {

@@ -353,7 +353,6 @@ class CommandExecutor {
             case 'play_sound':
                 if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
                 SoundManager.playNote(result.notes, result.duration);
-                // We'll add a small delay to let the note play out
                 const durationInSeconds = new Tone.Time(result.duration).toSeconds();
                 await new Promise(resolve => setTimeout(resolve, Math.ceil(durationInSeconds * 1000)));
                 break;
@@ -437,8 +436,6 @@ class CommandExecutor {
                     input.click();
                 });
             case 'upload_files':
-                // The infinite loop was here! Instead of re-running the whole command,
-                // we now call a specific kernel function to handle the file data.
                 const { files: filesToProcess } = result;
                 const fileDataPromises = Array.from(filesToProcess).map(file => {
                     return new Promise((resolve, reject) => {
@@ -475,7 +472,7 @@ class CommandExecutor {
                 } else {
                     return ErrorHandler.createError(pyResult.error);
                 }
-            case 'trigger_restore_flow': // Our new effect!
+            case 'trigger_restore_flow':
                 return new Promise(async (resolve) => {
                     const { ModalManager } = this.dependencies;
                     const crc32 = (str) => { let crc = -1; for (let i = 0; i < str.length; i++) { crc = (crc >>> 8) ^ this.dependencies.Config.CRC_TABLE[(crc ^ str.charCodeAt(i)) & 0xFF]; } return (crc ^ -1) >>> 0; };
@@ -601,8 +598,7 @@ class CommandExecutor {
                 return logoutResult;
             case 'su':
                 const suResult = await UserManager.su(result.username, result.password, options);
-                // Check our new shouldWelcome flag here too!
-                if (suResult.success && !suResult.data?.noAction && suResult.shouldWelcome) {
+                if (suResult.success && !suResult.noAction && suResult.shouldWelcome) {
                     suResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
                 }
                 return suResult;

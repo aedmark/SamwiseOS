@@ -3,6 +3,8 @@
 from filesystem import fs_manager
 import os
 import re
+from datetime import datetime
+
 
 def define_flags():
     """Declares the flags that the chmod command accepts."""
@@ -16,6 +18,27 @@ def _chmod_recursive(path, mode_octal, user_context):
     if not node:
         return
 
+    # Security Check: Only the owner or root can change permissions.
+    if user_context.get('name') != 'root' and node.get('owner') != user_context.get('name'):
+        # Silently skip if no permission, as chmod often does in recursive runs.
+        return
+
+    now_iso = datetime.utcnow().isoformat() + "Z"
+    node['mode'] = mode_octal
+    node['mtime'] = now_iso
+
+    if node.get('type') == 'directory':
+        for child_name in node.get('children', {}).keys():
+            child_path = os.path.join(path, child_name)
+            child_node = node['children'][child_name]
+            # Pass the child node to the recursive call
+            _chmod_recursive_helper(child_path, child_node, mode_octal, user_context)
+
+def _chmod_recursive_helper(path, node, mode_octal, user_context):
+    """Helper to avoid re-fetching nodes in recursion."""
+    if user_context.get('name') != 'root' and node.get('owner') != user_context.get('name'):
+        return
+
     now_iso = datetime.utcnow().isoformat() + "Z"
     node['mode'] = mode_octal
     node['mtime'] = now_iso
@@ -23,7 +46,8 @@ def _chmod_recursive(path, mode_octal, user_context):
     if node.get('type') == 'directory':
         for child_name, child_node in node.get('children', {}).items():
             child_path = os.path.join(path, child_name)
-            _chmod_recursive(child_path, mode_octal, user_context)
+            _chmod_recursive_helper(child_path, child_node, mode_octal, user_context)
+
 
 def run(args, flags, user_context, **kwargs):
     if len(args) < 2:
@@ -42,6 +66,10 @@ def run(args, flags, user_context, **kwargs):
             node = fs_manager.get_node(path)
             if not node:
                 return {"success": False, "error": f"chmod: cannot access '{path}': No such file or directory"}
+
+            # Security Check: Only the owner or root can change permissions.
+            if user_context.get('name') != 'root' and node.get('owner') != user_context.get('name'):
+                return {"success": False, "error": f"chmod: changing permissions of '{path}': Operation not permitted"}
 
             if is_recursive and node.get('type') == 'directory':
                 _chmod_recursive(path, mode_octal, user_context)
@@ -63,7 +91,8 @@ SYNOPSIS
 
 DESCRIPTION
     Changes the file mode bits of each given file according to mode,
-    which can be an octal number.
+    which can be an octal number. Only the file owner or root may change
+    the mode.
 
     -R, --recursive
           change files and directories recursively
