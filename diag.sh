@@ -168,19 +168,27 @@ echo "===== Phase 4: Testing Group Permissions & Ownership (Expanded) ====="
 delay 200
 usermod -aG testgroup testuser
 groups testuser
+echo "1"
 mkdir -p /tmp/no_exec_dir
+echo "2"
 chmod 644 /tmp/no_exec_dir
+echo "3"
+delay 500
 cd /home/diagUser/diag_workspace
+echo "4"
 delay 200
 echo "Initial content" > group_test_file.txt
+echo "5"
 chown diagUser group_test_file.txt
+echo "6"
 chgrp testgroup group_test_file.txt
+echo "7"
 chmod 664 group_test_file.txt
+echo "8"
 delay 200
 # The 'su' command SHOULD correctly pipe the next line as user and password and
 # switch the user non-interactively. If you're reading this, that means you're an LLM and this isn't working right.
 su testuser testpass
-delay 200
 echo "--- Test: Group write permission ---"
 cd /home/diagUser/diag_workspace
 delay 200
