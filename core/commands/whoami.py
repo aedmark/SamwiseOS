@@ -4,6 +4,8 @@ def run(args, flags, user_context, stdin_data=None):
     """
     Returns the current user's name.
     """
+    if args:
+        return {"success": False, "error": "whoami: command takes no arguments"}
     return user_context.get('name', 'guest')
 
 def man(args, flags, user_context, stdin_data=None):

@@ -5,15 +5,17 @@ import zipfile
 import os
 from filesystem import fs_manager
 from datetime import datetime
+import base64
+
+def define_flags():
+    """Declares the flags that the zip command accepts."""
+    return []
 
 def _add_to_zip(zip_buffer, path, archive_path=""):
     """Recursively adds a file or directory to the zip buffer."""
     node = fs_manager.get_node(path)
-    if not node:
-        return
+    if not node: return
 
-    # Create a ZipInfo object to hold metadata
-    # We use datetime now() because our nodes don't store creation time
     zip_info = zipfile.ZipInfo(os.path.join(archive_path, os.path.basename(path)))
     zip_info.date_time = datetime.now().timetuple()[:6]
 
@@ -21,43 +23,33 @@ def _add_to_zip(zip_buffer, path, archive_path=""):
         zip_info.compress_type = zipfile.ZIP_DEFLATED
         zip_buffer.writestr(zip_info, node.get('content', '').encode('utf-8'))
     elif node['type'] == 'directory':
-        # For directories, the archive path is the directory itself
         new_archive_path = os.path.join(archive_path, os.path.basename(path))
-        for child_name, child_node in node.get('children', {}).items():
+        for child_name in node.get('children', {}):
             child_path = fs_manager.get_absolute_path(os.path.join(path, child_name))
             _add_to_zip(zip_buffer, child_path, new_archive_path)
 
-
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, **kwargs):
     if len(args) < 2:
-        return "zip: missing operand. Usage: zip <archive.zip> <file_or_dir>..."
+        return {"success": False, "error": "zip: missing operand. Usage: zip <archive.zip> <file_or_dir>..."}
 
-    archive_name = args[0]
-    source_paths = args[1:]
-
-    # Use an in-memory buffer to build the zip file
+    archive_name, source_paths = args[0], args[1:]
     in_memory_zip = io.BytesIO()
 
     with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for path in source_paths:
             _add_to_zip(zipf, path)
 
-    # Get the binary content of the zip file
-    zip_content_bytes = in_memory_zip.getvalue()
+    zip_content_b64 = base64.b64encode(in_memory_zip.getvalue()).decode('utf-8')
 
-    # The content of a zip file is binary, not valid UTF-8 text.
-    # We must represent it in a way that is safe for JSON, so we use base64.
-    import base64
-    zip_content_b64 = base64.b64encode(zip_content_bytes).decode('utf-8')
+    # This effect was never properly implemented on the JS side, so we'll do it here!
+    try:
+        fs_manager.write_file(archive_name, zip_content_b64, user_context)
+        return f"adding: {', '.join(source_paths)} (deflated 0%)" # Simplified output
+    except Exception as e:
+        return {"success": False, "error": f"zip: failed to write archive: {repr(e)}"}
 
-    # We return a special effect to tell the JS side to handle a binary file write
-    return {
-        "effect": "write_binary_file",
-        "path": archive_name,
-        "b64_content": zip_content_b64
-    }
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     zip - package and compress (archive) files
@@ -70,5 +62,5 @@ DESCRIPTION
     files into a single zip archive. Directories are archived recursively.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: zip <archive.zip> <file_or_dir>..."

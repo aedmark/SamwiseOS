@@ -8,9 +8,9 @@ def define_flags():
         {'name': 'replace-str', 'short': 'I', 'long': 'replace-str', 'takes_value': True},
     ]
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     if stdin_data is None:
-        return "" # No input, no action
+        return ""
 
     command_to_run_parts = args if args else ['echo']
     input_items = [line for line in stdin_data.splitlines() if line.strip()]
@@ -22,16 +22,12 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     replace_str = flags.get('replace-str')
 
     if replace_str:
-        # -I mode: one command per input item, with replacement
         for item in input_items:
-            # Replace all occurrences of the replace_str in the command parts
             new_command_parts = [
                 part.replace(replace_str, item) for part in command_to_run_parts
             ]
             new_commands.append(" ".join(new_command_parts))
     else:
-        # Default mode: append all items to a single command
-        # (Simplified: a real xargs would batch them)
         quoted_items = [shlex.quote(item) for item in input_items]
         full_command_parts = command_to_run_parts + quoted_items
         new_commands.append(" ".join(full_command_parts))
@@ -42,7 +38,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     }
 
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     xargs - build and execute command lines from standard input
@@ -60,5 +56,5 @@ DESCRIPTION
           once for each input line.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: [command] | xargs [-I repl] [utility [argument ...]]"

@@ -46,3 +46,26 @@ def run(args, flags, user_context, **kwargs):
         return {"success": True, "output": f"Set primary group for '{username}' to '{primary_group_to_set}'."}
 
     return {"success": False, "error": "usermod: no action specified."}
+
+def man(args, flags, user_context, **kwargs):
+    return """
+NAME
+    usermod - modify a user account
+
+SYNOPSIS
+    usermod [OPTIONS] username
+
+DESCRIPTION
+    Modifies the properties of an existing user account. This command
+    requires root privileges.
+
+OPTIONS
+    -aG, --append-groups GROUP
+          Add the user to the supplementary GROUP.
+    -g, --gid GROUP
+          Set the user's primary group.
+"""
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the usermod command."""
+    return "Usage: usermod [-aG group] [-g group] <username>"

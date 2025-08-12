@@ -14,7 +14,7 @@ def _count_content(content):
     """Calculates lines, words, and bytes for a string."""
     lines = len(content.splitlines()) if content else 0
     words = len(content.split())
-    bytes_count = len(content.encode('utf-8')) # Correctly count bytes
+    bytes_count = len(content.encode('utf-8'))
     return lines, words, bytes_count
 
 def run(args, flags, user_context, stdin_data=None):
@@ -22,7 +22,6 @@ def run(args, flags, user_context, stdin_data=None):
     show_words = flags.get('words', False)
     show_bytes = flags.get('bytes', False)
 
-    # If no flags are specified, show all counts
     if not (show_lines or show_words or show_bytes):
         show_lines = show_words = show_bytes = True
 
@@ -31,44 +30,39 @@ def run(args, flags, user_context, stdin_data=None):
 
     def format_output(lines, words, bytes_count, name=""):
         parts = []
-        if show_lines:
-            parts.append(str(lines).rjust(7))
-        if show_words:
-            parts.append(str(words).rjust(7))
-        if show_bytes:
-            parts.append(str(bytes_count).rjust(7))
-        if name:
-            parts.append(f" {name}")
+        if show_lines: parts.append(str(lines).rjust(7))
+        if show_words: parts.append(str(words).rjust(7))
+        if show_bytes: parts.append(str(bytes_count).rjust(7))
+        if name: parts.append(f" {name}")
         return "".join(parts)
 
-    if stdin_data is not None:
-        lines, words, bytes_count = _count_content(stdin_data)
-        output_lines.append(format_output(lines, words, bytes_count))
-    elif args:
-        for path in args:
-            node = fs_manager.get_node(path)
+    sources = args if args else ([] if stdin_data is None else ['stdin'])
+
+    for source in sources:
+        lines, words, bytes_count = 0, 0, 0
+        if source == 'stdin':
+            lines, words, bytes_count = _count_content(stdin_data)
+            output_lines.append(format_output(lines, words, bytes_count))
+        else:
+            node = fs_manager.get_node(source)
             if not node:
-                output_lines.append(f"wc: {path}: No such file or directory")
+                output_lines.append(f"wc: {source}: No such file or directory")
                 continue
             if node.get('type') == 'directory':
-                output_lines.append(f"wc: {path}: Is a directory")
-                lines, words, bytes_count = 0, 0, 0
+                output_lines.append(f"wc: {source}: Is a directory")
             else:
                 content = node.get('content', '')
                 lines, words, bytes_count = _count_content(content)
+                output_lines.append(format_output(lines, words, bytes_count, source))
 
-            output_lines.append(format_output(lines, words, bytes_count, path))
             total_counts['lines'] += lines
             total_counts['words'] += words
             total_counts['bytes'] += bytes_count
 
-        if len(args) > 1:
-            output_lines.append(format_output(total_counts['lines'], total_counts['words'], total_counts['bytes'], "total"))
-    else:
-        # No stdin and no args, mimics standard wc behavior
-        output_lines.append(format_output(0, 0, 0))
+    if len(sources) > 1 and 'stdin' not in sources:
+        output_lines.append(format_output(total_counts['lines'], total_counts['words'], total_counts['bytes'], "total"))
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
 def man(args, flags, user_context, stdin_data=None):
     return """
@@ -90,3 +84,7 @@ DESCRIPTION
     -w, --words
           print the word counts
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the wc command."""
+    return "Usage: wc [-clw] [FILE]..."
