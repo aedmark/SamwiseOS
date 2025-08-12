@@ -244,7 +244,6 @@ window.onload = async () => {
         SoundManager: soundManager,
         StorageHAL: storageHAL,
         AuditManager: auditManager,
-        // App UI Constructors
         TextAdventureModal: window.TextAdventureModal,
         Adventure_create: window.Adventure_create,
         Basic_interp: window.Basic_interp,
@@ -264,7 +263,6 @@ window.onload = async () => {
     const pagerManager = new PagerManager(dependencies);
     dependencies.PagerManager = pagerManager;
 
-    // Set up dependencies for each manager
     configManager.setDependencies(dependencies);
     storageManager.setDependencies(dependencies);
     indexedDBManager.setDependencies(dependencies);
@@ -289,7 +287,6 @@ window.onload = async () => {
     auditManager.setDependencies(dependencies);
     commandRegistry.setDependencies(dependencies);
 
-    // Early initialization for critical UI/Storage
     outputManager.initialize(domElements);
     terminalUI.initialize(domElements);
     modalManager.initialize(domElements);
@@ -297,26 +294,22 @@ window.onload = async () => {
     await storageHAL.init();
     outputManager.initializeConsoleOverrides();
 
-    // Check for onboarding status
     const onboardingComplete = storageManager.loadItem(configManager.STORAGE_KEYS.ONBOARDING_COMPLETE, "Onboarding Status", false);
 
-    // Initialize the Python Kernel Bridge here, before any logic that depends on it.
     await OopisOS_Kernel.initialize(dependencies);
 
     if (!onboardingComplete) {
         startOnboardingProcess(dependencies);
-        return; // Halt the normal boot process
+        return;
     }
 
     try {
-        // 3. Initialize filesystem and sync with Python kernel
         const fsJsonFromStorage = await storageHAL.load();
         if (OopisOS_Kernel.isReady) {
             if (fsJsonFromStorage) {
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
-                // Use the new, unified syscall to load the filesystem state!
                 OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [fsJsonString]);
-                fsManager.setFsData(fsJsonFromStorage); // Also update the JS-side cache for now
+                fsManager.setFsData(fsJsonFromStorage);
             } else {
                 await outputManager.appendToOutput(
                     "No file system found. Initializing new one.",
@@ -330,29 +323,20 @@ window.onload = async () => {
                 await storageHAL.save(initialFsData);
             }
         } else {
-            // Fallback if kernel failed. This remains the same.
             await fsManager.load();
         }
 
-        // 4. Now that the kernel is ready, initialize all managers that depend on it.
-        // --- THIS IS THE FIX! ---
-        // Initialize users FIRST, so default users and their primary group names exist.
-        // Then, initialize groups, which will create the actual group structures.
         await userManager.initializeDefaultUsers();
         groupManager.initialize();
 
-        // Initialize the rest of the session components.
         environmentManager.initialize();
         aliasManager.initialize();
         sessionManager.initializeStack();
 
-        // THEN, perform actions that might execute commands.
         await configManager.loadPackageManifest();
 
-        // Finally, load the state for the now-initialized session.
         const sessionStatus = await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
 
-        // 5. Final setup
         outputManager.clearOutput();
         if (sessionStatus.newStateCreated) {
             await outputManager.appendToOutput(

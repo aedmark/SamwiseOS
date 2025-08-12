@@ -1,4 +1,5 @@
 # gem/core/sudo.py
+from filesystem import fs_manager
 
 class SudoManager:
     """Manages sudo privileges by parsing the sudoers file."""
@@ -85,3 +86,4 @@ class SudoManager:
         return False
 
 # This manager will be instantiated in the kernel, passing the fs_manager
+sudo_manager = SudoManager(fs_manager)

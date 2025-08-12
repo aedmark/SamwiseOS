@@ -142,37 +142,40 @@ class UserManager:
             # 2. Ensure root group and user exist before anything else
             if not group_manager.group_exists('root'):
                 group_manager.create_group('root')
-
             if not self.user_exists('root'):
-                # Register root user with NO password initially. It will be set below.
                 self.register_user('root', None, 'root')
 
-            # 3. Create the new user's group
+            # 3. THIS IS THE FIX: Ensure Guest user and group are created right away!
+            if not group_manager.group_exists('Guest'):
+                group_manager.create_group('Guest')
+            if not self.user_exists('Guest'):
+                self.register_user('Guest', None, 'Guest')
+
+            # 4. Create the new user's group
             if not group_manager.group_exists(username):
                 group_manager.create_group(username)
 
-            # 4. Register the new user
+            # 5. Register the new user
             registration_result = self.register_user(username, password, username)
             if not registration_result["success"]:
-                # If the user already exists (from a partial fail), just proceed
                 if "already exists" not in registration_result["error"]:
                     raise ValueError(registration_result["error"])
 
-            # 5. Add the user to their own primary group
+            # 6. Add the user to their own primary group
             group_manager.add_user_to_group(username, username)
 
-            # 6. Create the user's home directory as root
+            # 7. Create the user's home directory as root
             home_path = f"/home/{username}"
             if not fs_manager.get_node(home_path):
                 fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
                 fs_manager.chown(home_path, username)
                 fs_manager.chgrp(home_path, username)
 
-            # 7. Set the root password
+            # 8. Set the root password
             if not self.change_password('root', root_password):
                 raise ValueError("Failed to set root password during setup.")
 
-            # 8. Persist changes to the filesystem
+            # 9. Persist changes to the filesystem
             fs_manager._save_state()
 
             return {"success": True}
@@ -182,7 +185,6 @@ class UserManager:
             group_manager.groups = original_groups
             fs_manager.fs_data = original_fs_data
 
-            # The JS side already has a generic "Setup failed:" prefix
             return {"success": False, "error": f"An error occurred during setup: {str(e)}"}
 
 user_manager = UserManager()

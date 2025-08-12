@@ -53,6 +53,12 @@ chgrp testgroup /home/diagUser/diag_workspace/
 # Permissions allow owner (diagUser) and group (testgroup) full access
 chmod 775 /home/diagUser/diag_workspace/
 
+echo "sudouser ALL" >> /etc/sudoers
+echo "sudouser2 ls" >> /etc/sudoers
+echo "Setup complete."
+echo "---------------------------------------------------------------------"
+echo ""
+
 echo "Setup complete."
 echo "---------------------------------------------------------------------"
 echo ""
