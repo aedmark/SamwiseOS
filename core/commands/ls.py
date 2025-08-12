@@ -21,11 +21,22 @@ def _format_long(path, name, node):
     """Formats a single line for the long listing format."""
     mode = node.get('mode', 0)
     type_char = {"directory": "d", "file": "-", "symlink": "l"}.get(node.get('type'), '-')
-    perms = f"{type_char}{''.join(['r' if (mode >> i) & 1 else '-' for i in range(8, -1, -1)])}"
+
+    # Corrected permission string logic
+    perms = ""
+    for i in range(2, -1, -1):
+        perm_val = (mode >> (i * 3)) & 7
+        perms += 'r' if (perm_val & 4) else '-'
+        perms += 'w' if (perm_val & 2) else '-'
+        perms += 'x' if (perm_val & 1) else '-'
 
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
-    size = str(fs_manager.calculate_node_size(os.path.join(path, name))).rjust(6)
+
+    # Correctly handle path for size calculation
+    full_path = os.path.join(path, name)
+    size = str(fs_manager.calculate_node_size(full_path)).rjust(6)
+
     mtime_str = node.get('mtime', '')
     try:
         mtime_dt = datetime.fromisoformat(mtime_str.replace('Z', '+00:00'))
@@ -34,15 +45,27 @@ def _format_long(path, name, node):
         mtime_formatted = "Jan 01 00:00"
 
     display_name = f"{name} -> {node.get('target', '')}" if node.get('type') == 'symlink' else name
-    return f"{perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
+    return f"{type_char}{perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
 
 def _get_sort_key(flags, path):
     """Returns a key function for sorting based on flags."""
     def get_ext(p): return os.path.splitext(p)[1]
-    if flags.get('sort-time'): return lambda name: fs_manager.get_node(os.path.join(path, name)).get('mtime', '')
-    if flags.get('sort-size'): return lambda name: fs_manager.calculate_node_size(os.path.join(path, name))
-    if flags.get('sort-extension'): return lambda name: (get_ext(name), name)
+
+    if flags.get('sort-time'):
+        def time_key(name):
+            node = fs_manager.get_node(os.path.join(path, name))
+            return node.get('mtime', '') if node else ''
+        return time_key
+
+    if flags.get('sort-size'):
+        def size_key(name):
+            return fs_manager.calculate_node_size(os.path.join(path, name))
+        return size_key
+
+    if flags.get('sort-extension'): return lambda name: (get_ext(name), name.lower())
+
     return lambda name: name.lower()
+
 
 def _list_directory(path, flags, output):
     """Helper to list a single directory's contents."""
@@ -50,17 +73,24 @@ def _list_directory(path, flags, output):
     if not node or node.get('type') != 'directory':
         return
 
-    children_names = sorted(node.get('children', {}).keys())
+    children_names = list(node.get('children', {}).keys())
     if not flags.get('all'):
         children_names = [name for name in children_names if not name.startswith('.')]
 
     sort_key_func = _get_sort_key(flags, path)
-    sorted_children = sorted(children_names, key=sort_key_func, reverse=flags.get('reverse', False))
+
+    # When sorting, ensure we handle reverse correctly for all types
+    is_reverse = flags.get('reverse', False)
+
+    # The primary key for sorting
+    sorted_children = sorted(children_names, key=sort_key_func, reverse=not is_reverse if flags.get('sort-time') or flags.get('sort-size') else is_reverse)
+
 
     if flags.get('long'):
         for name in sorted_children:
             output.append(_format_long(path, name, node['children'][name]))
     else:
+        # Join into a single string for columnar display, not separate lines
         output.append("  ".join(sorted_children))
 
 def run(args, flags, user_context, **kwargs):
@@ -79,7 +109,11 @@ def run(args, flags, user_context, **kwargs):
             dir_args.append((path, target_path, node))
 
     if file_args:
-        sorted_files = sorted(file_args, key=lambda x: _get_sort_key(flags, os.path.dirname(x[1]))(os.path.basename(x[1])), reverse=flags.get('reverse', False))
+        sort_key_func = _get_sort_key(flags, os.path.dirname(file_args[0][1]))
+        is_reverse = flags.get('reverse', False)
+
+        sorted_files = sorted(file_args, key=lambda x: sort_key_func(os.path.basename(x[1])), reverse=not is_reverse if flags.get('sort-time') or flags.get('sort-size') else is_reverse)
+
         if flags.get('long'):
             for _, target_path, node in sorted_files:
                 output.append(_format_long(os.path.dirname(target_path), os.path.basename(target_path), node))
@@ -88,7 +122,8 @@ def run(args, flags, user_context, **kwargs):
 
     if dir_args:
         if file_args: output.append("")
-        sorted_dirs = sorted(dir_args, key=lambda x: x[0], reverse=flags.get('reverse', False))
+        is_reverse = flags.get('reverse', False)
+        sorted_dirs = sorted(dir_args, key=lambda x: x[0], reverse=is_reverse)
         for i, (path, target_path, node) in enumerate(sorted_dirs):
             if len(paths) > 1:
                 if i > 0 or file_args: output.append("")
@@ -96,9 +131,12 @@ def run(args, flags, user_context, **kwargs):
             _list_directory(target_path, flags, output)
 
     final_output = error_lines + output
+    # Always return a single string, joined by newlines.
+    final_output_str = "\n".join(final_output)
+
     if error_lines:
-        return {"success": False, "error": "\\n".join(final_output)}
-    return "\\n".join(final_output)
+        return {"success": False, "error": final_output_str}
+    return final_output_str
 
 def man(args, flags, user_context, **kwargs):
     return """

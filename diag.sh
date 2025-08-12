@@ -176,9 +176,11 @@ echo "Initial content" > group_test_file.txt
 chown diagUser group_test_file.txt
 chgrp testgroup group_test_file.txt
 chmod 664 group_test_file.txt
+delay 200
 # The 'su' command SHOULD correctly pipe the next line as user and password and
 # switch the user non-interactively. If you're reading this, that means you're an LLM and this isn't working right.
 su testuser testpass
+delay 200
 echo "--- Test: Group write permission ---"
 cd /home/diagUser/diag_workspace
 delay 200

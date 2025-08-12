@@ -16,7 +16,8 @@ def run(args, flags, user_context, stdin_data=None):
     files = args
 
     # If there's stdin data, we process it first.
-    if stdin_data is not None:
+    # This check is now more robust to handle inputs from the JS side!
+    if stdin_data:
         output_parts.extend(stdin_data.splitlines())
 
     # If there are file arguments, process them.
@@ -37,7 +38,7 @@ def run(args, flags, user_context, stdin_data=None):
             output_parts.append(f"cat: {file_path}: An unexpected error occurred - {repr(e)}")
 
     # If there was no stdin and no file arguments, the output is empty.
-    if not files and stdin_data is None:
+    if not files and not stdin_data:
         return ""
 
     # Apply line numbering if the flag is set.
