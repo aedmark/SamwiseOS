@@ -158,42 +158,55 @@ class UserManager {
         return ErrorHandler.createError("Failed to save updated password.");
     }
 
-    async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
-        const { ErrorHandler } = this.dependencies;
+    // gem/scripts/user_manager.js
 
-        // THIS IS THE FIX: First, check if the user has a password at all.
+    async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
+        const { ErrorHandler, AuditManager, ModalManager, Config } = this.dependencies;
+
+        // First, let's get the user's data from our reliable Python kernel.
         const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
-        if (userResult.success && userResult.data && !userResult.data.passwordData) {
-            // No password exists for this user, so we can proceed without authentication.
+
+        if (!userResult.success || !userResult.data) {
+            // If the user doesn't exist, we can stop right here.
+            AuditManager.log(username, 'auth_failure', `Attempted login for non-existent user '${username}'.`);
+            return ErrorHandler.createError(failureMessage);
+        }
+
+        const hasPassword = !!userResult.data.passwordData;
+
+        // This logic is now clear and follows a simple, direct path.
+
+        if (!hasPassword) {
+            // Case 1: The user (like Guest) has no password. Let them right in!
             return await successCallback(username);
         }
 
-        // If a password was provided as an argument, use it directly.
         if (providedPassword !== null && providedPassword !== undefined) {
+            // Case 2: A password was provided (e.g., `su root mypass`). Let's verify it.
             const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
             if (verifyResult.success && verifyResult.data) {
                 return await successCallback(username);
             } else {
                 const context = options?.isInteractive === false ? 'non-interactive' : 'interactive';
-                this.dependencies.AuditManager.log(username, 'auth_failure', `Failed ${context} login for '${username}'.`);
+                AuditManager.log(username, 'auth_failure', `Failed ${context} login for '${username}'.`);
                 return ErrorHandler.createError(failureMessage);
             }
         }
 
-        // Only prompt for a password if one exists and was not provided.
+        // Case 3: The user has a password, but none was provided. NOW we can prompt them.
         return new Promise((resolve) => {
-            this.modalManager.request({
-                context: "terminal", type: "input", messageLines: [this.config.MESSAGES.PASSWORD_PROMPT], obscured: true,
+            ModalManager.request({
+                context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
                 onConfirm: async (passwordFromPrompt) => {
                     const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
                     if (verifyResult.success && verifyResult.data) {
                         resolve(await successCallback(username));
                     } else {
-                        this.dependencies.AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
+                        AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
                         resolve(ErrorHandler.createError(failureMessage));
                     }
                 },
-                onCancel: () => resolve(ErrorHandler.createSuccess({ output: this.config.MESSAGES.OPERATION_CANCELLED })),
+                onCancel: () => resolve(ErrorHandler.createSuccess({ output: Config.MESSAGES.OPERATION_CANCELLED })),
                 options,
             });
         });

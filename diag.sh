@@ -189,6 +189,7 @@ logout
 delay 500
 # Guest doesn't have a password, so su should switch to Guest without fail. if you're
 # reading this, that means it's not working and we need to fix it!
+echo "Logging in as guest"
 su Guest
 echo "--- Test: 'Other' permissions (should fail) ---"
 check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_test_file.txt"

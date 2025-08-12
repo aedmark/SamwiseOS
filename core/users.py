@@ -93,21 +93,28 @@ class UserManager:
         if not user_entry:
             return False # User doesn't exist
 
-        has_password = user_entry.get('passwordData')
+        password_data = user_entry.get('passwordData')
 
-        if username == 'root':
-            if not has_password:
-                # This case should not happen after onboarding, but as a safeguard, root must have a password.
-                return False
-                # If root has a password, it must be verified. The salt/hash check will handle this.
+        # Case 1: User has no password set (e.g., Guest).
+        if not password_data:
+            # Any attempt (even `None` from a script, or "" from a prompt) is valid
+            # because there's nothing to check against.
+            return True
 
-        elif not has_password:
-            # For non-root users, if no password is set, only an empty attempt is valid.
-            return not password_attempt
+        # Case 2: User has a password, but none was provided in the attempt.
+        if password_attempt is None:
+            # This happens when a script calls `su <user_with_password>` without providing the password.
+            # It's an automatic failure.
+            return False
 
-        # If we get here, it means a password is set and we need to check it.
-        salt = user_entry['passwordData']['salt']
-        stored_hash = user_entry['passwordData']['hash']
+        # Case 3: Root must have a password after onboarding. This is a redundant
+        # safety check, as `password_data` would exist, but it's good practice.
+        if username == 'root' and not password_data:
+            return False
+
+        # Case 4: A password is set, and an attempt was made. Verify it.
+        salt = password_data['salt']
+        stored_hash = password_data['hash']
         return self._verify_password_with_salt(password_attempt, salt, stored_hash)
 
     def change_password(self, username, new_password):
