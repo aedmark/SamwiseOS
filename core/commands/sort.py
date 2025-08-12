@@ -16,7 +16,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     """
     lines = []
 
-    if stdin_data is not None:
+    if stdin_data:
         lines.extend(stdin_data.splitlines())
     elif args:
         for path in args:
