@@ -168,12 +168,23 @@ class FileSystemManager:
         if not parent_node or parent_node.get('type') != 'directory':
             raise FileNotFoundError(f"Cannot create file in '{parent_path}': No such directory.")
 
+        existing_node = parent_node['children'].get(file_name)
+
+        if existing_node:
+            # File exists, check write permission on the file itself.
+            if not self._check_permission(existing_node, user_context, 'write'):
+                raise PermissionError(f"Permission denied to write to '{path}'")
+        else:
+            # File does not exist, check write permission on the parent directory.
+            if not self._check_permission(parent_node, user_context, 'write'):
+                raise PermissionError(f"Permission denied to create file in '{parent_path}'")
+
         now_iso = datetime.utcnow().isoformat() + "Z"
-        if file_name in parent_node['children']:
-            if parent_node['children'][file_name].get('type') != 'file':
+        if existing_node:
+            if existing_node.get('type') != 'file':
                 raise IsADirectoryError(f"Cannot write to '{path}': It is a directory.")
-            parent_node['children'][file_name]['content'] = content
-            parent_node['children'][file_name]['mtime'] = now_iso
+            existing_node['content'] = content
+            existing_node['mtime'] = now_iso
         else:
             new_file = {
                 "type": "file", "content": content, "owner": user_context.get('name', 'guest'),

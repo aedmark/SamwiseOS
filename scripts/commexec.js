@@ -589,18 +589,20 @@ class CommandExecutor {
                 break;
             case 'login':
                 const loginResult = await UserManager.login(result.username, result.password, options);
-                if (loginResult.success && loginResult.data?.isLogin && loginResult.data?.shouldWelcome) {
+                if (loginResult.success && loginResult.isLogin && loginResult.shouldWelcome) {
                     loginResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
                 }
                 return loginResult;
             case 'logout':
                 const logoutResult = await UserManager.logout();
-                if (logoutResult.success && logoutResult.data?.isLogout) { logoutResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${logoutResult.data.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`; }
+                if (logoutResult.success && logoutResult.isLogout) {
+                    logoutResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${logoutResult.newUser}${Config.MESSAGES.WELCOME_SUFFIX}`;
+                }
                 return logoutResult;
             case 'su':
                 const suResult = await UserManager.su(result.username, result.password, options);
                 // Check our new shouldWelcome flag here too!
-                if (suResult.success && !suResult.data?.noAction && suResult.data?.shouldWelcome) {
+                if (suResult.success && !suResult.data?.noAction && suResult.shouldWelcome) {
                     suResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
                 }
                 return suResult;
