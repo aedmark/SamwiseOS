@@ -20,12 +20,24 @@ def define_flags():
 def _format_long(path, name, node):
     """Formats a single line for the long listing format."""
     mode = node.get('mode', 0)
-    type_char = {"directory": "d", "file": "-", "symlink": "l"}.get(node.get('type'), '-')
-    perms = f"{type_char}{''.join(['r' if (mode >> i) & 1 else '-' for i in range(8, -1, -1)])}"
+    type_char_map = {"directory": "d", "file": "-", "symlink": "l"}
+    type_char = type_char_map.get(node.get('type'), '-')
 
+    perms = ""
+    for i in range(2, -1, -1):
+        section = (mode >> (i * 3)) & 7
+        perms += 'r' if (section & 4) else '-'
+        perms += 'w' if (section & 2) else '-'
+        perms += 'x' if (section & 1) else '-'
+
+    full_perms = type_char + perms
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
-    size = str(fs_manager.calculate_node_size(os.path.join(path, name))).rjust(6)
+
+    # For symlinks, size is the length of the target path string
+    size_val = len(node.get('target', '').encode('utf-8')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
+    size = str(size_val).rjust(6)
+
     mtime_str = node.get('mtime', '')
     try:
         mtime_dt = datetime.fromisoformat(mtime_str.replace('Z', '+00:00'))
@@ -34,7 +46,7 @@ def _format_long(path, name, node):
         mtime_formatted = "Jan 01 00:00"
 
     display_name = f"{name} -> {node.get('target', '')}" if node.get('type') == 'symlink' else name
-    return f"{perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
+    return f"{full_perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
 
 def _get_sort_key(flags, path):
     """Returns a key function for sorting based on flags."""
@@ -44,11 +56,13 @@ def _get_sort_key(flags, path):
     if flags.get('sort-extension'): return lambda name: (get_ext(name), name)
     return lambda name: name.lower()
 
-def _list_directory(path, flags, output):
-    """Helper to list a single directory's contents."""
+def _list_directory_contents(path, flags, user_context):
+    """
+    Lists the contents of a single directory. Returns a tuple of (content_lines, error_lines).
+    This function contains the core listing logic.
+    """
     node = fs_manager.get_node(path)
-    if not node or node.get('type') != 'directory':
-        return
+    # The calling function should have already checked permissions.
 
     children_names = sorted(node.get('children', {}).keys())
     if not flags.get('all'):
@@ -57,48 +71,98 @@ def _list_directory(path, flags, output):
     sort_key_func = _get_sort_key(flags, path)
     sorted_children = sorted(children_names, key=sort_key_func, reverse=flags.get('reverse', False))
 
+    output = []
     if flags.get('long'):
         for name in sorted_children:
             output.append(_format_long(path, name, node['children'][name]))
     else:
-        output.append("  ".join(sorted_children))
+        # For non-long format, we can just join the names.
+        if sorted_children: # Avoid printing an empty line for empty dirs
+            output.append("  ".join(sorted_children))
+
+    return output, []
+
 
 def run(args, flags, user_context, **kwargs):
     paths = args if args else ["."]
-    output, file_args, dir_args, error_lines = [], [], [], []
+    output = []
+    error_lines = []
 
+    file_args = []
+    dir_args = []
+
+    # 1. Separate arguments into files and directories, and check for existence.
     for path in paths:
         target_path = fs_manager.get_absolute_path(path)
-        node = fs_manager.get_node(target_path, resolve_symlink=not flags.get('long'))
+        # Use resolve_symlink=False for -l to show link info, not target info.
+        resolve_symlink_for_get_node = not (flags.get('long') and os.path.islink(target_path))
+        node = fs_manager.get_node(target_path, resolve_symlink=resolve_symlink_for_get_node)
+
         if not node:
             error_lines.append(f"ls: cannot access '{path}': No such file or directory")
             continue
-        if node.get('type') != 'directory' or flags.get('directory'):
-            file_args.append((path, target_path, node))
-        else:
-            dir_args.append((path, target_path, node))
 
+        if node.get('type') == 'directory' and not flags.get('directory'):
+            dir_args.append((path, target_path, node))
+        else:
+            file_args.append((path, target_path, node))
+
+    # 2. Process all file arguments first.
     if file_args:
+        # Sort files based on the same criteria as directory contents.
+        # The 'path' for sorting is the parent directory of the file.
         sorted_files = sorted(file_args, key=lambda x: _get_sort_key(flags, os.path.dirname(x[1]))(os.path.basename(x[1])), reverse=flags.get('reverse', False))
+
         if flags.get('long'):
             for _, target_path, node in sorted_files:
                 output.append(_format_long(os.path.dirname(target_path), os.path.basename(target_path), node))
         else:
-            output.append("  ".join([p[0].rstrip('/') for p in sorted_files]))
+            output.append("  ".join([p[0] for p in sorted_files]))
 
+    # 3. Process all directory arguments.
     if dir_args:
-        if file_args: output.append("")
-        sorted_dirs = sorted(dir_args, key=lambda x: x[0], reverse=flags.get('reverse', False))
-        for i, (path, target_path, node) in enumerate(sorted_dirs):
-            if len(paths) > 1:
-                if i > 0 or file_args: output.append("")
-                output.append(f"{path}:")
-            _list_directory(target_path, flags, output)
+        if file_args: output.append("") # Add a newline between files and directories
 
-    final_output = error_lines + output
+        sorted_dirs = sorted(dir_args, key=lambda x: x[0], reverse=flags.get('reverse', False))
+
+        def recursive_lister(current_path_display, current_path_abs, current_node):
+            # This is our robust recursive helper function!
+            if len(paths) > 1 or flags.get('recursive'):
+                output.append(f"\n{current_path_display}:")
+
+            # *** Centralized Permission Check ***
+            if not fs_manager.has_permission(current_path_abs, user_context, 'read'):
+                error_lines.append(f"ls: cannot open directory '{current_path_display}': Permission denied")
+                return
+
+            content_lines, errors = _list_directory_contents(current_path_abs, flags, user_context)
+            output.extend(content_lines)
+            error_lines.extend(errors)
+
+            if flags.get('recursive'):
+                children = sorted(current_node.get('children', {}).keys())
+                for child_name in children:
+                    child_node = current_node['children'][child_name]
+                    if child_node.get('type') == 'directory':
+                        child_display_path = os.path.join(current_path_display, child_name)
+                        child_abs_path = os.path.join(current_path_abs, child_name)
+                        recursive_lister(child_display_path, child_abs_path, child_node)
+
+        for i, (path, target_path, node) in enumerate(sorted_dirs):
+            if i > 0 and not (len(paths) > 1 or flags.get('recursive')):
+                output.append("")
+            recursive_lister(path, target_path, node)
+
+    # 4. Finalize output and return status.
+    # Use '\\n' for newlines to be correctly interpreted by the JS terminal.
+    final_output_str = "\\n".join(output)
+    final_error_str = "\\n".join(error_lines)
+
     if error_lines:
-        return {"success": False, "error": "\\n".join(final_output)}
-    return "\\n".join(final_output)
+        full_message = f"{final_error_str}\\n{final_output_str}".strip()
+        return {"success": False, "error": full_message}
+
+    return final_output_str
 
 def man(args, flags, user_context, **kwargs):
     return """
