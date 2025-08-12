@@ -168,50 +168,40 @@ class UserManager {
             return ErrorHandler.createError(failureMessage);
         }
 
-        const userHasPassword = !!userResult.data.passwordData;
-
-        // Path 1: A password was provided on the command line. Let's try it first.
-        if (providedPassword !== null && providedPassword !== undefined) {
-            const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
-            if (verifyResult.success && verifyResult.data) {
-                return await successCallback(username); // Password is correct!
-            } else {
-                const context = options?.isInteractive === false ? 'non-interactive' : 'interactive';
-                AuditManager.log(username, 'auth_failure', `Failed ${context} login for '${username}'.`);
-                return ErrorHandler.createError(failureMessage); // Password is wrong.
-            }
+        // If no password was provided interactively or on the command line,
+        // and this is an interactive session, we must prompt.
+        if (providedPassword === null && options?.isInteractive !== false) {
+            return new Promise((resolve) => {
+                ModalManager.request({
+                    context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
+                    onConfirm: async (passwordFromPrompt) => {
+                        // Now, we ask the Python kernel to verify.
+                        const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
+                        if (verifyResult.success && verifyResult.data) {
+                            resolve(await successCallback(username));
+                        } else {
+                            AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
+                            resolve(ErrorHandler.createError(failureMessage));
+                        }
+                    },
+                    onCancel: () => resolve(ErrorHandler.createError(Config.MESSAGES.OPERATION_CANCELLED)),
+                    options,
+                });
+            });
         }
 
-        // Path 2: No password was provided. Now, let's see if one is needed.
-        // Sub-path 2a: The user doesn't have a password set. Success.
-        if (!userHasPassword) {
+        // For non-interactive sessions or when a password IS provided,
+        // let the Python kernel make the final decision. This single call
+        // correctly handles users with passwords AND passwordless users like Guest.
+        const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
+
+        if (verifyResult.success && verifyResult.data) {
             return await successCallback(username);
-        }
-
-        // Sub-path 2b: A password IS required, but none was given.
-        // If this is a script, it's an automatic failure.
-        if (options?.isInteractive === false) {
-            AuditManager.log(username, 'auth_failure', `Non-interactive login for '${username}' failed: Password required but not provided.`);
+        } else {
+            const context = options?.isInteractive === false ? 'non-interactive' : 'interactive';
+            AuditManager.log(username, 'auth_failure', `Failed ${context} login for '${username}'.`);
             return ErrorHandler.createError(failureMessage);
         }
-
-        // Sub-path 2c: We are interactive and the user has a password. We must prompt.
-        return new Promise((resolve) => {
-            ModalManager.request({
-                context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
-                onConfirm: async (passwordFromPrompt) => {
-                    const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
-                    if (verifyResult.success && verifyResult.data) {
-                        resolve(await successCallback(username));
-                    } else {
-                        AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
-                        resolve(ErrorHandler.createError(failureMessage));
-                    }
-                },
-                onCancel: () => resolve(ErrorHandler.createSuccess({ output: Config.MESSAGES.OPERATION_CANCELLED })),
-                options,
-            });
-        });
     }
 
 

@@ -190,7 +190,7 @@ delay 500
 # Guest doesn't have a password, so su should switch to Guest without fail. if you're
 # reading this, that means it's not working and we need to fix it!
 echo "Logging in as guest"
-su Guest
+su Guest password
 echo "--- Test: 'Other' permissions (should fail) ---"
 check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_test_file.txt"
 delay 200
@@ -255,7 +255,7 @@ echo "I solemnly swear to bring a pie." > /home/project_harvest_festival/plan.tx
 cat /home/project_harvest_festival/plan.txt
 delay 400
 echo "--- Test: Non-member access (should fail) ---"
-su Guest
+su Guest password
 check_fail "ls /home/project_harvest_festival"
 check_fail "cat /home/project_harvest_festival/plan.txt"
 delay 400
@@ -275,7 +275,7 @@ delay 200
 echo "Attempting second sudo command (should not require password)..."
 sudo ls /home/root
 logout
-su Guest
+su Guest password
 check_fail "sudo ls /home/root"
 
 echo "--- Test: Granular sudo permissions ---"
@@ -1135,7 +1135,7 @@ echo "Appending to file as group member (should succeed)..."
 echo "appended" >> /home/diagUser/diag_workspace/group_test_file.txt
 cat /home/diagUser/diag_workspace/group_test_file.txt
 logout
-su Guest
+su Guest password
 echo "Appending to file as Guest (should fail)..."
 check_fail "echo 'appended by guest' >> /home/diagUser/diag_workspace/group_test_file.txt"
 echo "Group permissions test complete."
@@ -1324,7 +1324,7 @@ echo -e "testpass\ntestpass" | useradd plan_user2
 
 echo "Users created. Proceeding with tests..."
 delay 300
-su Guest
+su Guest password
 echo ""
 echo "--- Phase 2: 'planner create' Tests ---"
 echo "Attempting to create project as non-root (should fail)..."
@@ -1397,7 +1397,7 @@ check_fail "ls /etc/projects/city_mural.json"
 echo ""
 echo "===== Planner Command Test Suite Complete! ====="
 
-login Guest
+login Guest password
 listusers
 delay 200
 
