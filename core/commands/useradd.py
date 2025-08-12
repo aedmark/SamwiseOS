@@ -16,17 +16,15 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     if stdin_data:
         try:
-            lines = stdin_data.strip().split('\n')
+            lines = stdin_data.strip().split('\\n')
             password = lines[0]
             confirm_password = lines[1] if len(lines) > 1 else ''
 
             if password != confirm_password:
                 return {"success": False, "error": "passwd: passwords do not match."}
 
-            # Directly call the registration logic since we have the password
             registration_result = user_manager.register_user(username, password, username)
             if registration_result["success"]:
-                # Manually create the home directory as part of the non-interactive flow
                 from filesystem import fs_manager
                 home_path = f"/home/{username}"
                 fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
@@ -40,12 +38,28 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 }
             else:
                 return registration_result
-
         except IndexError:
             return {"success": False, "error": "useradd: insufficient password lines from stdin"}
     else:
-        # Trigger the interactive password prompt flow in the JS UserManager
         return {
             "effect": "useradd",
             "username": username
         }
+
+def man(args, flags, user_context, **kwargs):
+    return """
+NAME
+    useradd - create a new user or update default new user information
+
+SYNOPSIS
+    useradd [username]
+
+DESCRIPTION
+    Creates a new user account with the specified username. If run
+    interactively, it will prompt for a new password. This command
+    requires root privileges.
+"""
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the useradd command."""
+    return "Usage: useradd <username>"

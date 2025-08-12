@@ -18,9 +18,9 @@ def run(args, flags, user_context, stdin_data=None):
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return f"uniq: {path}: No such file or directory"
+                return {"success": False, "error": f"uniq: {path}: No such file or directory"}
             if node.get('type') != 'file':
-                return f"uniq: {path}: Is a directory"
+                return {"success": False, "error": f"uniq: {path}: Is a directory"}
             lines.extend(node.get('content', '').splitlines())
     else:
         return ""
@@ -33,12 +33,11 @@ def run(args, flags, user_context, stdin_data=None):
     is_unique = flags.get('unique', False)
 
     if is_repeated and is_unique:
-        return "uniq: printing only unique and repeated lines is mutually exclusive"
+        return {"success": False, "error": "uniq: printing only unique and repeated lines is mutually exclusive"}
 
     output_lines = []
     if len(lines) > 0:
-        last_line = lines[0]
-        count = 1
+        last_line, count = lines[0], 1
         for i in range(1, len(lines)):
             if lines[i] == last_line:
                 count += 1
@@ -46,23 +45,15 @@ def run(args, flags, user_context, stdin_data=None):
                 if (is_repeated and count > 1) or \
                         (is_unique and count == 1) or \
                         (not is_repeated and not is_unique):
-                    if is_count:
-                        output_lines.append(f"{str(count).rjust(7)} {last_line}")
-                    else:
-                        output_lines.append(last_line)
-                last_line = lines[i]
-                count = 1
+                    output_lines.append(f"{str(count).rjust(7)} {last_line}" if is_count else last_line)
+                last_line, count = lines[i], 1
 
-        # Process the last line/group
         if (is_repeated and count > 1) or \
                 (is_unique and count == 1) or \
                 (not is_repeated and not is_unique):
-            if is_count:
-                output_lines.append(f"{str(count).rjust(7)} {last_line}")
-            else:
-                output_lines.append(last_line)
+            output_lines.append(f"{str(count).rjust(7)} {last_line}" if is_count else last_line)
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
 def man(args, flags, user_context, stdin_data=None):
     return """
@@ -84,3 +75,7 @@ DESCRIPTION
     -u, --unique
           only print lines that are not repeated
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the uniq command."""
+    return "Usage: uniq [-cdu] [FILE]..."
