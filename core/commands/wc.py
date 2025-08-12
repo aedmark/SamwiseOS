@@ -62,7 +62,7 @@ def run(args, flags, user_context, stdin_data=None):
     if len(sources) > 1 and 'stdin' not in sources:
         output_lines.append(format_output(total_counts['lines'], total_counts['words'], total_counts['bytes'], "total"))
 
-    return "\\n".join(output_lines)
+    return "\n".join(output_lines)
 
 def man(args, flags, user_context, stdin_data=None):
     return """

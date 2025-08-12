@@ -240,7 +240,7 @@ class CommandExecutor {
 
     async processSingleCommand(rawCommandText, options = {}) {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
-        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer } = this.dependencies;
+        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser } = this.dependencies;
 
         if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
             if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
@@ -273,39 +273,57 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess("");
             }
 
-            // We now create the context and call the kernel in one clean, efficient step!
-            const kernelContextJson = this._createKernelContext();
-            const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
-            const result = JSON.parse(resultJson);
+            const lexer = new Lexer(commandToExecute, this.dependencies);
+            const tokens = lexer.tokenize();
+            const parser = new Parser(tokens, this.dependencies);
+            const commandSequence = parser.parse();
 
-            if (result.success) {
-                if (result.effect) {
-                    const effectResult = await this._handleEffect(result, options);
-                    if (effectResult) { finalResult = effectResult; }
-                }
-                if (!finalResult) {
-                    finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
-                }
-            } else {
-                // This is the fallback for JS-only commands, which is a brilliant strategy!
-                if (result.error && result.error.endsWith("command not found")) {
-                    const lexer = new Lexer(commandToExecute, this.dependencies);
-                    const tokens = lexer.tokenize();
-                    const commandName = tokens.length > 0 && tokens[0].type === 'WORD' ? tokens[0].value : null;
+            for (const item of commandSequence) {
+                const { pipeline } = item;
+                if (pipeline.isBackground) {
+                    this.backgroundProcessIdCounter++;
+                    const jobId = this.backgroundProcessIdCounter;
+                    const abortController = new AbortController();
+                    this.activeJobs[jobId] = {
+                        command: commandToExecute.replace('&', '').trim(),
+                        status: 'running',
+                        abortController: abortController,
+                        user: this.dependencies.UserManager.getCurrentUser().name,
 
-                    if (commandName) {
+                    };
+                    this.processSingleCommand(commandToExecute.replace('&', '').trim(), { ...options, isBackground: false, suppressOutput: true, signal: abortController.signal })
+                        .finally(() => {
+                            delete this.activeJobs[jobId];
+                        });
+                    finalResult = ErrorHandler.createSuccess(`[${jobId}] Backgrounded.`);
+                    break;
+                }
+
+                const kernelContextJson = this._createKernelContext();
+                const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
+                const result = JSON.parse(resultJson);
+
+                if (result.success) {
+                    if (result.effect) {
+                        const effectResult = await this._handleEffect(result, options);
+                        if (effectResult) { finalResult = effectResult; }
+                    }
+                    if (!finalResult) {
+                        finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+                    }
+                } else {
+                    if (result.error && result.error.endsWith("command not found")) {
+                        const commandName = pipeline.segments[0].command;
                         const commandInstance = await this._ensureCommandLoaded(commandName);
                         if (commandInstance) {
-                            const rawArgs = tokens.slice(1).filter(t => t.type !== 'EOF').map(t => t.value);
+                            const rawArgs = pipeline.segments.flatMap(seg => [seg.command, ...seg.args]).slice(1);
                             finalResult = await commandInstance.execute(rawArgs, options, this.dependencies);
                         } else {
                             finalResult = ErrorHandler.createError({ message: result.error });
                         }
                     } else {
-                        finalResult = ErrorHandler.createError({ message: result.error });
+                        finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
                     }
-                } else {
-                    finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
                 }
             }
         } catch (e) {
