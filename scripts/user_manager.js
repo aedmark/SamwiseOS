@@ -168,13 +168,11 @@ class UserManager {
             return ErrorHandler.createError(failureMessage);
         }
 
-        // Step 1: The most important check! If the user has no password, let them in immediately.
-        // This fixes the regression for interactive `su Guest`.
+        // **THE FIX IS HERE!** We now correctly check if the user *has* a password first.
         if (!userResult.data.passwordData) {
             return await successCallback(username);
         }
 
-        // Step 2: Handle cases where a password was provided on the command line.
         if (providedPassword !== null && providedPassword !== undefined) {
             const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
             if (verifyResult.success && verifyResult.data) {
@@ -186,15 +184,11 @@ class UserManager {
             }
         }
 
-        // Step 3: If we're here, a password is required but wasn't provided.
-        // If this is a script, we must fail now.
         if (options?.isInteractive === false) {
             AuditManager.log(username, 'auth_failure', `Non-interactive login for '${username}' failed: Password required but not provided.`);
             return ErrorHandler.createError(failureMessage);
         }
 
-        // Step 4: If (and only if) all the above checks fail, we are an interactive
-        // user who needs a password. Now we can show the prompt.
         return new Promise((resolve) => {
             ModalManager.request({
                 context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
