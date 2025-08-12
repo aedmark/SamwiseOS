@@ -162,7 +162,6 @@ check_fail "cd not_a_directory.txt"
 delay 200
 rm not_a_directory.txt
 echo "---------------------------------------------------------------------"
-
 echo ""
 echo "===== Phase 4: Testing Group Permissions & Ownership (Expanded) ====="
 delay 200
@@ -189,7 +188,7 @@ cat group_test_file.txt
 logout
 delay 500
 # Guest doesn't have a password, so su should switch to Guest without fail. if you're
-# reading this, leslie, that means it's not working and we need to fix it!
+# reading this, that means it's not working and we need to fix it!
 su Guest
 echo "--- Test: 'Other' permissions (should fail) ---"
 check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_test_file.txt"
