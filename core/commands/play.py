@@ -11,9 +11,6 @@ def run(args, flags, user_context, **kwargs):
     notes_string = args[0]
     duration = args[1]
 
-    # This is a hybrid command. The Python part validates and structures the request,
-    # then returns an 'effect' for the JavaScript layer to execute, as it has
-    # direct access to the browser's audio APIs (Tone.js).
     return {
         "effect": "play_sound",
         "notes": notes_string.split(' '),
@@ -33,3 +30,7 @@ DESCRIPTION
     - "<note or chord>": Standard musical notation (e.g., C4, "F#5 G5", "A3 C4 E4"). For chords, enclose the notes in quotes.
     - <duration>: Note duration (e.g., 4n, 8n, 1m).
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the play command."""
+    return 'Usage: play "<note or chord>" <duration>'

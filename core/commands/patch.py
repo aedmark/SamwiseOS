@@ -7,7 +7,7 @@ def _parse_patch(patch_content):
     """Parses a unified diff string into a list of hunk objects."""
     hunks = []
     current_hunk = None
-    hunk_header_re = re.compile(r'^@@ -(\d+)(,(\d+))? \+(\d+)(,(\d+))? @@')
+    hunk_header_re = re.compile(r'^@@ -(\\d+)(,(\\d+))? \\+(\\d+)(,(\\d+))? @@')
 
     for line in patch_content.splitlines():
         if line.startswith('---') or line.startswith('+++'):
@@ -30,7 +30,6 @@ def _parse_patch(patch_content):
 
     if current_hunk:
         hunks.append(current_hunk)
-
     return hunks
 
 def _apply_patch(original_content, hunks):
@@ -41,40 +40,28 @@ def _apply_patch(original_content, hunks):
 
     for hunk in hunks:
         start_index = hunk['old_start'] - 1 + offset
-
-        # Verify context lines match
         hunk_original_lines = [line[1:] for line in hunk['lines'] if not line.startswith('+')]
-        original_slice = original_lines[start_index : start_index + len(hunk_original_lines)]
-
-        # This is a simplified context check
-        if hunk_original_lines != original_slice[:len(hunk_original_lines)]:
-            # A more robust patch would use fuzzy matching. For now, we require an exact match.
-            # raise ValueError(f"Hunk does not match target file at line {hunk['old_start']}")
-            pass # Silently ignore non-matching hunks for simplicity
-
-        lines_to_remove = len([line for line in hunk['lines'] if not line.startswith('+')])
         lines_to_add = [line[1:] for line in hunk['lines'] if not line.startswith('-')]
 
-        new_lines[start_index : start_index + lines_to_remove] = lines_to_add
-        offset += len(lines_to_add) - lines_to_remove
+        new_lines[start_index : start_index + len(hunk_original_lines)] = lines_to_add
+        offset += len(lines_to_add) - len(hunk_original_lines)
 
-    return '\n'.join(new_lines)
+    return '\\n'.join(new_lines)
 
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def run(args, flags, user_context, **kwargs):
     if len(args) != 2:
-        return "patch: missing operand. Usage: patch <target_file> <patch_file>"
+        return {"success": False, "error": "patch: missing operand. Usage: patch <target_file> <patch_file>"}
 
-    target_file_path = args[0]
-    patch_file_path = args[1]
+    target_file_path, patch_file_path = args[0], args[1]
 
     target_node = fs_manager.get_node(target_file_path)
-    patch_node = fs_manager.get_node(patch_file_path)
-
     if not target_node:
-        return f"patch: {target_file_path}: No such file or directory"
+        return {"success": False, "error": f"patch: {target_file_path}: No such file or directory"}
+
+    patch_node = fs_manager.get_node(patch_file_path)
     if not patch_node:
-        return f"patch: {patch_file_path}: No such file or directory"
+        return {"success": False, "error": f"patch: {patch_file_path}: No such file or directory"}
 
     target_content = target_node.get('content', '')
     patch_content = patch_node.get('content', '')
@@ -82,7 +69,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
     try:
         hunks = _parse_patch(patch_content)
         if not hunks and patch_content.strip():
-            return "patch: unrecognized patch format"
+            return {"success": False, "error": "patch: unrecognized patch format"}
 
         if not hunks:
             return f"File '{target_file_path}' is already up to date."
@@ -92,9 +79,9 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         fs_manager.write_file(target_file_path, new_content, user_context)
         return f"patching file {target_file_path}"
     except Exception as e:
-        return f"patch: an error occurred: {repr(e)}"
+        return {"success": False, "error": f"patch: an error occurred: {repr(e)}"}
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     patch - apply a diff file to an original
@@ -108,5 +95,5 @@ DESCRIPTION
     file, producing a patched version.
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: patch <target_file> <patch_file>"

@@ -7,15 +7,16 @@ def run(args, flags, user_context, **kwargs):
     Determines whether to capture a screenshot as a PNG or dump terminal
     text to a file, and returns the appropriate effect.
     """
+    if len(args) > 1:
+        return {"success": False, "error": "printscreen: too many arguments"}
+
     if args:
-        # If a filename is provided, we're dumping text to a file.
         output_filename = args[0]
         return {
             "effect": "dump_screen_text",
             "path": output_filename
         }
     else:
-        # No filename, so we're capturing a PNG for download.
         timestamp = datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
         return {
             "effect": "capture_screenshot_png",
@@ -37,3 +38,7 @@ DESCRIPTION
     - Text Dump Mode: If an [output_file] is specified, it dumps the
       visible text content of the terminal to that file.
 """
+
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the printscreen command."""
+    return "Usage: printscreen [output_file]"
