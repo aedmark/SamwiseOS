@@ -318,6 +318,7 @@ echo "---------------------------------------------------------------------"
 echo ""
 echo "===== Phase 8: Testing Data Processing & Text Utilities ======="
 delay 200
+cd /
 echo "--- Test: sort (-n, -r, -u) ---"
 sort -r sort_test.txt
 sort -n sort_test.txt

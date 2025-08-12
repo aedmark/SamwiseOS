@@ -17,6 +17,8 @@ def define_flags():
 
 def _process_content(content, pattern, flags, file_path_for_display, display_file_name):
     """Processes a string of content, finds matching lines, and returns formatted output."""
+    if not content:
+        return []
     lines = content.splitlines()
     file_match_count = 0
     file_output = []
@@ -105,10 +107,10 @@ def run(args, flags, user_context, stdin_data=None):
                 content = node.get('content', '')
                 output_lines.extend(_process_content(content, pattern, flags, path, display_file_names))
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
-    return """
+    return '''
 NAME
     grep - print lines that match patterns
 
@@ -128,7 +130,7 @@ DESCRIPTION
           Suppress normal output; instead print a count of matching lines.
     -r, -R, --recursive
           Read all files under each directory, recursively.
-"""
+'''
 
 def help(args, flags, user_context, **kwargs):
     return "Usage: grep [OPTION]... PATTERN [FILE]..."

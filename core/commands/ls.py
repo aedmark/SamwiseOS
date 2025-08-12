@@ -15,6 +15,7 @@ def define_flags():
         {'name': 'sort-extension', 'short': 'X', 'takes_value': False},
         {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
         {'name': 'directory', 'short': 'd', 'long': 'directory', 'takes_value': False},
+        {'name': 'one-per-line', 'short': '1', 'takes_value': False},
     ]
 
 def _format_long(path, name, node):
@@ -76,9 +77,9 @@ def _list_directory_contents(path, flags, user_context):
         for name in sorted_children:
             output.append(_format_long(path, name, node['children'][name]))
     else:
-        # For non-long format, we can just join the names.
-        if sorted_children: # Avoid printing an empty line for empty dirs
-            output.append("  ".join(sorted_children))
+        if sorted_children:
+            separator = "\n" if flags.get('one-per-line') else "  "
+            output.append(separator.join(sorted_children))
 
     return output, []
 
@@ -117,7 +118,8 @@ def run(args, flags, user_context, **kwargs):
             for _, target_path, node in sorted_files:
                 output.append(_format_long(os.path.dirname(target_path), os.path.basename(target_path), node))
         else:
-            output.append("  ".join([p[0] for p in sorted_files]))
+            separator = "\n" if flags.get('one-per-line') else "  "
+            output.append(separator.join([p[0] for p in sorted_files]))
 
     # 3. Process all directory arguments.
     if dir_args:
@@ -169,7 +171,7 @@ NAME
     ls - list directory contents
 
 SYNOPSIS
-    ls [-a] [-l] [-R] [-t] [-S] [-X] [-r] [-d] [FILE...]
+    ls [-a] [-l] [-R] [-t] [-S] [-X] [-r] [-d] [-1] [FILE...]
 
 DESCRIPTION
     List information about the FILEs (the current directory by default).
@@ -182,7 +184,8 @@ DESCRIPTION
     -X              sort alphabetically by extension
     -r, --reverse   reverse order while sorting
     -d, --directory list directories themselves, not their contents
+    -1              list one file per line
 """
 
 def help(args, flags, user_context, **kwargs):
-    return "Usage: ls [-a] [-l] [-R] [-t] [-S] [-X] [-r] [-d] [FILE...]"
+    return "Usage: ls [-a] [-l] [-R] [-t] [-S] [-X] [-r] [-d] [-1] [FILE...]"

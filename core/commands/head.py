@@ -12,7 +12,7 @@ def define_flags():
 def run(args, flags, user_context, stdin_data=None):
     lines = []
     # Logic to handle both piped data and file arguments
-    if stdin_data is not None:
+    if stdin_data:
         lines.extend(stdin_data.splitlines())
     elif args:
         for path in args:
@@ -50,19 +50,19 @@ def run(args, flags, user_context, stdin_data=None):
 def man(args, flags, user_context, stdin_data=None):
     return """
 NAME
-    head - output the first part of files
+head - output the first part of files
 
 SYNOPSIS
-    head [OPTION]... [FILE]...
+head [OPTION]... [FILE]...
 
 DESCRIPTION
-    Print the first 10 lines of each FILE to standard output.
-    With no FILE, or when FILE is -, read standard input.
+Print the first 10 lines of each FILE to standard output.
+With no FILE, or when FILE is -, read standard input.
 
-    -n, --lines=COUNT
-          print the first COUNT lines instead of the first 10
-    -c, --bytes=COUNT
-          print the first COUNT bytes
+-n, --lines=COUNT
+print the first COUNT lines instead of the first 10
+-c, --bytes=COUNT
+print the first COUNT bytes
 """
 
 def help(args, flags, user_context, stdin_data=None):

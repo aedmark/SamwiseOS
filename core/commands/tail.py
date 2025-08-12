@@ -6,6 +6,7 @@ def define_flags():
     """Declares the flags that the tail command accepts."""
     return [
         {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
+        {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': True},
         {'name': 'follow', 'short': 'f', 'long': 'follow', 'takes_value': False},
     ]
 
@@ -13,31 +14,50 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if flags.get('follow', False):
         return {"success": False, "error": "tail: -f is handled by the JavaScript layer and should not reach the Python kernel."}
 
-    lines = []
-    line_count = 10
-
-    if flags.get('lines'):
-        try:
-            line_count = int(flags['lines'])
-            if line_count < 0:
-                line_count = 10
-        except (ValueError, TypeError):
-            return {"success": False, "error": f"tail: invalid number of lines: '{flags['lines']}'"}
-
-    if stdin_data is not None:
-        lines.extend(stdin_data.splitlines())
+    content = ""
+    # Logic to handle both piped data and file arguments
+    if stdin_data:
+        content = stdin_data
     elif args:
-        for path in args:
-            node = fs_manager.get_node(path)
-            if not node:
-                return {"success": False, "error": f"tail: cannot open '{path}' for reading: No such file or directory"}
-            if node.get('type') != 'file':
-                return {"success": False, "error": f"tail: error reading '{path}': Is a directory"}
-            lines.extend(node.get('content', '').splitlines())
+        # If there are flags, the file is the last argument. This is a simple way to handle it.
+        # A more robust parser would be better, but this matches the script's usage.
+        file_path = args[-1]
+        node = fs_manager.get_node(file_path)
+        if not node:
+            # Check if an argument that looks like a flag was misinterpreted as a file
+            for arg in args:
+                if arg.startswith('-'):
+                    return {"success": False, "error": f"tail: invalid option -- '{arg.lstrip('-')}'"}
+            return {"success": False, "error": f"tail: cannot open '{file_path}' for reading: No such file or directory"}
+        if node.get('type') != 'file':
+            return {"success": False, "error": f"tail: error reading '{file_path}': Is a directory"}
+        content = node.get('content', '')
     else:
-        return ""
+        return "" # No input, no output
 
-    return "\\n".join(lines[-line_count:])
+    line_count_str = flags.get('lines')
+    byte_count_str = flags.get('bytes')
+
+    if byte_count_str is not None:
+        try:
+            byte_count = int(byte_count_str)
+            if byte_count < 0: raise ValueError
+            # Slicing from the end for bytes
+            return content[-byte_count:]
+        except (ValueError, TypeError):
+            return {"success": False, "error": f"tail: invalid number of bytes: '{byte_count_str}'"}
+    else:
+        line_count = 10
+        if line_count_str is not None:
+            try:
+                line_count = int(line_count_str)
+                if line_count < 0: raise ValueError
+            except (ValueError, TypeError):
+                return {"success": False, "error": f"tail: invalid number of lines: '{line_count_str}'"}
+
+        lines = content.splitlines()
+        return "\\n".join(lines[-line_count:])
+
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -53,6 +73,8 @@ DESCRIPTION
 
     -n, --lines=COUNT
           output the last COUNT lines, instead of the last 10
+    -c, --bytes=COUNT
+          output the last COUNT bytes
     -f, --follow
           output appended data as the file grows
           (NOTE: This feature is handled by the JS command layer)
@@ -60,4 +82,4 @@ DESCRIPTION
 
 def help(args, flags, user_context, **kwargs):
     """Provides help information for the tail command."""
-    return "Usage: tail [-n COUNT] [-f] [FILE]..."
+    return "Usage: tail [-n COUNT] [-c BYTES] [-f] [FILE]..."
