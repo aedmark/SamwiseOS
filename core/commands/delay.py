@@ -3,6 +3,9 @@
 import time
 
 def run(args, flags, user_context, **kwargs):
+    """
+    Signals the JavaScript front end to perform a delay.
+    """
     if len(args) != 1:
         return {"success": False, "error": "delay: Invalid number of arguments. Usage: delay <milliseconds>"}
 

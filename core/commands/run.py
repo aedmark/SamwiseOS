@@ -10,7 +10,7 @@ def run(args, flags, user_context, **kwargs):
         return {"success": False, "error": "run: missing file operand"}
 
     script_path = args[0]
-    script_args = args[1:]
+    script_args = args[1:] # Capture arguments for the script
 
     validation_result = fs_manager.validate_path(
         script_path,

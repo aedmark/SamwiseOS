@@ -73,9 +73,12 @@ class UserManager {
 
         if (result.success) {
             this._saveUsers();
-            await this.sudoExecute(`mkdir /home/${username}`, { isInteractive: false });
-            await this.sudoExecute(`chown ${username} /home/${username}`, { isInteractive: false });
-            await this.sudoExecute(`chgrp ${username} /home/${username}`, { isInteractive: false });
+            // When root runs useradd, we're already root, so no password needed for these sudo commands.
+            const sudoOptions = { isInteractive: false };
+
+            await this.sudoExecute(`mkdir /home/${username}`, sudoOptions);
+            await this.sudoExecute(`chown ${username} /home/${username}`, sudoOptions);
+            await this.sudoExecute(`chgrp ${username} /home/${username}`, sudoOptions);
             return ErrorHandler.createSuccess(
                 `User '${username}' registered. Home directory created at /home/${username}.`,
                 { stateModified: true }
@@ -83,6 +86,7 @@ class UserManager {
         }
         return ErrorHandler.createError(result.error || "Failed to register new user in kernel.");
     }
+
 
     async registerWithPrompt(username, options) {
         const { ErrorHandler } = this.dependencies;
@@ -135,6 +139,18 @@ class UserManager {
         const { ErrorHandler, SudoManager, ModalManager } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
 
+        if (currentUserName === 'root') {
+            const originalUser = this.currentUser;
+            try {
+                this.currentUser = { name: "root" };
+                return await this.commandExecutor.processSingleCommand(commandStr, options);
+            } catch (e) {
+                return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
+            } finally {
+                this.currentUser = originalUser;
+            }
+        }
+
         const authSuccess = SudoManager.isUserTimestampValid(currentUserName);
 
         if (authSuccess) {
@@ -149,11 +165,9 @@ class UserManager {
             }
         }
 
-        // Check if the user even has a password before prompting!
         const userHasPassword = await this.hasPassword(currentUserName);
 
         if (!userHasPassword) {
-            // If there's no password, we can just proceed as root. No questions asked!
             const originalUser = this.currentUser;
             try {
                 this.currentUser = { name: "root" };
@@ -165,8 +179,6 @@ class UserManager {
             }
         }
 
-        // If we get here, it means the timestamp is invalid AND the user has a password.
-        // NOW it's okay to ask.
         return new Promise(async (resolve) => {
             const handleSudoAuth = async (password) => {
                 const verifyResult = await this.verifyPassword(currentUserName, password);
