@@ -9,7 +9,7 @@ class SudoManager:
         self.SUDOERS_PATH = "/etc/sudoers"
 
     def _parse_sudoers(self):
-        """Parses the /etc/sudoers file and caches the configuration."""
+        """Parses the /etc/sudoers file to load the current privilege configuration."""
         sudoers_node = self.fs_manager.get_node(self.SUDOERS_PATH)
         if not sudoers_node or sudoers_node.get('type') != 'file':
             self.sudoers_config = {'users': {}, 'groups': {}}
@@ -29,11 +29,9 @@ class SudoManager:
                 continue
 
             entity = parts[0]
-            # In a real sudoers, this part is much more complex (host, user, etc.)
-            # We are simplifying to just the allowed commands list.
             permissions = parts[1:]
 
-            # This is a very simplified model where we assume `ALL=(ALL) ALL` becomes just `ALL`
+            # This implementation supports the 'ALL' keyword for commands.
             allowed_commands = []
             all_found = False
             for part in permissions:
@@ -44,9 +42,7 @@ class SudoManager:
             if all_found:
                 allowed_commands = ["ALL"]
             else:
-                # This part is tricky in a real sudoers file. We'll simplify.
-                # A real implementation would parse the command list properly.
-                # For now, we'll assume the last part is the command list.
+                # The final part of the line is treated as a comma-separated list of commands.
                 allowed_commands = permissions[-1].split(',')
 
 
@@ -58,9 +54,10 @@ class SudoManager:
         self.sudoers_config = config
 
     def _get_config(self):
-        """Returns the sudoers config, parsing if necessary."""
-        if self.sudoers_config is None:
-            self._parse_sudoers()
+        """Returns the sudoers config, parsing every time to ensure freshness."""
+        # The configuration is re-parsed on every check to ensure that any
+        # dynamic changes to the /etc/sudoers file are immediately reflected.
+        self._parse_sudoers()
         return self.sudoers_config
 
     def can_user_run_command(self, username, user_groups, command_to_run):

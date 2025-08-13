@@ -5,13 +5,13 @@ from filesystem import fs_manager
 def run(args, flags, user_context, **kwargs):
     """
     Reads a script file and passes its lines to the executor to be run.
-    Now with password piping awareness!
+    Now with password piping awareness for both sudo and useradd!
     """
     if not args:
         return {"success": False, "error": "run: missing file operand"}
 
     script_path = args[0]
-    script_args = args[1:]  # Capture arguments for the script
+    script_args = args[1:]
 
     validation_result = fs_manager.validate_path(
         script_path,
@@ -26,37 +26,48 @@ def run(args, flags, user_context, **kwargs):
     script_content = script_node.get('content', '')
     lines = script_content.splitlines()
 
-    # This is the new logic to detect password piping for useradd
     commands_to_execute = []
     i = 0
     while i < len(lines):
         line = lines[i]
-        if line.strip().startswith("useradd"):
-            # Look ahead for the next two non-comment, non-empty lines
-            password_lines = []
-            j = i + 1
-            while j < len(lines) and len(password_lines) < 2:
-                next_line = lines[j].strip()
+        stripped_line = line.strip()
+        command_obj = {"command": line}
+
+        if not stripped_line or stripped_line.startswith('#'):
+            i += 1
+            commands_to_execute.append(command_obj)
+            continue
+
+        password_lines_needed = 0
+        if stripped_line.startswith("useradd"):
+            password_lines_needed = 2
+        elif stripped_line.startswith("sudo"):
+            password_lines_needed = 1
+
+        if password_lines_needed > 0:
+            password_pipe = []
+            lines_to_skip = 0
+            lookahead_index = i + 1
+            while lookahead_index < len(lines) and len(password_pipe) < password_lines_needed:
+                next_line = lines[lookahead_index].strip()
+                lines_to_skip += 1
                 if next_line and not next_line.startswith('#'):
-                    password_lines.append(next_line)
-                j += 1
+                    password_pipe.append(next_line)
+                lookahead_index += 1
 
-            # If we found two password lines, bundle them up!
-            if len(password_lines) == 2:
-                commands_to_execute.append({
-                    "command": line,
-                    "password_pipe": password_lines
-                })
-                i = j # Skip the password lines in the main loop
-                continue
+            if len(password_pipe) == password_lines_needed:
+                command_obj["password_pipe"] = password_pipe
+                i += (lines_to_skip + 1)
+            else:
+                i += 1
+        else:
+            i += 1
 
-        commands_to_execute.append({"command": line})
-        i += 1
-
+        commands_to_execute.append(command_obj)
 
     return {
         "effect": "execute_script",
-        "lines": commands_to_execute, # We now send a list of command objects
+        "lines": commands_to_execute,
         "args": script_args
     }
 
@@ -72,8 +83,8 @@ DESCRIPTION
     The run command reads and executes commands from a file in the current
     shell environment. It is useful for automating tasks. Script arguments
     can be accessed within the script using $1, $2, etc. It also supports
-    non-interactive password setting for commands like 'useradd' by placing
-    the password and confirmation on the two lines immediately following
+    non-interactive password setting for commands like 'useradd' or 'sudo'
+    by placing the required password(s) on the line(s) immediately following
     the command.
 """
 
