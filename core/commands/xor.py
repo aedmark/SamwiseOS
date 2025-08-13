@@ -25,13 +25,20 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     else:
         return {"success": False, "error": "xor: missing file operand when not using a pipe"}
 
+    string_content = str(content or "")
+
     key_bytes = key.encode('utf-8')
-    content_bytes = content.encode('utf-8')
+    content_bytes = string_content.encode('utf-8')
     key_len = len(key_bytes)
 
     result_bytes = bytearray(byte ^ key_bytes[i % key_len] for i, byte in enumerate(content_bytes))
 
-    return result_bytes.decode('utf-8', errors='replace')
+    try:
+        return result_bytes.decode('utf-8')
+    except UnicodeDecodeError:
+        # Fallback for binary data that doesn't decode cleanly to UTF-8
+        return result_bytes.decode('latin-1')
+
 
 def man(args, flags, user_context, **kwargs):
     return """

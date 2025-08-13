@@ -392,8 +392,8 @@ rm pager_test.txt input_redir.txt
 echo "Input redirection test complete."
 delay 200
 echo "--- Test: expr command ---"
-expr 10 + 5
-expr ( 10 + 5 ) \* 2
+expr "10 + 5"
+expr "(10 + 5) * 2"
 
 echo "--- Test: Date parsing pipeline ---"
 date | awk '{print $5}' | cut -c 3-4
@@ -408,7 +408,8 @@ echo "--- Test: rmdir ---"
 mkdir empty_dir
 rmdir empty_dir
 check_fail "ls empty_dir"
-mkdir non_empty_dir; touch non_empty_dir/file.txt
+mkdir non_empty_dir
+touch non_empty_dir/file.txt
 check_fail "rmdir non_empty_dir"
 rm -r non_empty_dir
 echo "rmdir tests complete."
@@ -416,8 +417,11 @@ delay 200
 echo "--- Test: base64 (encode/decode) ---"
 echo "The Tao is eternal." > b64_test.txt
 base64 b64_test.txt > b64_encoded.txt
-base64 -d b64_encoded.txt
-rm b64_test.txt b64_encoded.txt
+base64 -d b64_encoded.txt > b64_decoded.txt
+delay 200
+cat b64_decoded.txt
+delay 200
+rm b64_test.txt b64_encoded.txt b64_decoded.txt
 echo "base64 tests complete."
 delay 200
 echo "--- Test: xor (encrypt/decrypt) ---"
