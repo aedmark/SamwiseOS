@@ -1,4 +1,4 @@
-# /core/kernel.py
+# gem/core/kernel.py
 
 from executor import command_executor
 from filesystem import fs_manager
@@ -125,14 +125,16 @@ def write_file(path, content, user_context):
     Correctly handles a direct call from JS to the filesystem's write_file method.
     The user_context is passed as a JsProxy and used directly.
     """
-    req = {"module": "filesystem", "function": "write_file", "args": [path, content, user_context]}
+    py_user_context = user_context.to_py() if hasattr(user_context, 'to_py') else user_context
+    req = {"module": "filesystem", "function": "write_file", "args": [path, content, py_user_context]}
     return syscall_handler(json.dumps(req))
 
 def create_directory(path, user_context):
     """
     Correctly handles a direct call from JS to the filesystem's create_directory method.
     """
-    req = {"module": "filesystem", "function": "create_directory", "args": [path, user_context]}
+    py_user_context = user_context.to_py() if hasattr(user_context, 'to_py') else user_context
+    req = {"module": "filesystem", "function": "create_directory", "args": [path, py_user_context]}
     return syscall_handler(json.dumps(req))
 
 
@@ -232,7 +234,8 @@ def adventure_process_command(command):
     return syscall_handler(json.dumps(req))
 
 def top_get_process_list(jobs):
-    req = {"module": "top", "function": "get_process_list", "args": [jobs]}
+    py_jobs = jobs.to_py() if hasattr(jobs, 'to_py') else jobs
+    req = {"module": "top", "function": "get_process_list", "args": [py_jobs]}
     return syscall_handler(json.dumps(req))
 
 def log_ensure_dir(js_context_json):

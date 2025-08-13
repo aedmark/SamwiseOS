@@ -25,8 +25,11 @@ def run(args, flags, user_context, **kwargs):
                 # Return a specific error for the file that failed.
                 return {"success": False, "error": f"Error uploading '{file_info['name']}': {repr(e)}"}
 
-        # Return all the success messages.
-        return "\\n".join(output_messages)
+        # Return a standard success object with the output messages.
+        return {
+            "success": True,
+            "output": "\\n".join(output_messages)
+        }
 
 def man(args, flags, user_context, **kwargs):
     return """

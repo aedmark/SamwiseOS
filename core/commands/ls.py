@@ -65,10 +65,11 @@ def _list_directory_contents(path, flags, user_context):
     node = fs_manager.get_node(path)
     # The calling function should have already checked permissions.
 
-    children_names = sorted(node.get('children', {}).keys())
+    children_names = list(node.get('children', {}).keys())
     if not flags.get('all'):
         children_names = [name for name in children_names if not name.startswith('.')]
 
+    # This is the one, true sort that considers all our flags correctly.
     sort_key_func = _get_sort_key(flags, path)
     sorted_children = sorted(children_names, key=sort_key_func, reverse=flags.get('reverse', False))
 

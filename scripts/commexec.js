@@ -17,6 +17,7 @@ class CommandExecutor {
         this.activeJobs = {};
         this.loadedScripts = new Set();
         this.dependencies = {};
+        this.isInDreamatorium = false;
     }
 
     setDependencies(dependencies) {
@@ -230,6 +231,10 @@ class CommandExecutor {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
         const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser, FileSystemManager } = this.dependencies;
 
+        if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
+            if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
+            return ErrorHandler.createSuccess("");
+        }
         if (ModalManager.isAwaiting()) {
             await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
             if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
@@ -403,17 +408,7 @@ class CommandExecutor {
                     }));
 
                     if (confirmed) {
-                        if (result.on_confirm_command) {
-                            // THIS IS THE NEW PART!
-                            // If the confirmation was for an upload, we need to re-send the file info.
-                            if (result.on_confirm_command.startsWith('upload') && result.file_info_for_retry) {
-                                const retryEffect = { effect: 'upload_files', files: [result.file_info_for_retry] };
-                                resolve(await this._handleEffect(retryEffect, options));
-                            } else {
-                                const confirmResult = await this.processSingleCommand(result.on_confirm_command, { ...options, isInteractive: false });
-                                resolve(confirmResult);
-                            }
-                        } else if (result.on_confirm) {
+                        if (result.on_confirm) {
                             const confirmResult = await this._handleEffect(result.on_confirm, options);
                             resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || ""));
                         } else {
@@ -471,7 +466,7 @@ class CommandExecutor {
                             this.dependencies.ModalManager.request({
                                 context: 'terminal',
                                 type: 'confirm',
-                                messageLines: [`File '${file.name}' already exists. Overwrite?`],
+                                messageLines: [`File '${file.name}' already exists in ${FileSystemManager.getCurrentPath()}. Overwrite?`],
                                 onConfirm: () => resolve(true),
                                 onCancel: () => resolve(false),
                                 options,
@@ -491,12 +486,12 @@ class CommandExecutor {
                 if (filesToProcess.length === 0) {
                     let output = "No files were uploaded.";
                     if (skippedFiles.length > 0) {
-                        output += ` Skipped: ${skippedFiles.join(', ')}.`;
+                        output += ` Skipped overwriting: ${skippedFiles.join(', ')}.`;
                     }
                     return ErrorHandler.createSuccess(output);
                 }
 
-                const fileDataPromises = Array.from(filesToProcess).map(file => {
+                const fileDataPromises = filesToProcess.map(file => {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = (event) => resolve({
@@ -509,33 +504,38 @@ class CommandExecutor {
                     });
                 });
 
-                const filesForPython = await Promise.all(fileDataPromises);
-                const user = UserManager.getCurrentUser();
-                const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
-                const userContext = { name: user.name, group: primaryGroup };
+                try {
+                    const filesForPython = await Promise.all(fileDataPromises);
+                    const user = UserManager.getCurrentUser();
+                    const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
+                    const userContext = { name: user.name, group: primaryGroup };
 
-                const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
-                    command_name: 'upload',
-                    args: [],
-                    flags: {},
-                    user_context: userContext,
-                    stdin_data: null,
-                    kwargs: { files: filesForPython }
-                });
-                const pyResult = JSON.parse(resultJson);
+                    const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
+                        command_name: 'upload',
+                        args: [],
+                        flags: {},
+                        user_context: userContext,
+                        stdin_data: null,
+                        kwargs: { files: filesForPython }
+                    });
+                    const pyResult = JSON.parse(resultJson);
 
-                let finalOutput = [];
-                if (pyResult.success && pyResult.output) {
-                    finalOutput.push(pyResult.output);
-                } else if (!pyResult.success) {
-                    finalOutput.push(`An error occurred during the upload process: ${pyResult.error}`);
+                    const finalOutput = [];
+                    if (pyResult.success) {
+                        if (pyResult.output) finalOutput.push(pyResult.output);
+                    } else {
+                        return ErrorHandler.createError(pyResult.error || "An unknown error occurred during upload.");
+                    }
+
+                    if (skippedFiles.length > 0) {
+                        finalOutput.push(`Skipped overwriting: ${skippedFiles.join(', ')}.`);
+                    }
+
+                    return ErrorHandler.createSuccess(finalOutput.join('\n'));
+
+                } catch(e) {
+                    return ErrorHandler.createError(`File read error: ${e.message}`);
                 }
-
-                if (skippedFiles.length > 0) {
-                    finalOutput.push(`Skipped overwriting: ${skippedFiles.join(', ')}.`);
-                }
-
-                return ErrorHandler.createSuccess(finalOutput.join('\n'));
             case 'trigger_restore_flow':
                 return new Promise(async (resolve) => {
                     const { ModalManager } = this.dependencies;
