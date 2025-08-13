@@ -343,36 +343,38 @@ class UserManager {
         );
     }
 
-    async su(username, providedPassword, options = {}) {
-        const { ErrorHandler } = this.dependencies;
-        const currentUserName = this.getCurrentUser().name;
+    async _performSu(username) {
+        // --- Rebuilt Session Stack Management for SU ---
+        const { ErrorHandler, AuditManager, SessionManager, UserManager } = this.dependencies;
 
-        if (username === currentUserName) {
+        try {
+            // 1. Save the state of the current user's session before switching.
+            SessionManager.saveAutomaticState(this.currentUser.name);
+
+            // 2. Push the new user onto the session stack. This is the core of 'su'.
+            SessionManager.pushUserToStack(username);
+
+            // 3. Update the active user context in the UserManager.
+            this.currentUser = { name: username };
+
+            // 4. Load the new user's session state (path, history, etc.).
+            const sessionStatus = await SessionManager.loadAutomaticState(username);
+
+            // 5. Log the successful switch for auditing purposes.
+            AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
+
+            // 6. Return a success result, indicating if a welcome message should be shown.
             return ErrorHandler.createSuccess(
-                `Already user '${username}'.`,
-                { noAction: true }
+                `Switched to user: ${username}.`,
+                {
+                    shouldWelcome: sessionStatus.newStateCreated,
+                }
             );
+        } catch (e) {
+            // This ensures any unexpected crash during the switch is caught and reported.
+            console.error("Critical error during _performSu:", e);
+            return ErrorHandler.createError(`A critical error occurred while switching users: ${e.message}`);
         }
-
-        // --- Rebuilt SU Logic ---
-        // 1. Check for root override: If the current user is root, authentication is bypassed.
-        if (currentUserName === 'root') {
-            const targetUserExists = await this.userExists(username);
-            if (!targetUserExists) {
-                return ErrorHandler.createError(`su: user ${username} does not exist`);
-            }
-            // Proceed directly to the user switch.
-            return await this._performSu(username);
-        }
-
-        // 2. For non-root users, begin the standard authentication flow.
-        return this._handleAuthFlow(
-            username,
-            providedPassword,
-            this._performSu.bind(this), // The function to call on successful auth
-            "su: Authentication failure.", // The error message on auth failure
-            options
-        );
     }
 
     async logout() {
