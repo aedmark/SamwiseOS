@@ -314,6 +314,7 @@ class UserManager {
     async su(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
+
         if (username === currentUserName) {
             return ErrorHandler.createSuccess(
                 `Already user '${username}'.`,
@@ -321,35 +322,56 @@ class UserManager {
             );
         }
 
-        // If the current user is root, bypass the authentication flow.
+        // --- Rebuilt SU Logic ---
+        // 1. Check for root override: If the current user is root, authentication is bypassed.
         if (currentUserName === 'root') {
-            if (!(await this.userExists(username))) {
+            const targetUserExists = await this.userExists(username);
+            if (!targetUserExists) {
                 return ErrorHandler.createError(`su: user ${username} does not exist`);
             }
+            // Proceed directly to the user switch.
             return await this._performSu(username);
         }
 
+        // 2. For non-root users, begin the standard authentication flow.
         return this._handleAuthFlow(
             username,
             providedPassword,
-            this._performSu.bind(this),
-            "su: Authentication failure.",
+            this._performSu.bind(this), // The function to call on successful auth
+            "su: Authentication failure.", // The error message on auth failure
             options
         );
     }
 
-    async _performSu(username) {
-        this.sessionManager.saveAutomaticState(this.currentUser.name);
-        this.sessionManager.pushUserToStack(username);
-        this.currentUser = { name: username };
-        const sessionStatus = await this.sessionManager.loadAutomaticState(username);
+    async su(username, providedPassword, options = {}) {
+        const { ErrorHandler } = this.dependencies;
+        const currentUserName = this.getCurrentUser().name;
 
-        this.dependencies.AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
-        return this.dependencies.ErrorHandler.createSuccess(
-            `Switched to user: ${username}.`,
-            {
-                shouldWelcome: sessionStatus.newStateCreated,
+        if (username === currentUserName) {
+            return ErrorHandler.createSuccess(
+                `Already user '${username}'.`,
+                { noAction: true }
+            );
+        }
+
+        // --- Rebuilt SU Logic ---
+        // 1. Check for root override: If the current user is root, authentication is bypassed.
+        if (currentUserName === 'root') {
+            const targetUserExists = await this.userExists(username);
+            if (!targetUserExists) {
+                return ErrorHandler.createError(`su: user ${username} does not exist`);
             }
+            // Proceed directly to the user switch.
+            return await this._performSu(username);
+        }
+
+        // 2. For non-root users, begin the standard authentication flow.
+        return this._handleAuthFlow(
+            username,
+            providedPassword,
+            this._performSu.bind(this), // The function to call on successful auth
+            "su: Authentication failure.", // The error message on auth failure
+            options
         );
     }
 
