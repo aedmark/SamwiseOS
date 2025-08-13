@@ -48,15 +48,18 @@ class AuditManager {
             const logNode = await FileSystemManager.getNodeByPath(this.LOG_PATH);
 
             if (!logNode) {
-                // Create the log file if it doesn't exist. This now calls Python which handles the save.
+                // Create the log file if it doesn't exist.
                 const createResult = await FileSystemManager.createOrUpdateFile(
                     this.LOG_PATH,
                     entry,
                     { currentUser: 'root', primaryGroup: 'root' }
                 );
                 if (!createResult.success) throw new Error(createResult.error);
-                // Set correct permissions after creation via a direct command, as this is a root-level operation.
-                await this.dependencies.CommandExecutor.processSingleCommand(`chmod 640 ${this.LOG_PATH}`, { isInteractive: false });
+
+                await this.dependencies.CommandExecutor.processSingleCommand(
+                    `chmod 640 ${this.LOG_PATH}`,
+                    { isInteractive: false, sudoContext: true }
+                );
 
             } else {
                 // Append to the existing log file. This also calls Python which handles the save.

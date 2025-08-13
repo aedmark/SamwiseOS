@@ -265,7 +265,10 @@ class FileSystemManager {
         }
 
         try {
-            const kernelContext = this._createKernelContext();
+            const kernelContext = context
+                ? { name: context.currentUser, group: context.primaryGroup }
+                : this._createKernelContext();
+
             let resultJson;
 
             if (isDirectory) {
