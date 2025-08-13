@@ -240,7 +240,7 @@ class CommandExecutor {
 
     async processSingleCommand(rawCommandText, options = {}) {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
-        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser } = this.dependencies;
+        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser, FileSystemManager } = this.dependencies;
 
         if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
             if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
@@ -280,6 +280,23 @@ class CommandExecutor {
 
             for (const item of commandSequence) {
                 const { pipeline } = item;
+                let stdinContentForPipeline = stdinContent; // Start with existing stdin
+
+                // --- THIS IS THE NEW AND IMPROVED LOGIC ---
+                if (pipeline.inputRedirectFile) {
+                    const validationResult = await FileSystemManager.validatePath(
+                        pipeline.inputRedirectFile,
+                        { expectedType: 'file', permissions: ['read'] }
+                    );
+                    if (!validationResult.success) {
+                        // Create an error message that looks like the shell's
+                        finalResult = ErrorHandler.createError({ message: `cat: ${pipeline.inputRedirectFile}: ${validationResult.error}` });
+                        break; // Stop processing this command sequence
+                    }
+                    stdinContentForPipeline = validationResult.data.node.content;
+                }
+                // --- END OF NEW LOGIC ---
+
                 if (pipeline.isBackground) {
                     this.backgroundProcessIdCounter++;
                     const jobId = this.backgroundProcessIdCounter;
@@ -291,7 +308,7 @@ class CommandExecutor {
                         user: this.dependencies.UserManager.getCurrentUser().name,
 
                     };
-                    this.processSingleCommand(commandToExecute.replace('&', '').trim(), { ...options, isBackground: false, suppressOutput: true, signal: abortController.signal })
+                    this.processSingleCommand(commandToExecute.replace('&', '').trim(), { ...options, isBackground: false, suppressOutput: true, signal: abortController.signal, stdinContent: stdinContentForPipeline })
                         .finally(() => {
                             delete this.activeJobs[jobId];
                         });
@@ -299,8 +316,9 @@ class CommandExecutor {
                     break;
                 }
 
+                // Pass the potentially updated stdin content to the kernel
                 const kernelContextJson = this._createKernelContext();
-                const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
+                const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
                 const result = JSON.parse(resultJson);
 
                 if (result.success) {
@@ -317,7 +335,7 @@ class CommandExecutor {
                         const commandInstance = await this._ensureCommandLoaded(commandName);
                         if (commandInstance) {
                             const rawArgs = pipeline.segments.flatMap(seg => [seg.command, ...seg.args]).slice(1);
-                            finalResult = await commandInstance.execute(rawArgs, options, this.dependencies);
+                            finalResult = await commandInstance.execute(rawArgs, {...options, stdinContent: stdinContentForPipeline }, this.dependencies);
                         } else {
                             finalResult = ErrorHandler.createError({ message: result.error });
                         }
@@ -331,11 +349,11 @@ class CommandExecutor {
         }
 
         if (!suppressOutput) {
-            if (finalResult.success) {
+            if (finalResult && finalResult.success) {
                 if (finalResult.data !== null && finalResult.data !== undefined) {
                     await OutputManager.appendToOutput(finalResult.data, finalResult);
                 }
-            } else {
+            } else if (finalResult) {
                 let errorMessage = "Unknown error";
                 if (typeof finalResult.error === 'string') { errorMessage = finalResult.error; }
                 else if (finalResult.error && typeof finalResult.error.message === 'string') {
@@ -348,7 +366,7 @@ class CommandExecutor {
         if (isInteractive && !scriptingContext) {
             await this._finalizeInteractiveModeUI(rawCommandText);
         }
-        return finalResult;
+        return finalResult || ErrorHandler.createSuccess("");
     }
 
     async _handleEffect(result, options) {

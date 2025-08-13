@@ -77,7 +77,7 @@ class Lexer {
                 this.tokens.push(this._tokenizeString("'"));
                 continue;
             }
-            if (char === ">") {
+            if (char === '>') {
                 if (this.input[this.position + 1] === ">") {
                     this.tokens.push(
                         new Token(TokenType.OPERATOR_GTGT, ">>", this.position)
@@ -91,12 +91,12 @@ class Lexer {
                 }
                 continue;
             }
-            if (char === "<") {
-                this.tokens.push(new Token(TokenType.OPERATOR_LT, "<", this.position));
+            if (char === '<') {
+                this.tokens.push(new Token(TokenType.OPERATOR_LT, '<', this.position));
                 this.position++;
                 continue;
             }
-            if (char === "|") {
+            if (char === '|') {
                 if (this.input[this.position + 1] === "|") {
                     this.tokens.push(
                         new Token(TokenType.OPERATOR_OR, "||", this.position)
@@ -110,14 +110,14 @@ class Lexer {
                 }
                 continue;
             }
-            if (char === ";") {
+            if (char === ';') {
                 this.tokens.push(
                     new Token(TokenType.OPERATOR_SEMICOLON, ";", this.position)
                 );
                 this.position++;
                 continue;
             }
-            if (char === "&") {
+            if (char === '&') {
                 if (this.input[this.position + 1] === "&") {
                     this.tokens.push(
                         new Token(TokenType.OPERATOR_AND, "&&", this.position)
@@ -413,7 +413,7 @@ class Parser {
         const pipeline = new ParsedPipeline();
 
         if (this._currentToken().type === TokenType.OPERATOR_LT) {
-            this._nextToken();
+            this._nextToken(); // Consume '<'
             const fileToken =
                 this._expectAndConsume(TokenType.WORD, true) ||
                 this._expectAndConsume(TokenType.STRING_DQ, true) ||

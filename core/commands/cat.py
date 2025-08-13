@@ -15,14 +15,16 @@ def run(args, flags, user_context, stdin_data=None):
     """
     output_parts = []
     files = args
-    had_error = False  # Flag to track if any error occurs
+    had_error = False
 
+    # If there's data from standard input (from a pipe or redirection), process it.
+    # The check is now simply 'if stdin_data:' to correctly handle the case
+    # where it might be a JsNull object from the JavaScript side, which is falsy.
     if stdin_data:
         output_parts.extend(stdin_data.splitlines())
 
+    # Now, process any file arguments that were also provided.
     for file_path in files:
-        # VALIDATION IS KEY! We now check if the user has read permissions for the file
-        # and execute permissions for all parent directories before proceeding.
         validation_result = fs_manager.validate_path(
             file_path,
             user_context,
@@ -30,7 +32,6 @@ def run(args, flags, user_context, stdin_data=None):
         )
 
         if not validation_result.get("success"):
-            # If they don't have permission, we record the error and continue.
             had_error = True
             error_msg = validation_result.get('error', 'An unknown error occurred')
             output_parts.append(f"cat: {file_path}: {error_msg}")
@@ -50,17 +51,20 @@ def run(args, flags, user_context, stdin_data=None):
     final_output_str = ""
     if flags.get('number'):
         numbered_output = []
-        for i, line in enumerate(output_parts, 1):
-            numbered_output.append(f"     {i}  {line}")
+        line_num = 1
+        for line in output_parts:
+            if not line.startswith("cat:"):
+                numbered_output.append(f"     {line_num}  {line}")
+                line_num += 1
+            else:
+                numbered_output.append(line)
         final_output_str = "\n".join(numbered_output)
     else:
         final_output_str = "\n".join(output_parts)
 
-    # If any error was encountered, the command as a whole has failed.
     if had_error:
         return {"success": False, "error": final_output_str}
 
-    # Otherwise, return the successful output.
     return final_output_str
 
 def man(args, flags, user_context, **kwargs):
