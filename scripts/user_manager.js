@@ -329,7 +329,7 @@ class UserManager {
 
         // 2. The Reversion: Pop the current user from the session stack.
         SessionManager.popUserFromStack();
-        const newUsername = this.sessionManager.getCurrentUserFromStack();
+        const newUsername = SessionManager.getCurrentUserFromStack();
 
         // 3. Log the event for our records.
         AuditManager.log(oldUser, 'su_exit', `Reverted from user '${oldUser}' to '${newUsername}'.`);
