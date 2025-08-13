@@ -314,7 +314,6 @@ class UserManager {
     async su(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
-
         if (username === currentUserName) {
             return ErrorHandler.createSuccess(
                 `Already user '${username}'.`,
@@ -322,17 +321,14 @@ class UserManager {
             );
         }
 
-        if (!(await this.userExists(username))) {
-            return ErrorHandler.createError(`su: user ${username} does not exist`);
-        }
-
         // If the current user is root, bypass the authentication flow.
-        // A password is not required.
         if (currentUserName === 'root') {
+            if (!(await this.userExists(username))) {
+                return ErrorHandler.createError(`su: user ${username} does not exist`);
+            }
             return await this._performSu(username);
         }
 
-        // For all other users, proceed with the standard authentication flow.
         return this._handleAuthFlow(
             username,
             providedPassword,

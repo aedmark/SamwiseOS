@@ -373,8 +373,6 @@ class CommandExecutor {
             case 'sync_user_state':
                 this.dependencies.UserManager.syncAndSave(result.users);
                 break;
-            case 'useradd':
-                return await UserManager.registerWithPrompt(result.username, options);
             case 'play_sound':
                 if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
                 SoundManager.playNote(result.notes, result.duration);
@@ -573,7 +571,7 @@ class CommandExecutor {
 
                     const canvas = await html2canvas(terminalElement, { backgroundColor: "#000", logging: false });
                     const a = Utils.createElement("a", { href: canvas.toDataURL("image/png"), download: result.filename });
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 
                     if (terminalElement) terminalElement.classList.remove("no-cursor");
                     return ErrorHandler.createSuccess(`Screenshot saved as '${result.filename}'`);

@@ -34,7 +34,7 @@ class ConfigManager {
              */
             DATABASE: {
                 NAME: "SamwiseOS",
-                VERSION: 2,
+                VERSION: 3,
                 FS_STORE_NAME: "FileSystemsStore",
                 UNIFIED_FS_KEY: "SamwiseOS_SharedFS",
             },
@@ -44,7 +44,7 @@ class ConfigManager {
              */
             OS: {
                 NAME: "SamwiseOS",
-                VERSION: "0.2",
+                VERSION: "0.0.3",
                 DEFAULT_HOST_NAME: "SamwiseOS",
             },
             /**
