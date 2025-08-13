@@ -114,7 +114,7 @@ window.UploadCommand = class UploadCommand extends Command {
                         stdin_data: null,
                         kwargs: { files: filesForPython },
                         js_context_json: kernelContextJson
-                    });login
+                    });
 
                     const pyResult = JSON.parse(resultJson);
 

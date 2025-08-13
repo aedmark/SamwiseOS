@@ -187,8 +187,8 @@ class FileSystemManager:
             existing_node['mtime'] = now_iso
         else:
             new_file = {
-                "type": "file", "content": content, "owner": user_context.get('name', 'guest'),
-                "group": user_context.get('group', 'guest'), "mode": 0o644, "mtime": now_iso
+                "type": "file", "content": content, "owner": str(user_context.get('name', 'guest')),
+                "group": str(user_context.get('group', 'guest')), "mode": 0o644, "mtime": now_iso
             }
             parent_node['children'][file_name] = new_file
 
@@ -222,8 +222,8 @@ class FileSystemManager:
                     raise PermissionError(f"Permission denied to create directory in '{os.path.dirname(current_path_so_far)}'")
 
                 new_dir = {
-                    "type": "directory", "children": {}, "owner": user_context.get('name', 'guest'),
-                    "group": user_context.get('group', 'guest'), "mode": 0o755, "mtime": now_iso
+                    "type": "directory", "children": {}, "owner": str(user_context.get('name', 'guest')),
+                    "group": str(user_context.get('group', 'guest')), "mode": 0o755, "mtime": now_iso
                 }
                 current_node['children'][part] = new_dir
                 current_node['mtime'] = now_iso
@@ -315,8 +315,8 @@ class FileSystemManager:
         symlink_node = {
             "type": "symlink",
             "target": target,
-            "owner": user_context.get('name', 'guest'),
-            "group": user_context.get('group', 'guest'),
+            "owner": str(user_context.get('name', 'guest')),
+            "group": str(user_context.get('group', 'guest')),
             "mode": 0o777, # Symlinks often have permissive modes
             "mtime": now_iso
         }

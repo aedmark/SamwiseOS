@@ -1,3 +1,5 @@
+// gem/scripts/audit_manager.js
+
 /**
  * @fileoverview Manages the system audit log, providing a centralized service
  * for logging critical security and administrative events.
@@ -39,34 +41,33 @@ class AuditManager {
         }
         this.isProcessing = true;
 
-        const { FileSystemManager, UserManager } = this.dependencies;
+        const { FileSystemManager } = this.dependencies;
         const entry = this.logQueue.shift();
 
         try {
-            const logNode = FileSystemManager.getNodeByPath(this.LOG_PATH);
+            const logNode = await FileSystemManager.getNodeByPath(this.LOG_PATH);
 
             if (!logNode) {
-                // Create the log file if it doesn't exist.
-                await FileSystemManager.createOrUpdateFile(
+                // Create the log file if it doesn't exist. This now calls Python which handles the save.
+                const createResult = await FileSystemManager.createOrUpdateFile(
                     this.LOG_PATH,
                     entry,
                     { currentUser: 'root', primaryGroup: 'root' }
                 );
-                // Set correct permissions after creation.
-                const newNode = FileSystemManager.getNodeByPath(this.LOG_PATH);
-                if (newNode) {
-                    newNode.mode = 0o640; // rw-r-----
-                }
+                if (!createResult.success) throw new Error(createResult.error);
+                // Set correct permissions after creation via a direct command, as this is a root-level operation.
+                await this.dependencies.CommandExecutor.processSingleCommand(`chmod 640 ${this.LOG_PATH}`, { isInteractive: false });
+
             } else {
-                // Append to the existing log file.
+                // Append to the existing log file. This also calls Python which handles the save.
                 const newContent = (logNode.content || "") + entry;
-                await FileSystemManager.createOrUpdateFile(
+                const updateResult = await FileSystemManager.createOrUpdateFile(
                     this.LOG_PATH,
                     newContent,
                     { currentUser: 'root', primaryGroup: 'root' }
                 );
+                if (!updateResult.success) throw new Error(updateResult.error);
             }
-            await FileSystemManager.save();
         } catch (e) {
             console.error("AuditDaemon: Failed to write to log.", e);
             // Re-queue the entry if saving fails.
@@ -80,6 +81,3 @@ class AuditManager {
         }
     }
 }
-
-// Instantiate and export a singleton instance.
-window.AuditManager = new AuditManager();

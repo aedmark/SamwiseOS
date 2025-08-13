@@ -1,4 +1,4 @@
-// scripts/user_manager.js
+// gem/scripts/user_manager.js
 
 /**
  * @class UserManager
@@ -406,7 +406,7 @@ class UserManager {
 
     async performFirstTimeSetup(userData) {
         const { username, password, rootPassword } = userData;
-        const { ErrorHandler, FileSystemManager } = this.dependencies;
+        const { ErrorHandler } = this.dependencies;
 
         const resultJson = OopisOS_Kernel.syscall("users", "first_time_setup", [username, password, rootPassword]);
         const result = JSON.parse(resultJson);
@@ -414,7 +414,6 @@ class UserManager {
         if (result.success) {
             this._saveUsers();
             this.groupManager._save();
-            await FileSystemManager.save();
             return ErrorHandler.createSuccess();
         } else {
             return ErrorHandler.createError(result.error || "An unknown error occurred during first-time setup.");
