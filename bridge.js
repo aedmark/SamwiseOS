@@ -71,7 +71,6 @@ const OopisOS_Kernel = {
                 '/core/commands/groupdel.py': './core/commands/groupdel.py',
                 '/core/commands/login.py': './core/commands/login.py',
                 '/core/commands/logout.py': './core/commands/logout.py',
-                '/core/commands/su.py': './core/commands/su.py',
                 '/core/commands/alias.py': './core/commands/alias.py',
                 '/core/commands/unalias.py': './core/commands/unalias.py',
                 '/core/commands/mv.py': './core/commands/mv.py',

@@ -16,7 +16,6 @@ class UserManager {
         this.sudoManager = null;
         this.commandExecutor = null;
         this.modalManager = null;
-        this.currentUser = { name: this.config.USER.DEFAULT_NAME };
     }
 
     setDependencies(sessionManager, sudoManager, commandExecutor, modalManager) {
@@ -34,15 +33,13 @@ class UserManager {
 
     syncAndSave(usersData) {
         const { StorageManager, Config } = this.dependencies;
-        // The data from the effect is the new source of truth.
-        // 1. Save it to localStorage so it persists across sessions.
         StorageManager.saveItem(Config.STORAGE_KEYS.USER_CREDENTIALS, usersData, "User list");
-        // 2. Ensure Python's in-memory state is identical to what we're saving.
         OopisOS_Kernel.syscall("users", "load_users", [usersData]);
     }
 
     getCurrentUser() {
-        return this.currentUser;
+        // NEW: Always get the current user from the session manager, which asks Python.
+        return { name: this.sessionManager.getCurrentUserFromStack() };
     }
 
     getPrimaryGroupForUser(username) {
@@ -69,22 +66,17 @@ class UserManager {
         this.groupManager.createGroup(username);
         this.groupManager.addUserToGroup(username, username);
 
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "register_user", [username, password, username]));
+        // The Python 'useradd' command now handles home directory creation.
+        // We just need to call it non-interactively with the password.
+        const result = await this.commandExecutor.processSingleCommand(`useradd ${username}`, {
+            isInteractive: false,
+            suppressOutput: true,
+            stdinContent: `${password}\n${password}`
+        });
 
-        if (result.success) {
-            this._saveUsers();
-            // When root runs useradd, we're already root, so no password needed for these sudo commands.
-            const sudoOptions = { isInteractive: false };
-
-            await this.sudoExecute(`mkdir /home/${username}`, sudoOptions);
-            await this.sudoExecute(`chown ${username} /home/${username}`, sudoOptions);
-            await this.sudoExecute(`chgrp ${username} /home/${username}`, sudoOptions);
-            return ErrorHandler.createSuccess(
-                `User '${username}' registered. Home directory created at /home/${username}.`,
-                { stateModified: true }
-            );
-        }
-        return ErrorHandler.createError(result.error || "Failed to register new user in kernel.");
+        return result.success
+            ? ErrorHandler.createSuccess(`User '${username}' registered. Home directory created.`)
+            : ErrorHandler.createError(result.error.message || "Failed to register new user.");
     }
 
 
@@ -139,81 +131,47 @@ class UserManager {
         const { ErrorHandler, SudoManager, ModalManager } = this.dependencies;
         const currentUserName = this.getCurrentUser().name;
 
+        // Sudo logic now relies on a temporary context switch for execution
         if (currentUserName === 'root') {
-            const originalUser = this.currentUser;
-            try {
-                this.currentUser = { name: "root" };
-                return await this.commandExecutor.processSingleCommand(commandStr, options);
-            } catch (e) {
-                return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
-            } finally {
-                this.currentUser = originalUser;
-            }
+            return await this.commandExecutor.processSingleCommand(commandStr, { ...options, sudoContext: true });
+        }
+
+        const canRun = JSON.parse(OopisOS_Kernel.syscall("sudo", "can_user_run_command", [currentUserName, this.groupManager.getGroupsForUser(currentUserName), commandStr.split(" ")[0]])).data;
+        if (!canRun) {
+            return ErrorHandler.createError(`sudo: user ${currentUserName} is not allowed to execute '${commandStr}' as root.`);
         }
 
         const authSuccess = SudoManager.isUserTimestampValid(currentUserName);
-
         if (authSuccess) {
-            const originalUser = this.currentUser;
-            try {
-                this.currentUser = { name: "root" };
-                return await this.commandExecutor.processSingleCommand(commandStr, options);
-            } catch (e) {
-                return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
-            } finally {
-                this.currentUser = originalUser;
-            }
+            return await this.commandExecutor.processSingleCommand(commandStr, { ...options, sudoContext: true });
         }
 
         const userHasPassword = await this.hasPassword(currentUserName);
-
         if (!userHasPassword) {
-            const originalUser = this.currentUser;
-            try {
-                this.currentUser = { name: "root" };
-                return await this.commandExecutor.processSingleCommand(commandStr, options);
-            } catch (e) {
-                return ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`);
-            } finally {
-                this.currentUser = originalUser;
-            }
+            return await this.commandExecutor.processSingleCommand(commandStr, { ...options, sudoContext: true });
         }
 
         return new Promise(async (resolve) => {
-            const handleSudoAuth = async (password) => {
-                const verifyResult = await this.verifyPassword(currentUserName, password);
-                if (!verifyResult.success) {
-                    resolve(ErrorHandler.createError("sudo: sorry, try again"));
-                    return;
-                }
-                SudoManager.updateUserTimestamp(currentUserName);
-                const originalUser = this.currentUser;
-                try {
-                    this.currentUser = { name: "root" };
-                    const cmdResult = await this.commandExecutor.processSingleCommand(commandStr, options);
+            ModalManager.request({
+                context: "terminal", type: "input",
+                messageLines: [`[sudo] password for ${currentUserName}:`],
+                obscured: true,
+                onConfirm: async (password) => {
+                    const verifyResult = await this.verifyPassword(currentUserName, password);
+                    if (!verifyResult.success) {
+                        resolve(ErrorHandler.createError("sudo: sorry, try again"));
+                        return;
+                    }
+                    SudoManager.updateUserTimestamp(currentUserName);
+                    const cmdResult = await this.commandExecutor.processSingleCommand(commandStr, { ...options, sudoContext: true });
                     resolve(cmdResult);
-                } catch (e) {
-                    resolve(ErrorHandler.createError(`sudo: an unexpected error occurred during execution: ${e.message}`));
-                } finally {
-                    this.currentUser = originalUser;
-                }
-            };
-
-            if (options.password) {
-                await handleSudoAuth(options.password);
-            } else {
-                ModalManager.request({
-                    context: "terminal",
-                    type: "input",
-                    messageLines: [`[sudo] password for ${currentUserName}:`],
-                    obscured: true,
-                    onConfirm: handleSudoAuth,
-                    onCancel: () => resolve(ErrorHandler.createError("sudo: password entry cancelled.")),
-                    options,
-                });
-            }
+                },
+                onCancel: () => resolve(ErrorHandler.createError("sudo: password entry cancelled.")),
+                options,
+            });
         });
     }
+
 
     async changePassword(actorUsername, targetUsername, oldPassword, newPassword) {
         const { ErrorHandler } = this.dependencies;
@@ -235,9 +193,7 @@ class UserManager {
 
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler, AuditManager, ModalManager, Config } = this.dependencies;
-
         const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
-
         if (!userResult.success || !userResult.data) {
             AuditManager.log(username, 'auth_failure', `Attempted login for non-existent user '${username}'.`);
             return ErrorHandler.createError(failureMessage);
@@ -250,7 +206,7 @@ class UserManager {
                     onConfirm: async (passwordFromPrompt) => {
                         const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
                         if (verifyResult.success && verifyResult.data) {
-                            resolve(await successCallback(username));
+                            resolve(await successCallback(username, options));
                         } else {
                             AuditManager.log(username, 'auth_failure', `Failed login attempt for user '${username}'.`);
                             resolve(ErrorHandler.createError(failureMessage));
@@ -261,11 +217,9 @@ class UserManager {
                 });
             });
         }
-
         const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
-
         if (verifyResult.success && verifyResult.data) {
-            return await successCallback(username);
+            return await successCallback(username, options);
         } else {
             const context = options?.isInteractive === false ? 'non-interactive' : 'interactive';
             AuditManager.log(username, 'auth_failure', `Failed ${context} login for '${username}'.`);
@@ -276,134 +230,44 @@ class UserManager {
 
     async login(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;
-        const currentUserName = this.getCurrentUser().name;
-        if (username === currentUserName) {
-            return ErrorHandler.createSuccess(
-                `${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`,
-                { noAction: true }
-            );
+        if (username === this.getCurrentUser().name) {
+            return ErrorHandler.createSuccess(`${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`, { noAction: true });
         }
-        return this._handleAuthFlow(
-            username,
-            providedPassword,
-            this._performLogin.bind(this),
-            "Login failed.",
-            options
-        );
+        return this._handleAuthFlow(username, providedPassword, this._performLogin.bind(this), "Login failed.", options);
     }
 
-    async _performLogin(username) {
+    async _performLogin(username, options) {
         const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager } = this.dependencies;
-        if (this.currentUser.name !== this.config.USER.DEFAULT_NAME) {
-            this.sessionManager.saveAutomaticState(this.currentUser.name);
-            this.sudoManager.clearUserTimestamp(this.currentUser.name);
+        const oldUser = this.getCurrentUser().name;
+        if (oldUser !== this.config.USER.DEFAULT_NAME) {
+            SessionManager.saveAutomaticState(oldUser);
+            this.sudoManager.clearUserTimestamp(oldUser);
         }
-        this.sessionManager.clearUserStack(username);
-        this.currentUser = { name: username };
-        const sessionStatus = await this.sessionManager.loadAutomaticState(username);
-
-        // This is the crucial addition!
+        SessionManager.clearUserStack(username);
+        const sessionStatus = await SessionManager.loadAutomaticState(username);
         EnvironmentManager.initialize();
-
-        this.dependencies.AuditManager.log(username, 'login_success', `User logged in successfully.`);
-        return this.dependencies.ErrorHandler.createSuccess(
-            `Logged in as ${username}.`,
-            {
-                isLogin: true,
-                shouldWelcome: sessionStatus.newStateCreated,
-            }
-        );
-    }
-
-    async su(username, providedPassword, options = {}) {
-        const { ErrorHandler } = this.dependencies;
-        const currentUserName = this.getCurrentUser().name;
-
-        if (username === currentUserName) {
-            return ErrorHandler.createSuccess(
-                `Already user '${username}'.`,
-                { noAction: true }
-            );
-        }
-
-        if (currentUserName === 'root') {
-            const targetUserExists = await this.userExists(username);
-            if (!targetUserExists) {
-                return ErrorHandler.createError(`su: user ${username} does not exist`);
-            }
-            return await this._performSu(username);
-        }
-
-        return this._handleAuthFlow(
-            username,
-            providedPassword,
-            this._performSu.bind(this),
-            "su: Authentication failure.",
-            options
-        );
-    }
-
-    async _performSu(username) {
-        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager } = this.dependencies;
-
-        try {
-            SessionManager.saveAutomaticState(this.currentUser.name);
-            SessionManager.pushUserToStack(username);
-            this.currentUser = { name: username };
-            const sessionStatus = await SessionManager.loadAutomaticState(username);
-
-            // This is the crucial addition!
-            EnvironmentManager.initialize();
-
-            AuditManager.log(this.getCurrentUser().name, 'su_success', `Switched to user: ${username}.`);
-
-            return ErrorHandler.createSuccess(
-                `Switched to user: ${username}.`,
-                {
-                    shouldWelcome: sessionStatus.newStateCreated,
-                }
-            );
-        } catch (e) {
-            console.error("Critical error during _performSu:", e);
-            return ErrorHandler.createError(`A critical error occurred while switching users: ${e.message}`);
-        }
+        AuditManager.log(username, 'login_success', `User logged in successfully.`);
+        return ErrorHandler.createSuccess(`Logged in as ${username}.`, { isLogin: true, shouldWelcome: sessionStatus.newStateCreated });
     }
 
     async logout() {
         const { ErrorHandler, EnvironmentManager } = this.dependencies;
-        const oldUser = this.currentUser.name;
-
+        const oldUser = this.getCurrentUser().name;
         if (this.sessionManager.getStack().length <= 1) {
-            return ErrorHandler.createSuccess(
-                `Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch to a different user.`,
-                { noAction: true }
-            );
+            return ErrorHandler.createSuccess(`Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch.`, { noAction: true });
         }
-
         this.sessionManager.saveAutomaticState(oldUser);
         this.sudoManager.clearUserTimestamp(oldUser);
         this.sessionManager.popUserFromStack();
         const newUsername = this.sessionManager.getCurrentUserFromStack();
-        this.currentUser = { name: newUsername };
         await this.sessionManager.loadAutomaticState(newUsername);
-
-        // This is the crucial addition!
         EnvironmentManager.initialize();
-
         const homePath = `/home/${newUsername}`;
         const homeNode = await this.fsManager.getNodeByPath(homePath);
-        this.fsManager.setCurrentPath(
-            homeNode ? homePath : this.config.FILESYSTEM.ROOT_PATH
-        );
-
-        return ErrorHandler.createSuccess(
-            `Logged out from ${oldUser}. Now logged in as ${newUsername}.`,
-            {
-                isLogout: true,
-                newUser: newUsername,
-            }
-        );
+        this.fsManager.setCurrentPath(homeNode ? homePath : this.config.FILESYSTEM.ROOT_PATH);
+        return ErrorHandler.createSuccess(`Logged out from ${oldUser}. Now logged in as ${newUsername}.`, { isLogout: true, newUser: newUsername });
     }
+
 
     async initializeDefaultUsers() {
         const { OutputManager, Config } = this.dependencies;
