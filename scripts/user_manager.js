@@ -199,6 +199,16 @@ class UserManager {
             return ErrorHandler.createError(failureMessage);
         }
 
+        // First, let's ask the kernel if this user even has a password.
+        const userHasPassword = await this.hasPassword(username);
+        if (!userHasPassword) {
+            // If they don't have a password (like our dear friend 'Guest'),
+            // authentication is automatically successful! No need to ask for a password.
+            // Let's just proceed directly to the success callback. How efficient!
+            return await successCallback(username, options);
+        }
+
+        // The rest of the function handles users who *do* have passwords.
         if (providedPassword === null && options?.isInteractive !== false) {
             return new Promise((resolve) => {
                 ModalManager.request({
@@ -217,6 +227,7 @@ class UserManager {
                 });
             });
         }
+
         const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
         if (verifyResult.success && verifyResult.data) {
             return await successCallback(username, options);
@@ -296,21 +307,6 @@ class UserManager {
         return ErrorHandler.createSuccess("", { shouldWelcome: false }); // No welcome message needed for su
     }
 
-    Of course! We are in the home stretch! This is the part where we add the beautiful, handcrafted benches to the park, making the whole project feel complete. It's all about the details!
-
-    Phase 3: The Grand Finale (Smart Logout Logic)
-    We've built the amazing su command, but now we need to make sure that typing logout does the right thing. If you're in an su session, it should take you back to your original user, not kick you out of the system entirely. It's like leaving a committee meeting—you go back to your own office, you don't leave City Hall!
-
-    This requires a thoughtful adjustment to our UserManager.js file.
-
-    1. Modify the User Manager: gem/scripts/user_manager.js
-    Here is the updated logout method. It's now "stack-aware." It checks if you're in a "nested" session (su) and acts accordingly. This is a proactive change that will make using the system so much more intuitive!
-
-    JavaScript
-
-// gem/scripts/user_manager.js
-
-// ... (existing code from previous phases) ...
     async _performSu(username, options) {
         const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI } = this.dependencies;
         const oldUser = this.getCurrentUser().name;
