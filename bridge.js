@@ -152,6 +152,8 @@ const OopisOS_Kernel = {
                 '/core/commands/cd.py': './core/commands/cd.py',
                 '/core/commands/fg.py': './core/commands/fg.py',
                 '/core/commands/bg.py': './core/commands/bg.py',
+                '/core/commands/less.py': './core/commands/less.py',
+                '/core/commands/more.py': './core/commands/more.py',
                 '/core/commands/committee.py': './core/commands/committee.py',
                 '/core/commands/jobs.py': './core/commands/jobs.py',
                 '/core/commands/binder.py': './core/commands/binder.py',

@@ -9,6 +9,7 @@ from groups import group_manager
 import inspect
 import os
 import re
+import fnmatch
 
 class CommandExecutor:
     def __init__(self):
@@ -57,14 +58,49 @@ class CommandExecutor:
         self._flag_def_cache[command_name] = []
         return []
 
-    def _parts_to_segment(self, parts):
-        if not parts:
+    def _parts_to_segment(self, segment_parts):
+        """
+        Parses a list of command parts into a segment with command, args, and flags.
+        Now includes glob expansion for wildcard matching.
+        """
+        if not segment_parts:
             return None
 
-        command_name = parts[0]
+        command_name = segment_parts[0]
+        # --- GLOB EXPANSION LOGIC ---
+        # We process arguments for wildcards *before* parsing for flags.
+        raw_args_and_flags = segment_parts[1:]
+        expanded_parts = []
+        for part in raw_args_and_flags:
+            # We only attempt to expand parts that are potential filenames, not flags.
+            # A more robust implementation would handle '--' to stop flag parsing.
+            if '*' in part or '?' in part or ('[' in part and ']' in part):
+                # This logic is simplified to handle globs in the current directory or with a simple path prefix.
+                path_prefix, pattern_part = os.path.split(part)
+                if not path_prefix:
+                    path_prefix = '.'
+
+                search_dir_abs = self.fs_manager.get_absolute_path(path_prefix)
+                dir_node = self.fs_manager.get_node(search_dir_abs)
+
+                if dir_node and dir_node.get('type') == 'directory':
+                    children_names = dir_node.get('children', {}).keys()
+                    matches = fnmatch.filter(children_names, pattern_part)
+                    if matches:
+                        # Re-join the path prefix to the matched names if there was one
+                        for name in sorted(matches):
+                            expanded_parts.append(os.path.join(path_prefix, name) if path_prefix != '.' else name)
+                    else:
+                        expanded_parts.append(part) # No match, pass the literal pattern
+                else:
+                    expanded_parts.append(part) # Path doesn't exist or isn't a directory
+            else:
+                expanded_parts.append(part)
+
+        parts_to_process = [command_name] + expanded_parts
+
         args = []
         flags = {}
-
         flag_definitions = self._get_command_flag_definitions(command_name)
         flag_map = {}
         for flag_def in flag_definitions:
@@ -76,14 +112,13 @@ class CommandExecutor:
                 flag_map[f"--{flag_def['long']}"] = (canonical_name, takes_value)
 
         i = 1
-        while i < len(parts):
-            part = parts[i]
-
+        while i < len(parts_to_process):
+            part = parts_to_process[i]
             if part in flag_map:
                 canonical_name, takes_value = flag_map[part]
                 if takes_value:
-                    if i + 1 < len(parts) and not parts[i+1].startswith('-'):
-                        flags[canonical_name] = parts[i+1]
+                    if i + 1 < len(parts_to_process) and not parts_to_process[i+1].startswith('-'):
+                        flags[canonical_name] = parts_to_process[i+1]
                         i += 2
                     else:
                         raise ValueError(f"Flag '{part}' requires an argument.")
@@ -110,11 +145,11 @@ class CommandExecutor:
                 args.append(part)
                 i += 1
 
+
         return {'command': command_name, 'args': args, 'flags': flags}
 
     def _parse_command_string(self, command_string):
         try:
-            # Add spaces around operators to help shlex
             command_string = command_string.replace(';', ' ; ')
             command_string = command_string.replace('&&', ' && ')
             command_string = command_string.replace('||', ' || ')
