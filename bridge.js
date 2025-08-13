@@ -160,7 +160,6 @@ const OopisOS_Kernel = {
                 '/core/commands/bulletin.py': './core/commands/bulletin.py',
                 '/core/commands/agenda.py': './core/commands/agenda.py',
                 '/core/commands/clearfs.py': './core/commands/clearfs.py',
-                '/core/commands/upload.py': './core/commands/upload.py',
                 '/core/commands/printscreen.py': './core/commands/printscreen.py',
                 '/core/commands/restore.py': './core/commands/restore.py',
                 '/core/commands/check_fail.py': './core/commands/check_fail.py',
