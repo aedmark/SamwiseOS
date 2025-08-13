@@ -12,8 +12,8 @@ def run(args, flags, user_context, stdin_data=None, users=None):
     if not user_list:
         return "No users registered."
 
-    output = "Registered users:\\n"
-    output += "\\n".join([f"  {user}" for user in user_list])
+    output = "Registered users:\n"
+    output += "\n".join([f"  {user}" for user in user_list])
 
     return output
 

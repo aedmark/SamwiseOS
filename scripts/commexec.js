@@ -109,12 +109,13 @@ class CommandExecutor {
         const { ErrorHandler, EnvironmentManager, Config } = this.dependencies;
         EnvironmentManager.push();
 
-        // Ensure lines is an array of strings, not objects
-        const commandLines = lines.map(line => (typeof line === 'object' && line.command) ? line.command : String(line));
+        const commandObjects = lines.map(line =>
+            (typeof line === 'object' && line.command) ? line : { command: String(line) }
+        );
 
         const scriptingContext = {
             isScripting: true,
-            lines: commandLines,
+            lines: commandObjects.map(co => co.command),
             currentLineIndex: -1,
             args: options.args || [],
         };
@@ -124,13 +125,14 @@ class CommandExecutor {
 
         try {
             let i = 0;
-            while (i < commandLines.length) {
+            while (i < commandObjects.length) {
                 stepCounter++;
                 if (stepCounter > MAX_STEPS) {
                     throw new Error(`Maximum script execution steps (${MAX_STEPS}) exceeded.`);
                 }
                 scriptingContext.currentLineIndex = i;
-                const line = commandLines[i].trim();
+                const commandObj = commandObjects[i];
+                const line = commandObj.command.trim();
 
                 if (!line || line.startsWith("#")) {
                     i++;
@@ -140,22 +142,25 @@ class CommandExecutor {
                 let stdinForCommand = null;
                 let linesToAdvance = 1;
 
-                // Our new "look-ahead" logic for non-interactive password input!
-                if (line.startsWith("useradd ") || line.startsWith("passwd")) {
+                // THE FIX: We now handle BOTH password systems!
+                if (commandObj.password_pipe) {
+                    // System 1: The "lunchbox" from run.py (for sudo, etc.)
+                    stdinForCommand = commandObj.password_pipe.join('\\n');
+                } else if (line.startsWith("useradd ") || line.startsWith("passwd")) {
+                    // System 2: The original lookahead logic for useradd/passwd
+                    const linesNeeded = line.startsWith("useradd ") ? 2 : 1;
                     const passwordLines = [];
-                    let j = i + 1;
-                    while (j < commandLines.length && passwordLines.length < 2) {
-                        const nextLine = commandLines[j].trim();
+                    let lookaheadIndex = i + 1;
+                    while (lookaheadIndex < commandObjects.length && passwordLines.length < linesNeeded) {
+                        const nextLine = commandObjects[lookaheadIndex].command.trim();
                         if (nextLine && !nextLine.startsWith('#')) {
                             passwordLines.push(nextLine);
                         }
-                        j++;
+                        lookaheadIndex++;
                     }
-
-                    if (passwordLines.length === 2) {
-                        stdinForCommand = passwordLines.join('\n');
-                        // We advance 'i' by the number of lines we've processed (the command + password lines)
-                        linesToAdvance = (j - i);
+                    if (passwordLines.length === linesNeeded) {
+                        stdinForCommand = passwordLines.join('\\n');
+                        linesToAdvance += passwordLines.length;
                     }
                 }
 
@@ -165,15 +170,11 @@ class CommandExecutor {
                     stdinContent: stdinForCommand
                 });
 
-                i += linesToAdvance;
+                i += linesToAdvance; // Correctly advance the counter
 
                 if (!result.success) {
                     const errorMessage = result.error.message || 'Unknown script error';
-                    throw new Error(`Error on line ${i - linesToAdvance + 1}: ${errorMessage}`);
-                }
-                // This ensures any GOTO-like behavior in scripts would work
-                if(scriptingContext.currentLineIndex !== (i - linesToAdvance)) {
-                    i = scriptingContext.currentLineIndex;
+                    throw new Error(`Error on line ${i}: ${errorMessage}`);
                 }
             }
         } finally {

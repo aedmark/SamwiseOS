@@ -17,9 +17,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_manager.user_exists(username):
         return {"success": False, "error": f"useradd: user '{username}' already exists"}
 
-    if stdin_data:
+    # THE FIX: This new condition robustly checks if there is actual, non-whitespace
+    # content in stdin_data before trying to process it. It correctly handles
+    # None, JsNull, and empty strings by routing them to the 'else' block.
+    if stdin_data and str(stdin_data).strip():
         try:
-            lines = stdin_data.strip().split('\n')
+            lines = str(stdin_data).strip().split('\n')
             if len(lines) < 2:
                 return {"success": False, "error": "useradd: insufficient password lines from stdin"}
 
@@ -31,7 +34,8 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
             # Create the primary group for the user
             if not group_manager.group_exists(username):
-                group_manager.create_group(username)
+                if not group_manager.create_group(username):
+                    return {"success": False, "error": f"useradd: failed to create group '{username}'"}
                 group_manager.add_user_to_group(username, username)
 
             registration_result = user_manager.register_user(username, password, username)
@@ -50,8 +54,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 }
             else:
                 return registration_result
-        except IndexError:
-            return {"success": False, "error": "useradd: malformed password lines from stdin"}
+        except Exception as e:
+            # Added a general exception handler for safety
+            return {"success": False, "error": f"useradd: an unexpected error occurred: {repr(e)}"}
     else:
         # If no piped password, trigger the interactive flow
         return {
