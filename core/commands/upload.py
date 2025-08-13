@@ -12,24 +12,20 @@ def run(args, flags, user_context, **kwargs):
     files_to_upload = kwargs.get('files')
 
     if not files_to_upload:
-        # This is the first step: ask the browser to open the file dialog.
-        return {
-            "effect": "trigger_upload_dialog"
-        }
+        # Step 1: Tell the JS frontend to open the file dialog.
+        return { "effect": "trigger_upload_dialog" }
     else:
-        # This is the second step: process the files the user selected.
+        # Step 2: JS has already handled confirmations. Process the files.
         output_messages = []
         for file_info in files_to_upload:
             try:
-                # The JS side figures out the correct path for us.
                 fs_manager.write_file(file_info['path'], file_info['content'], user_context)
-                # Add a success message to our report!
                 output_messages.append(f"Uploaded '{file_info['name']}' to {file_info['path']}")
             except Exception as e:
-                # Add a helpful error message to our report!
-                output_messages.append(f"Error uploading '{file_info['name']}': {repr(e)}")
+                # Return a specific error for the file that failed.
+                return {"success": False, "error": f"Error uploading '{file_info['name']}': {repr(e)}"}
 
-        # Return the full report to the terminal.
+        # Return all the success messages.
         return "\\n".join(output_messages)
 
 def man(args, flags, user_context, **kwargs):
@@ -43,7 +39,8 @@ SYNOPSIS
 DESCRIPTION
     Initiates a file upload from your local machine to the current directory
     by opening the browser's native file selection dialog. It provides a
-    status report for each selected file.
+    status report for each selected file. If a file with the same name
+    already exists, it will ask for confirmation before overwriting.
 """
 
 def help(args, flags, user_context, **kwargs):

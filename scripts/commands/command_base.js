@@ -112,7 +112,8 @@ class Command {
             for (const rule of this.definition.validations.paths) {
                 const pathValidationResult = await this._validatePathRule(rule, remainingArgs, dependencies);
                 if (!pathValidationResult.success) {
-                    return ErrorHandler.createError(`${this.commandName}: ${pathValidationResult.error}`);
+                    const errorMessage = pathValidationResult.error?.message || 'Path validation failed.';
+                    return ErrorHandler.createError(`${this.commandName}: ${errorMessage}`);
                 }
                 validatedPaths.push(...pathValidationResult.data);
             }

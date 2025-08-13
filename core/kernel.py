@@ -120,15 +120,21 @@ def load_session_state(state_json):
     req = {"module": "session", "function": "load_session_state", "args": [state_json]}
     return syscall_handler(json.dumps(req))
 
-def write_file(path, content, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+def write_file(path, content, user_context):
+    """
+    Correctly handles a direct call from JS to the filesystem's write_file method.
+    The user_context is passed as a JsProxy and used directly.
+    """
     req = {"module": "filesystem", "function": "write_file", "args": [path, content, user_context]}
     return syscall_handler(json.dumps(req))
 
-def create_directory(path, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+def create_directory(path, user_context):
+    """
+    Correctly handles a direct call from JS to the filesystem's create_directory method.
+    """
     req = {"module": "filesystem", "function": "create_directory", "args": [path, user_context]}
     return syscall_handler(json.dumps(req))
+
 
 def rename_node(old_path, new_path, js_context_json):
     # Rename doesn't currently need user_context, but we maintain the pattern
@@ -154,7 +160,7 @@ def chidi_analysis(js_context_json, files_context, analysis_type, question=None)
     return syscall_handler(json.dumps(req))
 
 def explorer_get_view(path, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "explorer", "function": "get_view_data", "args": [path, user_context]}
     return syscall_handler(json.dumps(req))
 
@@ -163,17 +169,17 @@ def explorer_toggle_tree(path):
     return syscall_handler(json.dumps(req))
 
 def explorer_create_node(path, name, node_type, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "explorer", "function": "create_node", "args": [path, name, node_type, user_context]}
     return syscall_handler(json.dumps(req))
 
 def explorer_rename_node(old_path, new_name, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "explorer", "function": "rename_node", "args": [old_path, new_name, user_context]}
     return syscall_handler(json.dumps(req))
 
 def explorer_delete_node(path, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "explorer", "function": "delete_node", "args": [path, user_context]}
     return syscall_handler(json.dumps(req))
 
@@ -230,17 +236,17 @@ def top_get_process_list(jobs):
     return syscall_handler(json.dumps(req))
 
 def log_ensure_dir(js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "log", "function": "ensure_log_dir", "args": [user_context]}
     return syscall_handler(json.dumps(req))
 
 def log_load_entries(js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "log", "function": "load_entries", "args": [user_context]}
     return syscall_handler(json.dumps(req))
 
 def log_save_entry(path, content, js_context_json):
-    user_context = json.loads(js_context_json).get('user_context')
+    user_context = json.loads(js_context_json)
     req = {"module": "log", "function": "save_entry", "args": [path, content, user_context]}
     return syscall_handler(json.dumps(req))
 

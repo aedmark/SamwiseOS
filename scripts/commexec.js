@@ -17,7 +17,6 @@ class CommandExecutor {
         this.activeJobs = {};
         this.loadedScripts = new Set();
         this.dependencies = {};
-        this.isInDreamatorium = false;
     }
 
     setDependencies(dependencies) {
@@ -231,10 +230,6 @@ class CommandExecutor {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
         const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser, FileSystemManager } = this.dependencies;
 
-        if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
-            if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
-            return ErrorHandler.createSuccess("");
-        }
         if (ModalManager.isAwaiting()) {
             await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
             if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
@@ -409,8 +404,15 @@ class CommandExecutor {
 
                     if (confirmed) {
                         if (result.on_confirm_command) {
-                            const confirmResult = await this.processSingleCommand(result.on_confirm_command, { ...options, isInteractive: false });
-                            resolve(confirmResult);
+                            // THIS IS THE NEW PART!
+                            // If the confirmation was for an upload, we need to re-send the file info.
+                            if (result.on_confirm_command.startsWith('upload') && result.file_info_for_retry) {
+                                const retryEffect = { effect: 'upload_files', files: [result.file_info_for_retry] };
+                                resolve(await this._handleEffect(retryEffect, options));
+                            } else {
+                                const confirmResult = await this.processSingleCommand(result.on_confirm_command, { ...options, isInteractive: false });
+                                resolve(confirmResult);
+                            }
                         } else if (result.on_confirm) {
                             const confirmResult = await this._handleEffect(result.on_confirm, options);
                             resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || ""));
@@ -455,7 +457,45 @@ class CommandExecutor {
                     input.click();
                 });
             case 'upload_files':
-                const { files: filesToProcess } = result;
+                const { files: originalFiles } = result;
+                const filesToProcess = [];
+                const skippedFiles = [];
+
+                // Sequentially check each file for overwrite confirmation
+                for (const file of originalFiles) {
+                    const targetPath = FileSystemManager.getAbsolutePath(file.name);
+                    const existingNode = await FileSystemManager.getNodeByPath(targetPath);
+
+                    if (existingNode) {
+                        const confirmed = await new Promise(resolve => {
+                            this.dependencies.ModalManager.request({
+                                context: 'terminal',
+                                type: 'confirm',
+                                messageLines: [`File '${file.name}' already exists. Overwrite?`],
+                                onConfirm: () => resolve(true),
+                                onCancel: () => resolve(false),
+                                options,
+                            });
+                        });
+
+                        if (confirmed) {
+                            filesToProcess.push(file);
+                        } else {
+                            skippedFiles.push(file.name);
+                        }
+                    } else {
+                        filesToProcess.push(file);
+                    }
+                }
+
+                if (filesToProcess.length === 0) {
+                    let output = "No files were uploaded.";
+                    if (skippedFiles.length > 0) {
+                        output += ` Skipped: ${skippedFiles.join(', ')}.`;
+                    }
+                    return ErrorHandler.createSuccess(output);
+                }
+
                 const fileDataPromises = Array.from(filesToProcess).map(file => {
                     return new Promise((resolve, reject) => {
                         const reader = new FileReader();
@@ -484,11 +524,18 @@ class CommandExecutor {
                 });
                 const pyResult = JSON.parse(resultJson);
 
-                if (pyResult.success) {
-                    return ErrorHandler.createSuccess(pyResult.output);
-                } else {
-                    return ErrorHandler.createError(pyResult.error);
+                let finalOutput = [];
+                if (pyResult.success && pyResult.output) {
+                    finalOutput.push(pyResult.output);
+                } else if (!pyResult.success) {
+                    finalOutput.push(`An error occurred during the upload process: ${pyResult.error}`);
                 }
+
+                if (skippedFiles.length > 0) {
+                    finalOutput.push(`Skipped overwriting: ${skippedFiles.join(', ')}.`);
+                }
+
+                return ErrorHandler.createSuccess(finalOutput.join('\n'));
             case 'trigger_restore_flow':
                 return new Promise(async (resolve) => {
                     const { ModalManager } = this.dependencies;
@@ -576,7 +623,7 @@ class CommandExecutor {
                     await FileSystemManager.save();
                     return ErrorHandler.createSuccess(`Screen content saved to '${result.path}'`, { stateModified: true });
                 }
-                return ErrorHandler.createError(`printscreen: ${saveResult.error}`);
+                return ErrorHandler.createError(`printscreen: ${saveResult.error.message}`);
             case 'launch_app':
                 const App = window[result.app_name + "Manager"];
                 if (App) { const appInstance = new App(); AppLayerManager.show(appInstance, { ...options, dependencies: this.dependencies, ...result.options }); }
