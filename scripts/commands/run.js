@@ -38,8 +38,7 @@ window.RunCommand = class RunCommand extends Command {
             completionType: "paths",
             validations: {
                 args: {
-                    exact: 1,
-                    error: "Usage: run <script_path>"
+                    min: 1, // At least one argument (the script path) is required
                 },
                 paths: [{
                     argIndex: 0,
@@ -61,9 +60,10 @@ window.RunCommand = class RunCommand extends Command {
      * @returns {Promise<object>} A promise that resolves with a success or error object from the ErrorHandler.
      */
     async coreLogic(context) {
-        const { validatedPaths, dependencies } = context;
+        const { args, validatedPaths, dependencies } = context;
         const { CommandExecutor, ErrorHandler, Utils } = dependencies;
         const fileNode = validatedPaths[0].node;
+        const scriptArgs = args.slice(1); // All args after the script path are for the script itself
 
         const scriptContent = fileNode.content || "";
         const lines = scriptContent.split("\n");
@@ -76,10 +76,13 @@ window.RunCommand = class RunCommand extends Command {
         }
 
         try {
+            // We now pass the script arguments to the executor!
             await CommandExecutor.executeScript(lines, {
                 isInteractive: false,
+                args: scriptArgs,
             });
-            return ErrorHandler.createSuccess("We did it!");
+            // A successful script execution in OopisOS returns an empty success object.
+            return ErrorHandler.createSuccess("");
         } catch (e) {
             return ErrorHandler.createError({ message: `run: ${e.message}` });
         }
