@@ -173,20 +173,30 @@ class CommandExecutor:
                 continue
 
             redirection = None
-            if '>' in command_parts:
-                idx = command_parts.index('>')
-                if idx + 1 >= len(command_parts): raise ValueError("Syntax error: no file for output redirection.")
-                redirection = {'type': 'overwrite', 'file': command_parts[idx+1]}
-                command_parts = command_parts[:idx]
-            elif '>>' in command_parts:
-                idx = command_parts.index('>>')
-                if idx + 1 >= len(command_parts): raise ValueError("Syntax error: no file for output redirection.")
-                redirection = {'type': 'append', 'file': command_parts[idx+1]}
-                command_parts = command_parts[:idx]
+            i = 0
+            # Sequentially parse and remove redirection operators
+            while i < len(command_parts):
+                part = command_parts[i]
+                if part in ['>', '>>', '<']:
+                    # Ensure there's a filename after the operator
+                    if i + 1 >= len(command_parts):
+                        raise ValueError(f"Syntax error: no file for redirection operator '{part}'.")
 
-            if '<' in command_parts:
-                idx = command_parts.index('<')
-                command_parts = command_parts[:idx]
+                    filename = command_parts[i+1]
+
+                    if part == '<':
+                        # Input redirection is handled by the JS layer via stdin_data,
+                        # so we just need to strip '<' and the filename from the command parts.
+                        pass
+                    else: # Handle '>' and '>>'
+                        redirection = {'type': 'append' if part == '>>' else 'overwrite', 'file': filename}
+
+                    # Remove both the operator and the filename from the list
+                    command_parts.pop(i)
+                    command_parts.pop(i)
+                    # Don't increment i, as the list has shifted
+                    continue
+                i += 1
 
             segments = []
             current_segment_parts = []
@@ -214,7 +224,7 @@ class CommandExecutor:
         This is our new, robust, internal pre-processor!
         """
         # Find all command substitutions
-        pattern = re.compile(r'\$\((.*?)\)')
+        pattern = re.compile(r'\$\((.*?)\)', re.DOTALL)
         match = pattern.search(command_string)
 
         while match:

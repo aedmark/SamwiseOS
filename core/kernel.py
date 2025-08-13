@@ -76,6 +76,9 @@ def syscall_handler(request_json):
         # Execute the function with its arguments
         result = target_func(*args, **kwargs)
 
+        if isinstance(result, dict) and 'success' in result:
+            return json.dumps(result)
+
         # Standardize the return format
         if isinstance(result, str):
             try:

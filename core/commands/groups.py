@@ -1,19 +1,28 @@
 # gem/core/commands/groups.py
+from groups import group_manager # Import the manager directly
 
-def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None):
-    if users is None or user_groups is None:
-        return {"success": False, "error": "groups: could not retrieve user/group data from the environment."}
+def run(args, flags, user_context, stdin_data=None, users=None, **kwargs):
+    # We are no longer accepting user_groups as a parameter.
+    # We will get the most current information directly from the source!
+    if users is None:
+        return {"success": False, "error": "groups: could not retrieve user data from the environment."}
 
     target_user = args[0] if args else user_context.get('name')
 
     if target_user not in users:
         return {"success": False, "error": f"groups: user '{target_user}' does not exist"}
 
-    groups = user_groups.get(target_user, [])
+    # Get all groups directly from the group manager
+    all_groups = group_manager.get_all_groups()
+    user_specific_groups = []
+    for group, details in all_groups.items():
+        if target_user in details.get('members', []):
+            user_specific_groups.append(group)
+
     primary_group = users.get(target_user, {}).get('primaryGroup')
 
     # Use a set for efficient checking and adding
-    group_set = set(groups)
+    group_set = set(user_specific_groups)
     if primary_group:
         group_set.add(primary_group)
 
