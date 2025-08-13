@@ -419,24 +419,10 @@ class CommandExecutor {
                     }
                 });
             case 'trigger_upload_dialog':
-                return new Promise((resolve) => {
+                return new Promise(async (resolve) => {
                     const input = Utils.createElement("input", { type: "file", multiple: true });
                     input.style.display = 'none';
                     document.body.appendChild(input);
-
-                    input.onchange = (e) => {
-                        const files = e.target.files;
-                        if (document.body.contains(input)) document.body.removeChild(input);
-                        if (!files || files.length === 0) {
-                            resolve(ErrorHandler.createSuccess("Upload cancelled."));
-                            return;
-                        }
-                        const uploadEffectResult = {
-                            effect: "upload_files",
-                            files: Array.from(files)
-                        };
-                        resolve(this._handleEffect(uploadEffectResult, options));
-                    };
 
                     const onFocus = () => {
                         setTimeout(() => {
@@ -447,8 +433,24 @@ class CommandExecutor {
                             window.removeEventListener('focus', onFocus);
                         }, 500);
                     };
-                    window.addEventListener('focus', onFocus);
 
+                    input.onchange = async (e) => {
+                        window.removeEventListener('focus', onFocus);
+                        const files = e.target.files;
+                        if (document.body.contains(input)) document.body.removeChild(input);
+                        if (!files || files.length === 0) {
+                            resolve(ErrorHandler.createSuccess("Upload cancelled."));
+                            return;
+                        }
+                        const uploadEffectResult = {
+                            effect: "upload_files",
+                            files: Array.from(files)
+                        };
+                        const finalUploadResult = await this._handleEffect(uploadEffectResult, options);
+                        resolve(finalUploadResult);
+                    };
+
+                    window.addEventListener('focus', onFocus);
                     input.click();
                 });
             case 'upload_files':
@@ -456,7 +458,6 @@ class CommandExecutor {
                 const filesToProcess = [];
                 const skippedFiles = [];
 
-                // Sequentially check each file for overwrite confirmation
                 for (const file of originalFiles) {
                     const targetPath = FileSystemManager.getAbsolutePath(file.name);
                     const existingNode = await FileSystemManager.getNodeByPath(targetPath);
@@ -520,18 +521,16 @@ class CommandExecutor {
                     });
                     const pyResult = JSON.parse(resultJson);
 
-                    const finalOutput = [];
                     if (pyResult.success) {
-                        if (pyResult.output) finalOutput.push(pyResult.output);
+                        let finalMessage = pyResult.output || "";
+                        if (skippedFiles.length > 0) {
+                            const skippedMessage = `Skipped overwriting: ${skippedFiles.join(', ')}.`;
+                            finalMessage = finalMessage ? `${finalMessage}\n${skippedMessage}` : skippedMessage;
+                        }
+                        return ErrorHandler.createSuccess(finalMessage);
                     } else {
                         return ErrorHandler.createError(pyResult.error || "An unknown error occurred during upload.");
                     }
-
-                    if (skippedFiles.length > 0) {
-                        finalOutput.push(`Skipped overwriting: ${skippedFiles.join(', ')}.`);
-                    }
-
-                    return ErrorHandler.createSuccess(finalOutput.join('\n'));
 
                 } catch(e) {
                     return ErrorHandler.createError(`File read error: ${e.message}`);

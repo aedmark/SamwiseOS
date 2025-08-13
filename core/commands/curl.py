@@ -2,6 +2,7 @@
 
 import urllib.request
 from filesystem import fs_manager
+import ssl # And again here!
 
 def run(args, flags, user_context, **kwargs):
     if not args:
@@ -10,7 +11,7 @@ def run(args, flags, user_context, **kwargs):
     url = args[0]
 
     if not url.startswith(('http://', 'https://')):
-        url_with_scheme = 'http://' + url
+        url_with_scheme = 'https://' + url
     else:
         url_with_scheme = url
 
@@ -18,7 +19,10 @@ def run(args, flags, user_context, **kwargs):
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'}
         req = urllib.request.Request(url_with_scheme, headers=headers)
 
-        with urllib.request.urlopen(req, timeout=10) as response:
+        # Same security badge for curl!
+        context = ssl._create_unverified_context()
+
+        with urllib.request.urlopen(req, timeout=10, context=context) as response:
             if response.status >= 400:
                 return {"success": False, "error": f"curl: ({response.status}) {response.reason}"}
 
@@ -33,16 +37,16 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    curl - transfer a URL
+curl - transfer a URL
 
 SYNOPSIS
-    curl [URL]
+curl [URL]
 
 DESCRIPTION
-    curl is a tool to transfer data from or to a server, using one of the
-    supported protocols (HTTP, HTTPS). The command is designed to work
-    without user interaction. curl transfers data from a server and
-    displays it to standard output.
+curl is a tool to transfer data from or to a server, using one of the
+supported protocols (HTTP, HTTPS). The command is designed to work
+without user interaction. curl transfers data from a server and
+displays it to standard output.
 """
 
 def help(args, flags, user_context, **kwargs):

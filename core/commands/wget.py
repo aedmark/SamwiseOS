@@ -2,6 +2,7 @@
 
 import urllib.request
 from filesystem import fs_manager
+import ssl  # Import the SSL module!
 
 def define_flags():
     """Declares the flags that the wget command accepts."""
@@ -23,13 +24,17 @@ def run(args, flags, user_context, **kwargs):
             output_path = "index.html"
 
     if not url.startswith(('http://', 'https://')):
-        url = 'http://' + url
+        url = 'https://' + url
 
     try:
         headers = {'User-Agent': 'SamwiseOS/1.0'}
         req = urllib.request.Request(url, headers=headers)
 
-        with urllib.request.urlopen(req, timeout=10) as response:
+        # Here's the magic! We create an unverified SSL context.
+        # This tells Python to trust the HTTPS certificate.
+        context = ssl._create_unverified_context()
+
+        with urllib.request.urlopen(req, timeout=10, context=context) as response:
             if response.status != 200:
                 return {"success": False, "error": f"wget: server response: {response.status}"}
 
@@ -47,18 +52,18 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    wget - The non-interactive network downloader.
+wget - The non-interactive network downloader.
 
 SYNOPSIS
-    wget [OPTION]... [URL]
+wget [OPTION]... [URL]
 
 DESCRIPTION
-    wget is a utility for non-interactive download of files from the Web.
-    It supports HTTP, HTTPS protocols.
+wget is a utility for non-interactive download of files from the Web.
+It supports HTTP, HTTPS protocols.
 
-    -O, --output-document=FILE
-        The documents will not be written to the appropriate files, but all
-        will be concatenated and written to FILE.
+-O, --output-document=FILE
+The documents will not be written to the appropriate files, but all
+will be concatenated and written to FILE.
 """
 
 def help(args, flags, user_context, **kwargs):
