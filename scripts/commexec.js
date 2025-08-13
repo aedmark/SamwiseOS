@@ -649,8 +649,7 @@ class CommandExecutor {
                 }
                 break;
             case 'execute_script':
-                await this.executeScript(result.lines, { isInteractive: false, args: result.args });
-                break;
+                return await this.executeScript(result.lines, { isInteractive: false, args: result.args });
             case 'login':
                 const loginResult = await UserManager.login(result.username, result.password, options);
                 if (loginResult.success && loginResult.isLogin && loginResult.shouldWelcome) {

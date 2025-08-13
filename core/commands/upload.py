@@ -12,8 +12,11 @@ def run(args, flags, user_context, **kwargs):
     files_to_upload = kwargs.get('files')
 
     if not files_to_upload:
-        # Step 1: Tell the JS frontend to open the file dialog.
-        return { "effect": "trigger_upload_dialog" }
+        # Step 1: Tell the JS frontend to open the file dialog and provide initial feedback.
+        return {
+            "effect": "trigger_upload_dialog",
+            "output": "Opening file dialog..."
+        }
     else:
         # Step 2: JS has already handled confirmations. Process the files.
         output_messages = []
@@ -34,16 +37,16 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    upload - Uploads files from your local machine to SamwiseOS.
+upload - Uploads files from your local machine to SamwiseOS.
 
 SYNOPSIS
-    upload
+upload
 
 DESCRIPTION
-    Initiates a file upload from your local machine to the current directory
-    by opening the browser's native file selection dialog. It provides a
-    status report for each selected file. If a file with the same name
-    already exists, it will ask for confirmation before overwriting.
+Initiates a file upload from your local machine to the current directory
+by opening the browser's native file selection dialog. It provides a
+status report for each selected file. If a file with the same name
+already exists, it will ask for confirmation before overwriting.
 """
 
 def help(args, flags, user_context, **kwargs):
