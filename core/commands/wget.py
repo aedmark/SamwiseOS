@@ -2,7 +2,6 @@
 
 import urllib.request
 from filesystem import fs_manager
-import ssl  # Import the SSL module!
 
 def define_flags():
     """Declares the flags that the wget command accepts."""
@@ -30,11 +29,8 @@ def run(args, flags, user_context, **kwargs):
         headers = {'User-Agent': 'SamwiseOS/1.0'}
         req = urllib.request.Request(url, headers=headers)
 
-        # Here's the magic! We create an unverified SSL context.
-        # This tells Python to trust the HTTPS certificate.
-        context = ssl._create_unverified_context()
-
-        with urllib.request.urlopen(req, timeout=10, context=context) as response:
+        # The 'context' argument is removed from urlopen. The browser handles it!
+        with urllib.request.urlopen(req, timeout=10) as response:
             if response.status != 200:
                 return {"success": False, "error": f"wget: server response: {response.status}"}
 

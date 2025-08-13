@@ -2,7 +2,6 @@
 
 import urllib.request
 from filesystem import fs_manager
-import ssl # And again here!
 
 def run(args, flags, user_context, **kwargs):
     if not args:
@@ -19,10 +18,8 @@ def run(args, flags, user_context, **kwargs):
         headers = {'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36'}
         req = urllib.request.Request(url_with_scheme, headers=headers)
 
-        # Same security badge for curl!
-        context = ssl._create_unverified_context()
-
-        with urllib.request.urlopen(req, timeout=10, context=context) as response:
+        # The 'context' argument is removed. We trust the browser's security!
+        with urllib.request.urlopen(req, timeout=10) as response:
             if response.status >= 400:
                 return {"success": False, "error": f"curl: ({response.status}) {response.reason}"}
 
