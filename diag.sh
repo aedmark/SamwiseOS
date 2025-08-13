@@ -372,7 +372,7 @@ delay 400
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 10: Testing Pager and Calculator Tests ====="
+echo "===== Phase 10: Testing Pager, Calculator, and Date Parsing ====="
 delay 200
 echo "--- Test: bc command (pipe and argument) ---"
 echo "5 * (10 - 2) / 4" | bc
@@ -392,9 +392,12 @@ rm pager_test.txt input_redir.txt
 echo "Input redirection test complete."
 delay 200
 echo "--- Test: expr command ---"
-expr 2000 + $(date | awk '{print $6}' | cut -c 3-4)
-delay 200
-echo "Expression test complete."
+expr 10 + 5
+expr ( 10 + 5 ) \* 2
+
+echo "--- Test: Date parsing pipeline ---"
+date | awk '{print $5}' | cut -c 3-4
+echo "Expression and date tests complete."
 delay 400
 echo "---------------------------------------------------------------------"
 

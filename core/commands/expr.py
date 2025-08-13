@@ -22,6 +22,9 @@ def run(args, flags, user_context, **kwargs):
 
     def apply_op(operators, values):
         """Applies an operator to the top two values on the stack."""
+        if len(values) < 2:
+            op_for_error = operators[-1] if operators else '?'
+            raise ValueError(f"not enough operands for operator '{op_for_error}'")
         try:
             op = operators.pop()
             right = values.pop()

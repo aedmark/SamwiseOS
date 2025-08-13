@@ -4,11 +4,13 @@ from datetime import datetime
 
 def run(args, flags, user_context, stdin_data=None):
     """
-    Returns the current date and time.
+    Returns the current date and time in a consistent format.
     """
     if args:
         return {"success": False, "error": "date: command takes no arguments"}
-    return datetime.now().strftime('%a %b %d %H:%M:%S %Z %Y')
+    # We are changing the format string to place the Year (%Y) before the
+    # timezone offset (%z). This makes the output predictable for scripts!
+    return datetime.now().strftime('%a %b %d %H:%M:%S %Y %z')
 
 def man(args, flags, user_context, stdin_data=None):
     """
