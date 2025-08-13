@@ -108,24 +108,77 @@ class CommandExecutor {
     async executeScript(lines, options = {}) {
         const { ErrorHandler, EnvironmentManager, Config } = this.dependencies;
         EnvironmentManager.push();
-        const scriptingContext = { isScripting: true, lines: lines, currentLineIndex: -1, args: options.args || [], };
-        let stepCounter = 0; const MAX_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS || 10000;
+
+        // Ensure lines is an array of strings, not objects
+        const commandLines = lines.map(line => (typeof line === 'object' && line.command) ? line.command : String(line));
+
+        const scriptingContext = {
+            isScripting: true,
+            lines: commandLines,
+            currentLineIndex: -1,
+            args: options.args || [],
+        };
+
+        let stepCounter = 0;
+        const MAX_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS || 10000;
+
         try {
-            for (let i = 0; i < lines.length; i++) {
-                stepCounter++; if (stepCounter > MAX_STEPS) { throw new Error(`Maximum script execution steps (${MAX_STEPS}) exceeded.`); }
+            let i = 0;
+            while (i < commandLines.length) {
+                stepCounter++;
+                if (stepCounter > MAX_STEPS) {
+                    throw new Error(`Maximum script execution steps (${MAX_STEPS}) exceeded.`);
+                }
                 scriptingContext.currentLineIndex = i;
-                const line = lines[i].trim();
-                if (line && !line.startsWith("#")) {
-                    const result = await this.processSingleCommand(line, { ...options, scriptingContext, });
-                    i = scriptingContext.currentLineIndex;
-                    if (!result.success) {
-                        // The new ErrorHandler guarantees result.error.message exists
-                        const errorMessage = result.error.message || 'Unknown script error';
-                        throw new Error(`Error on line ${i + 1}: ${errorMessage}`);
+                const line = commandLines[i].trim();
+
+                if (!line || line.startsWith("#")) {
+                    i++;
+                    continue;
+                }
+
+                let stdinForCommand = null;
+                let linesToAdvance = 1;
+
+                // Our new "look-ahead" logic for non-interactive password input!
+                if (line.startsWith("useradd ") || line.startsWith("passwd")) {
+                    const passwordLines = [];
+                    let j = i + 1;
+                    while (j < commandLines.length && passwordLines.length < 2) {
+                        const nextLine = commandLines[j].trim();
+                        if (nextLine && !nextLine.startsWith('#')) {
+                            passwordLines.push(nextLine);
+                        }
+                        j++;
+                    }
+
+                    if (passwordLines.length === 2) {
+                        stdinForCommand = passwordLines.join('\n');
+                        // We advance 'i' by the number of lines we've processed (the command + password lines)
+                        linesToAdvance = (j - i);
                     }
                 }
+
+                const result = await this.processSingleCommand(line, {
+                    ...options,
+                    scriptingContext,
+                    stdinContent: stdinForCommand
+                });
+
+                i += linesToAdvance;
+
+                if (!result.success) {
+                    const errorMessage = result.error.message || 'Unknown script error';
+                    throw new Error(`Error on line ${i - linesToAdvance + 1}: ${errorMessage}`);
+                }
+                // This ensures any GOTO-like behavior in scripts would work
+                if(scriptingContext.currentLineIndex !== (i - linesToAdvance)) {
+                    i = scriptingContext.currentLineIndex;
+                }
             }
-        } finally { EnvironmentManager.pop(); }
+        } finally {
+            EnvironmentManager.pop();
+        }
         return ErrorHandler.createSuccess("Script finished successfully.");
     }
 
