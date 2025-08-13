@@ -307,28 +307,6 @@ class UserManager {
         return ErrorHandler.createSuccess("", { shouldWelcome: false }); // No welcome message needed for su
     }
 
-    async _performSu(username, options) {
-        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI } = this.dependencies;
-        const oldUser = this.getCurrentUser().name;
-
-        // 1. Save the state of the user we're leaving.
-        SessionManager.saveAutomaticState(oldUser);
-        this.sudoManager.clearUserTimestamp(oldUser);
-
-        // 2. Log this important security event.
-        AuditManager.log(oldUser, 'su_success', `Switched to user '${username}'.`);
-
-        // 3. The Metamorphosis: Push the new user onto the session stack.
-        SessionManager.pushUserToStack(username);
-
-        // 4. Load the new user's environment, history, etc.
-        await SessionManager.loadAutomaticState(username);
-        EnvironmentManager.initialize(); // This updates ENV vars like USER and HOME
-        TerminalUI.updatePrompt(); // And this makes the prompt look right!
-
-        return ErrorHandler.createSuccess("", { shouldWelcome: false }); // No welcome message needed for su
-    }
-
     /**
      * Handles the logout process. If the user is in an 'su' session (stack depth > 1),
      * it pops the current user off the stack, reverting to the previous user.
