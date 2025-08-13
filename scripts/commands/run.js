@@ -24,17 +24,17 @@ window.RunCommand = class RunCommand extends Command {
         super({
             commandName: "run",
             description: "Executes a script file as a series of commands.",
-            helpText: `Usage: run <script_path>
+            helpText: `Usage: run <script_path> [args...]
       Execute a script from a file.
       DESCRIPTION
       The run command reads the specified script file and executes its
-      contents line by line as if they were typed into the terminal.
-      This is useful for automating repetitive tasks.
+      contents line by line. Arguments can be passed to the script
+      and accessed via $1, $2, $#, etc.
       - Lines starting with # are treated as comments and ignored.
       - Blank lines are ignored.
       EXAMPLES
       run setup_project.sh
-      Executes the commands listed in the 'setup_project.sh' file.`,
+      run my_script.sh "first arg" "second arg"`,
             completionType: "paths",
             validations: {
                 args: {

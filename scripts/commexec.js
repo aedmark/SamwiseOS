@@ -119,7 +119,6 @@ class CommandExecutor {
                     const result = await this.processSingleCommand(line, { ...options, scriptingContext, });
                     i = scriptingContext.currentLineIndex;
                     if (!result.success) {
-                        // This properly extracts the message from our standardized error object!
                         const errorMessage = typeof result.error === 'object' && result.error !== null ? result.error.message : result.error;
                         throw new Error(`Error on line ${i + 1}: ${errorMessage || 'Unknown error'}`);
                     }
@@ -200,17 +199,9 @@ class CommandExecutor {
         TerminalUI.setIsNavigatingHistory(false);
     }
 
-    /**
-     * Creates a complete JSON context string for the Python kernel.
-     * This is the official "briefing binder" for any command execution.
-     * @private
-     */
-
     _createKernelContext() {
         const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager } = this.dependencies;
         const user = UserManager.getCurrentUser();
-
-        // Build the full user-to-groups mapping for Python-side permission checks
         const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
         const allUsernames = Object.keys(allUsers);
         const userGroupsMap = {};
@@ -220,9 +211,7 @@ class CommandExecutor {
         if (!userGroupsMap['Guest']) {
             userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
         }
-
         const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
-
         return JSON.stringify({
             current_path: FileSystemManager.getCurrentPath(),
             user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) },
@@ -232,7 +221,6 @@ class CommandExecutor {
             jobs: this.activeJobs,
             config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
             api_key: apiKey,
-            // Add session start time and user stack for new commands
             session_start_time: window.sessionStartTime.toISOString(),
             session_stack: SessionManager.getStack()
         });
@@ -280,22 +268,19 @@ class CommandExecutor {
 
             for (const item of commandSequence) {
                 const { pipeline } = item;
-                let stdinContentForPipeline = stdinContent; // Start with existing stdin
+                let stdinContentForPipeline = stdinContent;
 
-                // --- THIS IS THE NEW AND IMPROVED LOGIC ---
                 if (pipeline.inputRedirectFile) {
                     const validationResult = await FileSystemManager.validatePath(
                         pipeline.inputRedirectFile,
                         { expectedType: 'file', permissions: ['read'] }
                     );
                     if (!validationResult.success) {
-                        // Create an error message that looks like the shell's
                         finalResult = ErrorHandler.createError({ message: `cat: ${pipeline.inputRedirectFile}: ${validationResult.error}` });
-                        break; // Stop processing this command sequence
+                        break;
                     }
                     stdinContentForPipeline = validationResult.data.node.content;
                 }
-                // --- END OF NEW LOGIC ---
 
                 if (pipeline.isBackground) {
                     this.backgroundProcessIdCounter++;
@@ -306,7 +291,6 @@ class CommandExecutor {
                         status: 'running',
                         abortController: abortController,
                         user: this.dependencies.UserManager.getCurrentUser().name,
-
                     };
                     this.processSingleCommand(commandToExecute.replace('&', '').trim(), { ...options, isBackground: false, suppressOutput: true, signal: abortController.signal, stdinContent: stdinContentForPipeline })
                         .finally(() => {
@@ -316,7 +300,6 @@ class CommandExecutor {
                     break;
                 }
 
-                // Pass the potentially updated stdin content to the kernel
                 const kernelContextJson = this._createKernelContext();
                 const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
                 const result = JSON.parse(resultJson);
@@ -491,14 +474,12 @@ class CommandExecutor {
                 const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
                 const userContext = { name: user.name, group: primaryGroup };
 
-                // Directly call the 'run' function of the 'upload' command via the executor module
                 const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
                     command_name: 'upload',
                     args: [],
                     flags: {},
                     user_context: userContext,
                     stdin_data: null,
-                    // Pass the file data in kwargs
                     kwargs: { files: filesForPython }
                 });
                 const pyResult = JSON.parse(resultJson);
@@ -531,7 +512,6 @@ class CommandExecutor {
                                 const { checksum, ...dataToVerify } = backupData;
                                 const stringifiedData = JSON.stringify(dataToVerify, Object.keys(dataToVerify).sort());
 
-                                // Placeholder for actual CRC32 check
                                 await OutputManager.appendToOutput("Checksum OK.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
 
                                 const confirmed = await new Promise(r => ModalManager.request({
@@ -620,6 +600,9 @@ class CommandExecutor {
                 for (const cmd of result.commands) {
                     await this.processSingleCommand(cmd, { isInteractive: false });
                 }
+                break;
+            case 'execute_script':
+                await this.executeScript(result.lines, { isInteractive: false, args: result.args });
                 break;
             case 'login':
                 const loginResult = await UserManager.login(result.username, result.password, options);

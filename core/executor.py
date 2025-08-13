@@ -68,14 +68,10 @@ class CommandExecutor:
 
         command_name = segment_parts[0]
         # --- GLOB EXPANSION LOGIC ---
-        # We process arguments for wildcards *before* parsing for flags.
         raw_args_and_flags = segment_parts[1:]
         expanded_parts = []
         for part in raw_args_and_flags:
-            # We only attempt to expand parts that are potential filenames, not flags.
-            # A more robust implementation would handle '--' to stop flag parsing.
             if '*' in part or '?' in part or ('[' in part and ']' in part):
-                # This logic is simplified to handle globs in the current directory or with a simple path prefix.
                 path_prefix, pattern_part = os.path.split(part)
                 if not path_prefix:
                     path_prefix = '.'
@@ -87,13 +83,12 @@ class CommandExecutor:
                     children_names = dir_node.get('children', {}).keys()
                     matches = fnmatch.filter(children_names, pattern_part)
                     if matches:
-                        # Re-join the path prefix to the matched names if there was one
                         for name in sorted(matches):
                             expanded_parts.append(os.path.join(path_prefix, name) if path_prefix != '.' else name)
                     else:
-                        expanded_parts.append(part) # No match, pass the literal pattern
+                        expanded_parts.append(part)
                 else:
-                    expanded_parts.append(part) # Path doesn't exist or isn't a directory
+                    expanded_parts.append(part)
             else:
                 expanded_parts.append(part)
 
@@ -191,8 +186,6 @@ class CommandExecutor:
 
             if '<' in command_parts:
                 idx = command_parts.index('<')
-                # The JS layer handles the file reading. We just need to remove the redirection
-                # syntax from the list of parts before they are processed into command/args.
                 command_parts = command_parts[:idx]
 
             segments = []
@@ -215,35 +208,60 @@ class CommandExecutor:
 
         return command_sequence
 
+    def _preprocess_command_string(self, command_string, js_context_json):
+        """
+        Recursively handles command substitution $(...) before main parsing.
+        This is our new, robust, internal pre-processor!
+        """
+        # Find all command substitutions
+        pattern = re.compile(r'\$\((.*?)\)')
+        match = pattern.search(command_string)
+
+        while match:
+            sub_command = match.group(1)
+            # Recursively call the main execute function for the sub-command
+            sub_result_json = self.execute(sub_command, js_context_json)
+            sub_result = json.loads(sub_result_json)
+
+            if sub_result.get("success"):
+                output = sub_result.get("output", "").strip().replace('\n', ' ')
+                # Replace the $(...) with the command's output
+                command_string = command_string[:match.start()] + output + command_string[match.end():]
+            else:
+                # If the subcommand fails, the whole command is invalid.
+                raise ValueError(f"Command substitution failed: {sub_result.get('error')}")
+
+            # Look for the next match in the modified string
+            match = pattern.search(command_string)
+
+        return command_string
+
     def execute(self, command_string, js_context_json, stdin_data=None):
         try:
             context = json.loads(js_context_json)
 
-            # On every command, load the fresh state from JS into our managers.
             if 'users' in context:
                 user_manager.load_users(context['users'])
             if 'groups' in context:
                 group_manager.load_groups(context['groups'])
 
-            # Ensure fs_manager gets the full context.
             fs_manager.set_context(
                 current_path=context.get("current_path", "/"),
                 user_groups=context.get("user_groups")
             )
 
-            # Set the context on the executor directly.
             self.set_context(
-                user_context=context.get("user_context"),
-                users=context.get("users"),
-                user_groups=context.get("user_groups"),
-                config=context.get("config"),
-                groups=context.get("groups"),
-                jobs=context.get("jobs"),
-                api_key=context.get("api_key"),
-                session_start_time=context.get("session_start_time"),
-                session_stack=context.get("session_stack")
+                user_context=context.get("user_context"), users=context.get("users"),
+                user_groups=context.get("user_groups"), config=context.get("config"),
+                groups=context.get("groups"), jobs=context.get("jobs"), api_key=context.get("api_key"),
+                session_start_time=context.get("session_start_time"), session_stack=context.get("session_stack")
             )
-            command_sequence = self._parse_command_string(command_string)
+
+            # --- NEW PRE-PROCESSING STEP ---
+            # We now handle command substitution right here in the kernel!
+            processed_command_string = self._preprocess_command_string(command_string, js_context_json)
+
+            command_sequence = self._parse_command_string(processed_command_string)
             if not command_sequence:
                 return json.dumps({"success": True, "output": ""})
 
@@ -256,7 +274,6 @@ class CommandExecutor:
                     continue
 
                 pipeline_input = stdin_data
-
                 for i, segment in enumerate(pipeline['segments']):
                     result_json = self._execute_segment(segment, pipeline_input)
                     last_result_obj = json.loads(result_json)
@@ -303,7 +320,6 @@ class CommandExecutor:
                 "groups": self.groups, "jobs": self.jobs, "ai_manager": self.ai_manager,
                 "api_key": self.api_key, "session_start_time": self.session_start_time,
                 "session_stack": self.session_stack,
-                # We now pass the executor's complete command list to every command!
                 "commands": self.commands,
                 **kwargs
             }
