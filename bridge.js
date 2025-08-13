@@ -165,6 +165,7 @@ const OopisOS_Kernel = {
                 '/core/commands/check_fail.py': './core/commands/check_fail.py',
                 '/core/commands/who.py': './core/commands/who.py',
                 '/core/commands/uptime.py': './core/commands/uptime.py',
+                '/core/commands/_upload_handler.py': './core/commands/_upload_handler.py',
                 '/core/commands/__init__.py': null,
                 '/core/apps/__init__.py': null,
                 '/core/apps/editor.py': './core/apps/editor.py',

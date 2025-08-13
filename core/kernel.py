@@ -77,8 +77,13 @@ def syscall_handler(request_json):
         result = target_func(*args, **kwargs)
 
         # Standardize the return format
-        if isinstance(result, dict) and 'success' in result:
-            return json.dumps(result)
+        if isinstance(result, str):
+            try:
+                json.loads(result)
+                return result
+            except json.JSONDecodeError:
+                # It's just a plain string, so fall through to wrap it.
+                pass
 
         # For functions that return non-dict data on success
         return json.dumps({"success": True, "data": result})
