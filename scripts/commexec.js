@@ -119,7 +119,8 @@ class CommandExecutor {
                     const result = await this.processSingleCommand(line, { ...options, scriptingContext, });
                     i = scriptingContext.currentLineIndex;
                     if (!result.success) {
-                        const errorMessage = (result.error && result.error.message) ? result.error.message : (result.error || 'Unknown error');
+                        // The new ErrorHandler guarantees result.error.message exists
+                        const errorMessage = result.error.message || 'Unknown script error';
                         throw new Error(`Error on line ${i + 1}: ${errorMessage}`);
                     }
                 }
@@ -328,7 +329,7 @@ class CommandExecutor {
                 }
             }
         } catch (e) {
-            finalResult = ErrorHandler.createError({ message: e.message || "JavaScript execution error." });
+            finalResult = ErrorHandler.createError(e);
         }
 
         if (!suppressOutput) {
@@ -336,17 +337,11 @@ class CommandExecutor {
                 if (finalResult.data !== null && finalResult.data !== undefined) {
                     await OutputManager.appendToOutput(finalResult.data, finalResult);
                 }
-            } else if (finalResult) {
-                let errorMessage = "Unknown error";
-                if (typeof finalResult.error === 'string') {
-                    errorMessage = finalResult.error;
-                } else if (finalResult.error && typeof finalResult.error.message === 'string') {
-                    errorMessage = finalResult.error.message;
-                    if (finalResult.error.suggestion) {
-                        errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`;
-                    }
-                } else if (typeof finalResult.error === 'object') {
-                    errorMessage = finalResult.error.message || JSON.stringify(finalResult.error);
+            } else if (finalResult && finalResult.error) {
+                // With the new ErrorHandler, the structure is always predictable.
+                let errorMessage = finalResult.error.message || 'An unknown error occurred.';
+                if (finalResult.error.suggestion) {
+                    errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`;
                 }
                 await OutputManager.appendToOutput(errorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
             }
@@ -566,7 +561,8 @@ class CommandExecutor {
                     return ErrorHandler.createSuccess(`Screenshot saved as '${result.filename}'`);
                 } catch (e) {
                     if (document.getElementById("terminal")) document.getElementById("terminal").classList.remove("no-cursor");
-                    return ErrorHandler.createError({ message: `printscreen: Failed to capture screen. ${e.message}` });
+                    e.message = `printscreen: Failed to capture screen. ${e.message || 'Unknown error'}`;
+                    return ErrorHandler.createError(e);
                 }
             case 'dump_screen_text':
                 const terminalElement = document.getElementById("terminal");

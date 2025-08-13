@@ -84,7 +84,8 @@ window.RunCommand = class RunCommand extends Command {
             // A successful script execution in OopisOS returns an empty success object.
             return ErrorHandler.createSuccess("");
         } catch (e) {
-            return ErrorHandler.createError({ message: `run: ${e.message}` });
+            // The message from executeScript is already well-formatted.
+            return ErrorHandler.createError(`run: ${e.message}`);
         }
     }
 }
