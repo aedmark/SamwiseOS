@@ -338,10 +338,15 @@ class CommandExecutor {
                 }
             } else if (finalResult) {
                 let errorMessage = "Unknown error";
-                if (typeof finalResult.error === 'string') { errorMessage = finalResult.error; }
-                else if (finalResult.error && typeof finalResult.error.message === 'string') {
+                if (typeof finalResult.error === 'string') {
+                    errorMessage = finalResult.error;
+                } else if (finalResult.error && typeof finalResult.error.message === 'string') {
                     errorMessage = finalResult.error.message;
-                    if (finalResult.error.suggestion) { errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`; }
+                    if (finalResult.error.suggestion) {
+                        errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`;
+                    }
+                } else if (typeof finalResult.error === 'object') {
+                    errorMessage = JSON.stringify(finalResult.error);
                 }
                 await OutputManager.appendToOutput(errorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
             }

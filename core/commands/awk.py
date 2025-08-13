@@ -19,8 +19,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     delimiter = flags.get('field-separator')
 
     lines = []
+    # This handles piped input.
     if stdin_data is not None:
-        lines = stdin_data.splitlines()
+        # This prevents errors when stdin_data is None (JsNull).
+        string_input = str(stdin_data or "")
+        lines = string_input.splitlines()
+    # This handles file input.
     elif file_path:
         node = fs_manager.get_node(file_path)
         if not node:
@@ -28,8 +32,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         if node.get('type') != 'file':
             return {"success": False, "error": f"awk: {file_path}: Is a directory"}
         lines = node.get('content', '').splitlines()
+    # This handles no input at all.
     else:
-        return "" # Awaiting stdin, success with no output
+        return ""
 
     output_lines = []
 

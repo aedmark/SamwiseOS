@@ -15,8 +15,9 @@ def run(args, flags, user_context, stdin_data=None):
         try:
             name, value = arg_string.split('=', 1)
             # Handle quoted values
-            value_parts = shlex.split(value)
-            value = value_parts[0] if value_parts else ""
+            if (value.startswith('"') and value.endswith('"')) or \
+                    (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
 
             if not name.isidentifier():
                 return f"set: invalid variable name: '{name}'"

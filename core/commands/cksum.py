@@ -7,7 +7,9 @@ def run(args, flags, user_context, stdin_data=None):
     output_lines = []
 
     def process_content(content, name=""):
-        content_bytes = content.encode('utf-8')
+        # This prevents errors when content is None (JsNull).
+        string_content = str(content or "")
+        content_bytes = string_content.encode('utf-8')
         checksum = zlib.crc32(content_bytes)
         byte_count = len(content_bytes)
 
@@ -31,6 +33,7 @@ def run(args, flags, user_context, stdin_data=None):
             content = node.get('content', '')
             output_lines.append(process_content(content, path))
     else:
+        # This case handles when 'cksum' is run with no args and no stdin.
         output_lines.append(process_content(""))
 
     return "\n".join(output_lines)
