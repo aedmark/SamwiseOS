@@ -178,7 +178,6 @@ class CommandExecutor:
                 continue
 
             redirection = None
-            # This is a simplified check. A full shell parser would handle redirection appearing anywhere.
             if '>' in command_parts:
                 idx = command_parts.index('>')
                 if idx + 1 >= len(command_parts): raise ValueError("Syntax error: no file for output redirection.")
@@ -188,6 +187,12 @@ class CommandExecutor:
                 idx = command_parts.index('>>')
                 if idx + 1 >= len(command_parts): raise ValueError("Syntax error: no file for output redirection.")
                 redirection = {'type': 'append', 'file': command_parts[idx+1]}
+                command_parts = command_parts[:idx]
+
+            if '<' in command_parts:
+                idx = command_parts.index('<')
+                # The JS layer handles the file reading. We just need to remove the redirection
+                # syntax from the list of parts before they are processed into command/args.
                 command_parts = command_parts[:idx]
 
             segments = []
