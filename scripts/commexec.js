@@ -442,12 +442,92 @@ class CommandExecutor {
                             resolve(ErrorHandler.createSuccess("Upload cancelled."));
                             return;
                         }
-                        const uploadEffectResult = {
-                            effect: "upload_files",
-                            files: Array.from(files)
-                        };
-                        const finalUploadResult = await this._handleEffect(uploadEffectResult, options);
-                        resolve(finalUploadResult);
+
+                        const filesToProcess = [];
+                        const skippedFiles = [];
+
+                        for (const file of Array.from(files)) {
+                            const targetPath = FileSystemManager.getAbsolutePath(file.name);
+                            const existingNode = await FileSystemManager.getNodeByPath(targetPath);
+
+                            if (existingNode) {
+                                const confirmed = await new Promise(r => {
+                                    this.dependencies.ModalManager.request({
+                                        context: 'terminal',
+                                        type: 'confirm',
+                                        messageLines: [`File '${file.name}' already exists in ${FileSystemManager.getCurrentPath()}. Overwrite?`],
+                                        onConfirm: () => r(true),
+                                        onCancel: () => r(false),
+                                        options,
+                                    });
+                                });
+
+                                if (confirmed) {
+                                    filesToProcess.push(file);
+                                } else {
+                                    skippedFiles.push(file.name);
+                                }
+                            } else {
+                                filesToProcess.push(file);
+                            }
+                        }
+
+                        if (filesToProcess.length === 0) {
+                            let output = "No files were uploaded.";
+                            if (skippedFiles.length > 0) {
+                                output += ` Skipped overwriting: ${skippedFiles.join(', ')}.`;
+                            }
+                            // Resolve with the final result so it gets printed.
+                            resolve(ErrorHandler.createSuccess(output));
+                            return;
+                        }
+
+                        const fileDataPromises = filesToProcess.map(file => {
+                            return new Promise((res, rej) => {
+                                const reader = new FileReader();
+                                reader.onload = (event) => res({
+                                    name: file.name,
+                                    path: FileSystemManager.getAbsolutePath(file.name),
+                                    content: event.target.result
+                                });
+                                reader.onerror = () => rej(new Error(`Could not read file: ${file.name}`));
+                                reader.readAsText(file);
+                            });
+                        });
+
+                        try {
+                            const filesForPython = await Promise.all(fileDataPromises);
+                            const user = UserManager.getCurrentUser();
+                            const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
+                            const userContext = { name: user.name, group: primaryGroup };
+
+                            // Call the Python 'upload' command with the file data
+                            const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
+                                command_name: 'upload',
+                                args: [],
+                                flags: {},
+                                user_context: userContext,
+                                stdin_data: null,
+                                kwargs: { files: filesForPython }
+                            });
+                            const pyResult = JSON.parse(resultJson);
+
+                            if (pyResult.success) {
+                                let finalMessage = pyResult.output || "";
+                                if (skippedFiles.length > 0) {
+                                    const skippedMessage = `Skipped overwriting: ${skippedFiles.join(', ')}.`;
+                                    finalMessage = finalMessage ? `${finalMessage}\n${skippedMessage}` : skippedMessage;
+                                }
+                                // Resolve with the success object from Python
+                                resolve(ErrorHandler.createSuccess(finalMessage));
+                            } else {
+                                // Resolve with the error object from Python
+                                resolve(ErrorHandler.createError(pyResult.error || "An unknown error occurred during upload."));
+                            }
+
+                        } catch(err) {
+                            resolve(ErrorHandler.createError(`File read error: ${err.message}`));
+                        }
                     };
 
                     window.addEventListener('focus', onFocus);
