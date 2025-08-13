@@ -119,8 +119,8 @@ class CommandExecutor {
                     const result = await this.processSingleCommand(line, { ...options, scriptingContext, });
                     i = scriptingContext.currentLineIndex;
                     if (!result.success) {
-                        const errorMessage = typeof result.error === 'object' && result.error !== null ? result.error.message : result.error;
-                        throw new Error(`Error on line ${i + 1}: ${errorMessage || 'Unknown error'}`);
+                        const errorMessage = (result.error && result.error.message) ? result.error.message : (result.error || 'Unknown error');
+                        throw new Error(`Error on line ${i + 1}: ${errorMessage}`);
                     }
                 }
             }
@@ -346,7 +346,7 @@ class CommandExecutor {
                         errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`;
                     }
                 } else if (typeof finalResult.error === 'object') {
-                    errorMessage = JSON.stringify(finalResult.error);
+                    errorMessage = finalResult.error.message || JSON.stringify(finalResult.error);
                 }
                 await OutputManager.appendToOutput(errorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
             }

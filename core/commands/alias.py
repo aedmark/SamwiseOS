@@ -17,8 +17,10 @@ def run(args, flags, user_context, stdin_data=None):
     if '=' in arg_string:
         try:
             name, value = arg_string.split('=', 1)
-            value_parts = shlex.split(value)
-            value = value_parts[0] if value_parts else ""
+            # This is the new, correct logic for handling quotes
+            if (value.startswith('"') and value.endswith('"')) or \
+                    (value.startswith("'") and value.endswith("'")):
+                value = value[1:-1]
 
             alias_manager.set_alias(name, value)
             return {
@@ -35,7 +37,6 @@ def run(args, flags, user_context, stdin_data=None):
         if alias_value:
             return f"alias {alias_name}='{alias_value}'"
         else:
-            # Standardizing this to be a failure case for scripting
             return {"success": False, "error": f"alias: {alias_name}: not found"}
 
 def man(args, flags, user_context, stdin_data=None):

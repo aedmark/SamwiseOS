@@ -5,7 +5,6 @@ from session import env_manager
 
 def run(args, flags, user_context, stdin_data=None):
     if not args:
-        # The 'all_vars' object is already a Python dictionary
         all_vars = env_manager.get_all()
         output = [f"{key}={value}" for key, value in sorted(all_vars.items())]
         return "\n".join(output)
@@ -14,7 +13,7 @@ def run(args, flags, user_context, stdin_data=None):
     if '=' in arg_string:
         try:
             name, value = arg_string.split('=', 1)
-            # Handle quoted values
+            # This is the new, correct logic for handling quotes
             if (value.startswith('"') and value.endswith('"')) or \
                     (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
@@ -32,7 +31,6 @@ def run(args, flags, user_context, stdin_data=None):
         except ValueError:
             return f"set: invalid format: {arg_string}"
     else:
-        # `set var` is not standard, but shells often set it to empty. We'll do that too.
         name = arg_string
         if not name.isidentifier():
             return f"set: invalid variable name: '{name}'"
