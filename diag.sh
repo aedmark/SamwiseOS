@@ -392,7 +392,7 @@ rm pager_test.txt input_redir.txt
 echo "Input redirection test complete."
 delay 200
 echo "--- Test: expr command ---"
-expr 2000 + $(date | awk '{print $4}' | cut -c 3-4)
+expr 2000 + $(date | awk '{print $6}' | cut -c 3-4)
 delay 200
 echo "Expression test complete."
 delay 400
