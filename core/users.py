@@ -150,7 +150,6 @@ class UserManager:
             if not self.user_exists('root'):
                 self.register_user('root', None, 'root')
 
-            # 3. THIS IS THE FIX: Ensure Guest user and group are created right away!
             if not group_manager.group_exists('Guest'):
                 group_manager.create_group('Guest')
             if not self.user_exists('Guest'):
