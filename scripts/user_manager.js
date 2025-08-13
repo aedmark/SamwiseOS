@@ -250,22 +250,127 @@ class UserManager {
         return ErrorHandler.createSuccess(`Logged in as ${username}.`, { isLogin: true, shouldWelcome: sessionStatus.newStateCreated });
     }
 
-    async logout() {
-        const { ErrorHandler, EnvironmentManager } = this.dependencies;
-        const oldUser = this.getCurrentUser().name;
-        if (this.sessionManager.getStack().length <= 1) {
-            return ErrorHandler.createSuccess(`Cannot log out from user '${oldUser}'. This is the only active session. Use 'login' to switch.`, { noAction: true });
+    /**
+     * Initiates the user substitution process.
+     * @param {string} username - The target username to switch to.
+     * @param {string|null} providedPassword - The password, if provided on the command line.
+     * @param {object} options - Command execution options.
+     * @returns {Promise<object>} The result of the operation.
+     */
+    async su(username, providedPassword, options = {}) {
+        const { ErrorHandler } = this.dependencies;
+        if (username === this.getCurrentUser().name) {
+            return ErrorHandler.createSuccess(`Already user ${username}.`, { noAction: true });
         }
-        this.sessionManager.saveAutomaticState(oldUser);
+        // We can reuse our awesome, secure authentication flow! How efficient!
+        return this._handleAuthFlow(username, providedPassword, this._performSu.bind(this), "su: Authentication failure.", options);
+    }
+
+    /**
+     * Executes the actual user substitution after successful authentication.
+     * This is the core of the identity swap.
+     * @private
+     * @param {string} username - The username to become.
+     * @param {object} options - Command execution options.
+     * @returns {Promise<object>} A success object from the ErrorHandler.
+     */
+    async _performSu(username, options) {
+        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI } = this.dependencies;
+        const oldUser = this.getCurrentUser().name;
+
+        // 1. Save the state of the user we're leaving.
+        SessionManager.saveAutomaticState(oldUser);
         this.sudoManager.clearUserTimestamp(oldUser);
-        this.sessionManager.popUserFromStack();
+
+        // 2. Log this important security event.
+        AuditManager.log(oldUser, 'su_success', `Switched to user '${username}'.`);
+
+        // 3. The Metamorphosis: Push the new user onto the session stack.
+        SessionManager.pushUserToStack(username);
+
+        // 4. Load the new user's environment, history, etc.
+        await SessionManager.loadAutomaticState(username);
+        EnvironmentManager.initialize(); // This updates ENV vars like USER and HOME
+        TerminalUI.updatePrompt(); // And this makes the prompt look right!
+
+        return ErrorHandler.createSuccess("", { shouldWelcome: false }); // No welcome message needed for su
+    }
+
+    Of course! We are in the home stretch! This is the part where we add the beautiful, handcrafted benches to the park, making the whole project feel complete. It's all about the details!
+
+    Phase 3: The Grand Finale (Smart Logout Logic)
+    We've built the amazing su command, but now we need to make sure that typing logout does the right thing. If you're in an su session, it should take you back to your original user, not kick you out of the system entirely. It's like leaving a committee meeting—you go back to your own office, you don't leave City Hall!
+
+    This requires a thoughtful adjustment to our UserManager.js file.
+
+    1. Modify the User Manager: gem/scripts/user_manager.js
+    Here is the updated logout method. It's now "stack-aware." It checks if you're in a "nested" session (su) and acts accordingly. This is a proactive change that will make using the system so much more intuitive!
+
+    JavaScript
+
+// gem/scripts/user_manager.js
+
+// ... (existing code from previous phases) ...
+    async _performSu(username, options) {
+        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI } = this.dependencies;
+        const oldUser = this.getCurrentUser().name;
+
+        // 1. Save the state of the user we're leaving.
+        SessionManager.saveAutomaticState(oldUser);
+        this.sudoManager.clearUserTimestamp(oldUser);
+
+        // 2. Log this important security event.
+        AuditManager.log(oldUser, 'su_success', `Switched to user '${username}'.`);
+
+        // 3. The Metamorphosis: Push the new user onto the session stack.
+        SessionManager.pushUserToStack(username);
+
+        // 4. Load the new user's environment, history, etc.
+        await SessionManager.loadAutomaticState(username);
+        EnvironmentManager.initialize(); // This updates ENV vars like USER and HOME
+        TerminalUI.updatePrompt(); // And this makes the prompt look right!
+
+        return ErrorHandler.createSuccess("", { shouldWelcome: false }); // No welcome message needed for su
+    }
+
+    /**
+     * Handles the logout process. If the user is in an 'su' session (stack depth > 1),
+     * it pops the current user off the stack, reverting to the previous user.
+     * Otherwise, it prevents logging out from the base session.
+     * @returns {Promise<object>} A success or error object from the ErrorHandler.
+     */
+    async logout() {
+        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI, FileSystemManager, Config } = this.dependencies;
+        const oldUser = this.getCurrentUser().name;
+
+        // Check the session stack depth. This is the key to our new logic!
+        if (SessionManager.getStack().length <= 1) {
+            // Prevent logging out from the base session.
+            return ErrorHandler.createSuccess(`Cannot log out from user '${oldUser}'. This is the only active session. Use 'login <username>' to switch users.`, { noAction: true });
+        }
+
+        // 1. Save the state of the user we're leaving.
+        SessionManager.saveAutomaticState(oldUser);
+        this.sudoManager.clearUserTimestamp(oldUser);
+
+        // 2. The Reversion: Pop the current user from the session stack.
+        SessionManager.popUserFromStack();
         const newUsername = this.sessionManager.getCurrentUserFromStack();
-        await this.sessionManager.loadAutomaticState(newUsername);
+
+        // 3. Log the event for our records.
+        AuditManager.log(oldUser, 'su_exit', `Reverted from user '${oldUser}' to '${newUsername}'.`);
+
+        // 4. Load the state of the user we are returning to.
+        await SessionManager.loadAutomaticState(newUsername);
         EnvironmentManager.initialize();
+        TerminalUI.updatePrompt();
+
         const homePath = `/home/${newUsername}`;
-        const homeNode = await this.fsManager.getNodeByPath(homePath);
-        this.fsManager.setCurrentPath(homeNode ? homePath : this.config.FILESYSTEM.ROOT_PATH);
-        return ErrorHandler.createSuccess(`Logged out from ${oldUser}. Now logged in as ${newUsername}.`, { isLogout: true, newUser: newUsername });
+        const homeNode = await FileSystemManager.getNodeByPath(homePath);
+        FileSystemManager.setCurrentPath(homeNode ? homePath : Config.FILESYSTEM.ROOT_PATH);
+
+        // Unlike a full login, we don't show a big welcome message here. Just a simple confirmation.
+        return ErrorHandler.createSuccess(`logout`, { isLogout: true, newUser: newUsername });
     }
 
 

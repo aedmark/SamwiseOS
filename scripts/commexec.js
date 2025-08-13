@@ -687,9 +687,6 @@ class CommandExecutor {
                 return logoutResult;
             case 'su':
                 const suResult = await UserManager.su(result.username, result.password, options);
-                if (suResult.success && !suResult.noAction && suResult.shouldWelcome) {
-                    suResult.data = `${Config.MESSAGES.WELCOME_PREFIX} ${result.username}${Config.MESSAGES.WELCOME_SUFFIX}`;
-                }
                 return suResult;
             case 'display_prose':
                 const { header = '', content = '' } = result;
