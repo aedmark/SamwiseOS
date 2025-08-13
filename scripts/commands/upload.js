@@ -21,7 +21,7 @@ window.UploadCommand = class UploadCommand extends Command {
 
     async coreLogic(context) {
         const { dependencies } = context;
-        const { FileSystemManager, ModalManager, UserManager, ErrorHandler, Utils } = dependencies;
+        const { FileSystemManager, ModalManager, UserManager, ErrorHandler, Utils, CommandExecutor } = dependencies;
 
         return new Promise(async (resolve) => {
             const input = Utils.createElement("input", { type: "file", multiple: true });
@@ -104,15 +104,18 @@ window.UploadCommand = class UploadCommand extends Command {
                     const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
                     const userContext = { name: user.name, group: primaryGroup };
 
-                    // IMPORTANT: Call the new internal command
+                    const kernelContextJson = CommandExecutor.createKernelContext();
+
                     const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
                         command_name: '_upload_handler',
                         args: [],
                         flags: {},
                         user_context: userContext,
                         stdin_data: null,
-                        kwargs: { files: filesForPython }
+                        kwargs: { files: filesForPython },
+                        js_context_json: kernelContextJson
                     });
+
                     const pyResult = JSON.parse(resultJson);
 
                     if (pyResult.success) {

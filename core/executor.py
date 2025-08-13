@@ -305,7 +305,23 @@ class CommandExecutor:
             user_context=self.user_context, stdin_data=stdin_data, kwargs={}
         )
 
-    def run_command_by_name(self, command_name, args, flags, user_context, stdin_data, kwargs):
+    def run_command_by_name(self, command_name, args, flags, user_context, stdin_data, kwargs, js_context_json=None):
+        """
+        Runs a command module directly by name. Now supports setting execution context.
+        """
+        if js_context_json:
+            context = json.loads(js_context_json)
+            fs_manager.set_context(
+                current_path=context.get("current_path", "/"),
+                user_groups=context.get("user_groups")
+            )
+            self.set_context(
+                user_context=context.get("user_context"), users=context.get("users"),
+                user_groups=context.get("user_groups"), config=context.get("config"),
+                groups=context.get("groups"), jobs=context.get("jobs"), api_key=context.get("api_key"),
+                session_start_time=context.get("session_start_time"), session_stack=context.get("session_stack")
+            )
+
         if command_name not in self.commands:
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
         try:

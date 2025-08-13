@@ -200,7 +200,13 @@ class CommandExecutor {
         TerminalUI.setIsNavigatingHistory(false);
     }
 
-    _createKernelContext() {
+    /**
+     * Creates a JSON string containing the full execution context for the Python kernel.
+     * This includes the current path, user info, environment variables, etc.
+     * @returns {string} The JSON string of the kernel context.
+     * @public
+     */
+    createKernelContext() {
         const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager } = this.dependencies;
         const user = UserManager.getCurrentUser();
         const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
@@ -301,7 +307,7 @@ class CommandExecutor {
                     break;
                 }
 
-                const kernelContextJson = this._createKernelContext();
+                const kernelContextJson = this.createKernelContext();
                 const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
                 const result = JSON.parse(resultJson);
 
@@ -418,7 +424,7 @@ class CommandExecutor {
                         resolve(ErrorHandler.createSuccess("Operation cancelled."));
                     }
                 });
-            
+
             case 'upload_files':
                 const { files: originalFiles } = result;
                 const filesToProcess = [];
