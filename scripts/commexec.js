@@ -1,4 +1,4 @@
-// /scripts/commexec.js
+// gemini/scripts/commexec.js
 
 /**
  * The central nervous system of OopisOS. This class has been refactored
@@ -477,7 +477,7 @@ class CommandExecutor {
                             const confirmResult = await this._handleEffect(result.on_confirm, options);
                             resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || ""));
                         } else if (result.on_confirm_command) {
-                            const cmdResult = await this.dependencies.CommandExecutor.processSingleCommand(result.on_confirm_command, { ...options, stdinContent: null, isInteractive: false });
+                            const cmdResult = await this.dependencies.CommandExecutor.processSingleCommand(result.on_confirm_command, { ...options, stdinContent: options.stdinContent, isInteractive: false });
                             resolve(cmdResult);
                         } else {
                             resolve(ErrorHandler.createSuccess("Confirmed."));

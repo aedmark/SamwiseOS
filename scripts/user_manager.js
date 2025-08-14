@@ -341,8 +341,9 @@ class UserManager {
     }
 
     async _performSu(username, options) {
-        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI } = this.dependencies;
+        const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI, FileSystemManager } = this.dependencies;
         const oldUser = await this.getCurrentUser();
+        const oldCwd = this.dependencies.FileSystemManager.getCurrentPath();
 
         await SessionManager.saveAutomaticState(oldUser.name);
         this.sudoManager.clearUserTimestamp(oldUser.name);
@@ -351,6 +352,7 @@ class UserManager {
         await SessionManager.pushUserToStack(username);
 
         await SessionManager.loadAutomaticState(username);
+        this.dependencies.FileSystemManager.setCurrentPath(oldCwd);
         await EnvironmentManager.initialize();
         await TerminalUI.updatePrompt();
 

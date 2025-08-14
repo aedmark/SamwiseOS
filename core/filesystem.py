@@ -32,7 +32,12 @@ class FileSystemManager:
             target_path = "."
         if os.path.isabs(target_path):
             return os.path.normpath(target_path)
-        return os.path.normpath(os.path.join(self.current_path, target_path))
+        # We need to handle the join at the root level carefully.
+        if self.current_path == "/":
+            return os.path.normpath("/" + target_path)
+        else:
+            return os.path.normpath(os.path.join(self.current_path, target_path))
+
 
     def _initialize_default_filesystem(self):
         now_iso = datetime.utcnow().isoformat() + "Z"

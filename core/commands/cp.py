@@ -20,13 +20,17 @@ def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, 
     """Recursively copies a node. A deep copy is made to prevent reference issues."""
     now_iso = datetime.utcnow().isoformat() + "Z"
 
+    # Deep copy the node to avoid modifying the original
     new_node = {k: v for k, v in source_node.items()}
     new_node['mtime'] = now_iso
 
     if not preserve:
         new_node['owner'] = user_context.get('name', 'guest')
         new_node['group'] = user_context.get('group', 'guest')
-        new_node['mode'] = source_node.get('mode', 0o644 if source_node['type'] == 'file' else 0o755)
+        # Preserve mode only if the flag is set
+        if 'mode' not in new_node or not preserve:
+            new_node['mode'] = source_node.get('mode', 0o644 if source_node['type'] == 'file' else 0o755)
+
 
     if new_node.get('type') == 'directory':
         new_node['children'] = {}
@@ -35,8 +39,9 @@ def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, 
 
     dest_parent_node['children'][new_name] = new_node
 
+
 def run(args, flags, user_context, **kwargs):
-    stdin_data = kwargs.get('stdin_data') # Extract stdin_data from kwargs
+    stdin_data = kwargs.get('stdin_data')
     if len(args) < 2:
         return {"success": False, "error": "cp: missing destination file operand"}
 
@@ -79,7 +84,6 @@ def run(args, flags, user_context, **kwargs):
             except Exception as e:
                 return {"success": False, "error": f"cp: failed to remove existing destination: {repr(e)}"}
 
-
         try:
             if dest_is_dir:
                 dest_parent_node = dest_node
@@ -90,7 +94,12 @@ def run(args, flags, user_context, **kwargs):
                 new_name = os.path.basename(dest_path_arg)
 
             if not dest_parent_node or dest_parent_node.get('type') != 'directory':
-                return {"success": False, "error": f"cp: cannot copy to '{dest_path_arg}': Not a directory"}
+                # If the parent does not exist, we create it. This aligns with standard 'cp' behavior.
+                fs_manager.create_directory(dest_parent_path, user_context)
+                dest_parent_node = fs_manager.get_node(dest_parent_path)
+                if not dest_parent_node:
+                    return {"success": False, "error": f"cp: cannot create directory for '{dest_path_arg}'"}
+
 
             _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, is_preserve)
         except Exception as e:
@@ -98,6 +107,7 @@ def run(args, flags, user_context, **kwargs):
 
     fs_manager._save_state()
     return ""
+
 
 def man(args, flags, user_context, **kwargs):
     return """
