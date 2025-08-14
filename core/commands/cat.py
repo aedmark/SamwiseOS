@@ -17,14 +17,21 @@ def run(args, flags, user_context, stdin_data=None):
     files = args
     had_error = False
 
-    # If there's data from standard input (from a pipe or redirection), process it.
-    # The check is now simply 'if stdin_data:' to correctly handle the case
-    # where it might be a JsNull object from the JavaScript side, which is falsy.
     if stdin_data:
         output_parts.extend(stdin_data.splitlines())
 
-    # Now, process any file arguments that were also provided.
     for file_path in files:
+        # We get the node WITHOUT resolving the symlink first to check its type.
+        node_unresolved = fs_manager.get_node(file_path, resolve_symlink=False)
+        if node_unresolved and node_unresolved.get('type') == 'symlink':
+            # Now, try to resolve it to see if it's dangling
+            node_resolved = fs_manager.get_node(file_path, resolve_symlink=True)
+            if not node_resolved:
+                had_error = True
+                output_parts.append(f"cat: {file_path}: No such file or directory")
+                continue
+
+        # Use the standard validation, which will now correctly follow the link.
         validation_result = fs_manager.validate_path(
             file_path,
             user_context,

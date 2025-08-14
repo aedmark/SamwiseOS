@@ -308,7 +308,7 @@ class CommandExecutor {
 
     async processSingleCommand(rawCommandText, options = {}) {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
-        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser, FileSystemManager } = this.dependencies;
+        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser, FileSystemManager, UserManager } = this.dependencies;
 
         if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
             if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
@@ -361,6 +361,27 @@ class CommandExecutor {
                     }
                     stdinContentForPipeline = validationResult.data.node.content;
                 }
+
+                // **THE FIX IS HERE!**
+                // Handle redirection-only commands, like `> new_file.txt`.
+                if (pipeline.segments.length === 0 && pipeline.redirection) {
+                    const { file, type } = pipeline.redirection;
+                    const contentToWrite = ""; // Redirection without a command creates an empty file.
+                    const user = await UserManager.getCurrentUser();
+                    const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
+                    const context = { currentUser: user.name, primaryGroup: primaryGroup };
+
+                    const writeResult = await FileSystemManager.createOrUpdateFile(file, contentToWrite, context);
+                    if (writeResult.success) {
+                        await FileSystemManager.save();
+                        finalResult = ErrorHandler.createSuccess("");
+                    } else {
+                        finalResult = ErrorHandler.createError(writeResult.error);
+                    }
+                    continue; // Move to the next item in the sequence
+                }
+                // **END OF FIX**
+
 
                 if (pipeline.isBackground) {
                     this.backgroundProcessIdCounter++;

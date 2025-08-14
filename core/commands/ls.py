@@ -21,7 +21,7 @@ def define_flags():
 def _format_long(path, name, node):
     """Formats a single line for the long listing format."""
     mode = node.get('mode', 0)
-    type_char_map = {"directory": "d", "file": "-", "symlink": "l"}
+    type_char_map = {"directory": "d", "file": "-", "symlink": "l"} # Added symlink!
     type_char = type_char_map.get(node.get('type'), '-')
 
     perms = ""
@@ -35,6 +35,7 @@ def _format_long(path, name, node):
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
 
+    # Correctly calculate size for symlinks (length of the target path).
     size_val = len(node.get('target', '').encode('utf-8')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
     size = str(size_val).rjust(6)
 
@@ -45,6 +46,7 @@ def _format_long(path, name, node):
     except (ValueError, TypeError):
         mtime_formatted = "Jan 01 00:00"
 
+    # And display the target for symlinks.
     display_name = f"{name} -> {node.get('target', '')}" if node.get('type') == 'symlink' else name
     return f"{full_perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
 
@@ -118,7 +120,7 @@ def run(args, flags, user_context, **kwargs):
 
     for path in paths:
         target_path = fs_manager.get_absolute_path(path)
-        resolve_symlink_for_get_node = not (flags.get('long') and os.path.islink(target_path))
+        resolve_symlink_for_get_node = not (flags.get('long') and fs_manager.get_node(target_path, resolve_symlink=False).get('type') == 'symlink')
         node = fs_manager.get_node(target_path, resolve_symlink=resolve_symlink_for_get_node)
         if not node:
             error_lines.append(f"ls: cannot access '{path}': No such file or directory")
