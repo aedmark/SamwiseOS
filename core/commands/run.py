@@ -28,10 +28,8 @@ def run(args, flags, user_context, **kwargs):
         line = lines[i]
         stripped_line = line.strip()
 
-        # We will handle appending to the list inside each logic block now,
-        # instead of having a single append at the end. This makes the flow clearer.
-
         if not stripped_line or stripped_line.startswith('#'):
+            # Still append comments/blank lines so line numbers in errors are correct
             commands_to_execute.append({"command": line})
             i += 1
             continue
@@ -44,22 +42,26 @@ def run(args, flags, user_context, **kwargs):
 
         if password_lines_needed > 0:
             password_pipe = []
-            lines_to_inspect = []
+            # Start looking for passwords on the next line
             lookahead_index = i + 1
+            # Keep track of how many lines we've consumed (including comments/blanks)
+            lines_consumed = 0
+
             while lookahead_index < len(lines) and len(password_pipe) < password_lines_needed:
                 next_line = lines[lookahead_index]
-                lines_to_inspect.append(next_line)
+                lines_consumed += 1
+                # Only add non-empty, non-comment lines to the pipe
                 if next_line.strip() and not next_line.strip().startswith('#'):
-                    password_pipe.append(next_line.strip())
+                    password_pipe.append(next_line)
                 lookahead_index += 1
 
             if len(password_pipe) == password_lines_needed:
                 command_obj = {"command": line, "password_pipe": password_pipe}
                 commands_to_execute.append(command_obj)
-                # Advance past the command and all the lines we inspected (passwords or not)
-                i += 1 + len(lines_to_inspect)
+                # Advance the main counter by 1 (for the command) + however many lines we looked at
+                i += 1 + lines_consumed
             else:
-                # Not enough password lines, treat it as a normal command
+                # Not enough password lines found before EOF, treat as a normal command
                 commands_to_execute.append({"command": line})
                 i += 1
         else:

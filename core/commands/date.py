@@ -8,9 +8,7 @@ def run(args, flags, user_context, stdin_data=None):
     """
     if args:
         return {"success": False, "error": "date: command takes no arguments"}
-    # We are changing the format string to place the Year (%Y) before the
-    # timezone offset (%z). This makes the output predictable for scripts!
-    return datetime.now().strftime('%a %b %d %H:%M:%S %Y %z')
+    return datetime.now().strftime('%a %b %d %H:%M:%S %Z %Y')
 
 def man(args, flags, user_context, stdin_data=None):
     """
