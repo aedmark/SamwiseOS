@@ -96,6 +96,13 @@ class CommandExecutor:
         i = 1
         while i < len(parts_to_process):
             part = parts_to_process[i]
+            if part.startswith('--') and '=' in part:
+                flag_name, flag_value = part.split('=', 1)
+                if flag_name in flag_map and flag_map[flag_name][1]:
+                    canonical_name, _ = flag_map[flag_name]
+                    flags[canonical_name] = flag_value
+                    i += 1
+                    continue
             if part in flag_map:
                 canonical_name, takes_value = flag_map[part]
                 if takes_value:
