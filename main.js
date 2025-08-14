@@ -327,7 +327,7 @@ window.onload = async () => {
         }
 
         await userManager.initializeDefaultUsers();
-        groupManager.initialize();
+        await groupManager.initialize();
 
         environmentManager.initialize();
         aliasManager.initialize();
@@ -340,13 +340,13 @@ window.onload = async () => {
         outputManager.clearOutput();
         if (sessionStatus.newStateCreated) {
             await outputManager.appendToOutput(
-                `${configManager.MESSAGES.WELCOME_PREFIX} ${userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`
+                `${configManager.MESSAGES.WELCOME_PREFIX} ${await userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`
             );
         }
 
         initializeTerminalEventListeners(domElements, commandExecutor, dependencies);
 
-        terminalUI.updatePrompt();
+        await terminalUI.updatePrompt();
         terminalUI.focusInput();
         console.log(
             `${configManager.OS.NAME} v.${configManager.OS.VERSION} loaded successfully!`

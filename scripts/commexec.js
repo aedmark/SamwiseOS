@@ -222,7 +222,8 @@ class CommandExecutor {
 
     async _finalizeInteractiveModeUI(originalCommandText) {
         const { TerminalUI, AppLayerManager, HistoryManager } = this.dependencies;
-        TerminalUI.clearInput(); TerminalUI.updatePrompt();
+        TerminalUI.clearInput();
+        await TerminalUI.updatePrompt();
         if (!AppLayerManager.isActive()) { TerminalUI.showInputLine(); TerminalUI.setInputState(true); TerminalUI.focusInput(); }
         TerminalUI.scrollOutputToEnd();
         if (!TerminalUI.getIsNavigatingHistory() && originalCommandText.trim()) { HistoryManager.resetIndex(); }
