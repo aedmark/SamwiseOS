@@ -519,8 +519,8 @@ class CommandExecutor {
                     const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
                     const userContext = { name: user.name, group: primaryGroup };
 
-                    const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
-                        command_name: 'upload',
+                    const resultJson = await OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
+                        command_name: '_upload_handler',
                         args: [],
                         flags: {},
                         user_context: userContext,

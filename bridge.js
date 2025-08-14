@@ -14,20 +14,22 @@ const OopisOS_Kernel = {
 
     /**
      * The single, unified gateway for all JS-to-Python communication.
+     * This function is now ASYNC to handle async Python functions.
      * @param {string} module - The name of the Python module to call (e.g., 'filesystem').
      * @param {string} func - The name of the function to call within the module.
      * @param {Array} [args=[]] - An array of positional arguments for the Python function.
      * @param {Object} [kwargs={}] - An object of keyword arguments for the Python function.
-     * @returns {string} A JSON string representing the standardized response from the kernel.
+     * @returns {Promise<string>} A Promise that resolves to a JSON string from the kernel.
      */
-
-    syscall(module, func, args = [], kwargs = {}) {
+    async syscall(module, func, args = [], kwargs = {}) {
         if (!this.isReady || !this.kernel) {
             return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready for syscall." });
         }
         try {
             const request = { module, "function": func, args, kwargs };
-            return this.kernel.syscall_handler(JSON.stringify(request));
+            // THE CRUCIAL FIX: We now await the result from the Python side!
+            const resultPromise = this.kernel.syscall_handler(JSON.stringify(request));
+            return await resultPromise;
         } catch (error) {
             return JSON.stringify({ "success": false, "error": `Syscall bridge error: ${error.message}` });
         }
@@ -41,7 +43,7 @@ const OopisOS_Kernel = {
             this.pyodide = await loadPyodide({
                 indexURL: "./dist/pyodide/"
             });
-            await this.pyodide.loadPackage(["cryptography", "ssl"]); // Added "openssl" here!
+            await this.pyodide.loadPackage(["cryptography", "ssl"]);
             await OutputManager.appendToOutput("Python runtime loaded. Loading kernel...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
 
             this.pyodide.FS.mkdir('/core');
@@ -191,7 +193,6 @@ const OopisOS_Kernel = {
             const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             pythonCommands.forEach(cmd => CommandRegistry.addCommandToManifest(cmd));
 
-            // Expose the Python managers to the JS kernel object
             this.envManager = this.kernel.MODULE_DISPATCHER["env"];
             this.historyManager = this.kernel.MODULE_DISPATCHER["history"];
             this.aliasManager = this.kernel.MODULE_DISPATCHER["alias"];
@@ -209,97 +210,45 @@ const OopisOS_Kernel = {
         }
     },
 
-    // --- DEPRECATED STUBS (HEY LESLIE, SHOULD WE REMOVE THESE?) ---
-    execute_command(commandString, jsContextJson, stdinContent = null) {
-        return this.kernel.execute_command(commandString, jsContextJson, stdinContent);
+    // The old stubs now call our new async syscall handler
+    async execute_command(commandString, jsContextJson, stdinContent = null) {
+        return await this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
-    writeFile(path, content, jsContextJson) {
-        return this.kernel.write_file(path, content, jsContextJson);
+    async writeFile(path, content, jsContextJson) {
+        return await this.kernel.write_file(path, content, jsContextJson);
     },
-    createDirectory(path, jsContextJson) {
-        return this.kernel.create_directory(path, jsContextJson);
+    async createDirectory(path, jsContextJson) {
+        return await this.kernel.create_directory(path, jsContextJson);
     },
-    chidi_analysis(jsContextJson, filesContext, analysisType, question = null) {
-        return this.kernel.chidi_analysis(jsContextJson, filesContext, analysisType, question);
+    async chidi_analysis(jsContextJson, filesContext, analysisType, question = null) {
+        return await this.kernel.chidi_analysis(jsContextJson, filesContext, analysisType, question);
     },
-    renameNode(oldPath, newPath, jsContextJson) {
-        return this.kernel.rename_node(oldPath, newPath, jsContextJson);
-    },
-    explorerGetView(path, jsContextJson) {
-        return this.kernel.explorer_get_view(path, jsContextJson);
-    },
-    explorerToggleTree(path) {
-        return this.kernel.explorer_toggle_tree(path);
-    },
-    explorerCreateNode(path, name, nodeType, jsContextJson) {
-        return this.kernel.explorer_create_node(path, name, nodeType, jsContextJson);
-    },
-    explorerRenameNode(oldPath, newName, jsContextJson) {
-        return this.kernel.explorer_rename_node(oldPath, newName, jsContextJson);
-    },
-    explorerDeleteNode(path, jsContextJson) {
-        return this.kernel.explorer_delete_node(path, jsContextJson);
-    },
-    editorLoadFile(filePath, fileContent) {
-        return this.kernel.editor_load_file(filePath, fileContent);
-    },
-    editorPushUndo(content) {
-        return this.kernel.editor_push_undo(content);
-    },
-    editorUndo() {
-        return this.kernel.editor_undo();
-    },
-    editorRedo() {
-        return this.kernel.editor_redo();
-    },
-    editorUpdateOnSave(path, content) {
-        return this.kernel.editor_update_on_save(path, content);
-    },
-    paintGetInitialState(filePath, fileContent) {
-        return this.kernel.paint_get_initial_state(filePath, fileContent);
-    },
-    paintPushUndoState(canvasDataJson) {
-        return this.kernel.paint_push_undo_state(canvasDataJson);
-    },
-    paintUndo() {
-        return this.kernel.paint_undo();
-    },
-    paintRedo() {
-        return this.kernel.paint_redo();
-    },
-    paintUpdateOnSave(path) {
-        return this.kernel.paint_update_on_save(path);
-    },
-    adventureInitializeState(adventureDataJson, scriptingContextJson) {
-        return this.kernel.adventure_initialize_state(adventureDataJson, scriptingContextJson);
-    },
-    adventureProcessCommand(command) {
-        return this.kernel.adventure_process_command(command);
-    },
-    adventureCreatorInitialize(filename, initialDataJson) {
-        return this.kernel.adventure_creator_initialize(filename, initialDataJson);
-    },
-    adventureCreatorGetPrompt() {
-        return this.kernel.adventure_creator_get_prompt();
-    },
-    adventureCreatorProcessCommand(command) {
-        return this.kernel.adventure_creator_process_command(command);
-    },
-    top_get_process_list(jobs) {
-        return this.kernel.top_get_process_list(jobs);
-    },
-    log_ensure_dir() {
-        return this.kernel.log_ensure_dir(this._createKernelContext());
-    },
-    log_load_entries() {
-        return this.kernel.log_load_entries(this._createKernelContext());
-    },
-    log_save_entry(path, content) {
-        return this.kernel.log_save_entry(path, content, this._createKernelContext());
-    },
-    basic_run_program(programText, outputCallback, inputCallback) {
-        return this.kernel.basic_run_program(programText, outputCallback, inputCallback);
-    },
+    async renameNode(oldPath, newPath, jsContextJson) { return await this.kernel.rename_node(oldPath, newPath, jsContextJson); },
+    async explorerGetView(path, jsContextJson) { return await this.kernel.explorer_get_view(path, jsContextJson); },
+    async explorerToggleTree(path) { return await this.kernel.explorer_toggle_tree(path); },
+    async explorerCreateNode(path, name, nodeType, jsContextJson) { return await this.kernel.explorer_create_node(path, name, nodeType, jsContextJson); },
+    async explorerRenameNode(oldPath, newName, jsContextJson) { return await this.kernel.explorer_rename_node(oldPath, newName, jsContextJson); },
+    async explorerDeleteNode(path, jsContextJson) { return await this.kernel.explorer_delete_node(path, jsContextJson); },
+    async editorLoadFile(filePath, fileContent) { return await this.kernel.editor_load_file(filePath, fileContent); },
+    async editorPushUndo(content) { return await this.kernel.editor_push_undo(content); },
+    async editorUndo() { return await this.kernel.editor_undo(); },
+    async editorRedo() { return await this.kernel.editor_redo(); },
+    async editorUpdateOnSave(path, content) { return await this.kernel.editor_update_on_save(path, content); },
+    async paintGetInitialState(filePath, fileContent) { return await this.kernel.paint_get_initial_state(filePath, fileContent); },
+    async paintPushUndoState(canvasDataJson) { return await this.kernel.paint_push_undo_state(canvasDataJson); },
+    async paintUndo() { return await this.kernel.paint_undo(); },
+    async paintRedo() { return await this.kernel.paint_redo(); },
+    async paintUpdateOnSave(path) { return await this.kernel.paint_update_on_save(path); },
+    async adventureInitializeState(adventureDataJson, scriptingContextJson) { return await this.kernel.adventure_initialize_state(adventureDataJson, scriptingContextJson); },
+    async adventureProcessCommand(command) { return await this.kernel.adventure_process_command(command); },
+    async adventureCreatorInitialize(filename, initialDataJson) { return await this.kernel.adventure_creator_initialize(filename, initialDataJson); },
+    async adventureCreatorGetPrompt() { return await this.kernel.adventure_creator_get_prompt(); },
+    async adventureCreatorProcessCommand(command) { return await this.kernel.adventure_creator_process_command(command); },
+    async top_get_process_list(jobs) { return await this.kernel.top_get_process_list(jobs); },
+    async log_ensure_dir() { return await this.kernel.log_ensure_dir(this._createKernelContext()); },
+    async log_load_entries() { return await this.kernel.log_load_entries(this._createKernelContext()); },
+    async log_save_entry(path, content) { return await this.kernel.log_save_entry(path, content, this._createKernelContext()); },
+    async basic_run_program(programText, outputCallback, inputCallback) { return await this.kernel.basic_run_program(programText, outputCallback, inputCallback); },
 
     async saveFileSystem(fsJsonString) {
         const { StorageHAL } = OopisOS_Kernel.dependencies;
