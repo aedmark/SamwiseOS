@@ -13,10 +13,11 @@ def define_flags():
         {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, 'hidden': True},
     ]
 
-def run(args, flags, user_context, stdin_data=None):
+def run(args, flags, user_context, **kwargs):
     """
     Removes files or directories with interactive and force options.
     """
+    stdin_data = kwargs.get('stdin_data') # Extract stdin_data from kwargs
     if not args:
         return {"success": False, "error": "rm: missing operand"}
 
@@ -24,6 +25,9 @@ def run(args, flags, user_context, stdin_data=None):
     is_force = flags.get('force', False)
     is_interactive = flags.get('interactive', False)
     confirmed_path = flags.get("confirmed")
+
+    # Check for pre-approved confirmation from stdin
+    is_pre_confirmed = stdin_data and stdin_data.strip().upper() == 'YES'
 
     output_messages = []
 
@@ -40,7 +44,7 @@ def run(args, flags, user_context, stdin_data=None):
             output_messages.append(f"rm: cannot remove '{path}': Is a directory")
             continue
 
-        if is_interactive and abs_path != confirmed_path:
+        if is_interactive and not is_pre_confirmed and abs_path != confirmed_path:
             prompt_type = "directory" if node.get('type') == 'directory' else "regular file"
             return {
                 "effect": "confirm",
@@ -56,11 +60,11 @@ def run(args, flags, user_context, stdin_data=None):
                 output_messages.append(f"rm: cannot remove '{path}': {repr(e)}")
 
     if output_messages:
-        return {"success": False, "error": "\\n".join(output_messages)}
+        return {"success": False, "error": "\n".join(output_messages)}
 
     return "" # Success
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     rm - remove files or directories
@@ -79,5 +83,5 @@ DESCRIPTION
           remove directories and their contents recursively
 """
 
-def help(args, flags, user_context, stdin_data=None):
+def help(args, flags, user_context, **kwargs):
     return "Usage: rm [OPTION]... [FILE]..."

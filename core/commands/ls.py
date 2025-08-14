@@ -35,7 +35,6 @@ def _format_long(path, name, node):
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
 
-    # For symlinks, size is the length of the target path string
     size_val = len(node.get('target', '').encode('utf-8')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
     size = str(size_val).rjust(6)
 
@@ -48,6 +47,32 @@ def _format_long(path, name, node):
 
     display_name = f"{name} -> {node.get('target', '')}" if node.get('type') == 'symlink' else name
     return f"{full_perms} 1 {owner} {group} {size} {mtime_formatted} {display_name}"
+
+def _format_columns(items, terminal_width=80):
+    """Formats a list of strings into columns."""
+    if not items:
+        return ""
+
+    max_len = max(len(item) for item in items)
+    col_width = max_len + 2  # Add padding
+
+    num_cols = max(1, terminal_width // col_width)
+    num_rows = (len(items) + num_cols - 1) // num_cols
+
+    # Pad all items to the same width for alignment
+    padded_items = [item.ljust(col_width) for item in items]
+
+    output = []
+    for r in range(num_rows):
+        row_items = []
+        for c in range(num_cols):
+            index = c * num_rows + r
+            if index < len(padded_items):
+                row_items.append(padded_items[index])
+        output.append("".join(row_items).rstrip())
+
+    return "\n".join(output)
+
 
 def _get_sort_key(flags, path):
     """Returns a key function for sorting based on flags."""
@@ -63,13 +88,10 @@ def _list_directory_contents(path, flags, user_context):
     This function contains the core listing logic.
     """
     node = fs_manager.get_node(path)
-    # The calling function should have already checked permissions.
-
     children_names = list(node.get('children', {}).keys())
     if not flags.get('all'):
         children_names = [name for name in children_names if not name.startswith('.')]
 
-    # This is the one, true sort that considers all our flags correctly.
     sort_key_func = _get_sort_key(flags, path)
     sorted_children = sorted(children_names, key=sort_key_func, reverse=flags.get('reverse', False))
 
@@ -77,71 +99,58 @@ def _list_directory_contents(path, flags, user_context):
     if flags.get('long'):
         for name in sorted_children:
             output.append(_format_long(path, name, node['children'][name]))
+    elif flags.get('one-per-line'):
+        output.extend(sorted_children)
     else:
-        if sorted_children:
-            separator = "\n" if flags.get('one-per-line') else "  "
-            output.append(separator.join(sorted_children))
+        # The new columnar formatting!
+        formatted_columns = _format_columns(sorted_children)
+        if formatted_columns:
+            output.append(formatted_columns)
 
     return output, []
-
 
 def run(args, flags, user_context, **kwargs):
     paths = args if args else ["."]
     output = []
     error_lines = []
-
     file_args = []
     dir_args = []
 
-    # 1. Separate arguments into files and directories, and check for existence.
     for path in paths:
         target_path = fs_manager.get_absolute_path(path)
-        # Use resolve_symlink=False for -l to show link info, not target info.
         resolve_symlink_for_get_node = not (flags.get('long') and os.path.islink(target_path))
         node = fs_manager.get_node(target_path, resolve_symlink=resolve_symlink_for_get_node)
-
         if not node:
             error_lines.append(f"ls: cannot access '{path}': No such file or directory")
             continue
-
         if node.get('type') == 'directory' and not flags.get('directory'):
             dir_args.append((path, target_path, node))
         else:
             file_args.append((path, target_path, node))
 
-    # 2. Process all file arguments first.
     if file_args:
-        # Sort files based on the same criteria as directory contents.
-        # The 'path' for sorting is the parent directory of the file.
         sorted_files = sorted(file_args, key=lambda x: _get_sort_key(flags, os.path.dirname(x[1]))(os.path.basename(x[1])), reverse=flags.get('reverse', False))
-
         if flags.get('long'):
             for _, target_path, node in sorted_files:
                 output.append(_format_long(os.path.dirname(target_path), os.path.basename(target_path), node))
+        elif flags.get('one-per-line'):
+            output.extend([p[0] for p in sorted_files])
         else:
-            separator = "\n" if flags.get('one-per-line') else "  "
-            output.append(separator.join([p[0] for p in sorted_files]))
+            output.append(_format_columns([p[0] for p in sorted_files]))
 
-    # 3. Process all directory arguments.
     if dir_args:
-        if file_args: output.append("") # Add a newline between files and directories
-
+        if file_args: output.append("")
         sorted_dirs = sorted(dir_args, key=lambda x: x[0], reverse=flags.get('reverse', False))
 
         def recursive_lister(current_path_display, current_path_abs, current_node):
-            # This is our robust recursive helper function!
             if len(paths) > 1 or flags.get('recursive'):
                 output.append(f"\n{current_path_display}:")
-
-            # *** Centralized Permission Check ***
             if not fs_manager.has_permission(current_path_abs, user_context, 'read'):
                 error_lines.append(f"ls: cannot open directory '{current_path_display}': Permission denied")
                 return
-
             content_lines, errors = _list_directory_contents(current_path_abs, flags, user_context)
             output.extend(content_lines)
             error_lines.extend(errors)
-
             if flags.get('recursive'):
                 children = sorted(current_node.get('children', {}).keys())
                 for child_name in children:
@@ -156,7 +165,6 @@ def run(args, flags, user_context, **kwargs):
                 output.append("")
             recursive_lister(path, target_path, node)
 
-    # 4. Finalize output and return status.
     final_output_str = "\n".join(output)
     final_error_str = "\n".join(error_lines)
 

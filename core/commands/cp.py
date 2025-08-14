@@ -36,6 +36,7 @@ def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, 
     dest_parent_node['children'][new_name] = new_node
 
 def run(args, flags, user_context, **kwargs):
+    stdin_data = kwargs.get('stdin_data') # Extract stdin_data from kwargs
     if len(args) < 2:
         return {"success": False, "error": "cp: missing destination file operand"}
 
@@ -47,6 +48,7 @@ def run(args, flags, user_context, **kwargs):
     is_interactive = flags.get('interactive', False)
     is_force = flags.get('force', False)
     confirmed_path = flags.get("confirmed")
+    is_pre_confirmed = stdin_data and stdin_data.strip().upper() == 'YES'
 
     dest_node = fs_manager.get_node(dest_path_arg)
     dest_is_dir = dest_node and dest_node.get('type') == 'directory'
@@ -64,7 +66,7 @@ def run(args, flags, user_context, **kwargs):
 
         final_dest_path = os.path.join(dest_path_arg, os.path.basename(source_path)) if dest_is_dir else dest_path_arg
 
-        if is_interactive and not is_force and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
+        if is_interactive and not is_force and not is_pre_confirmed and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
             return {
                 "effect": "confirm",
                 "message": [f"cp: overwrite '{final_dest_path}'?"],
