@@ -18,15 +18,13 @@ class FileSystemManager:
 
     def _save_state(self):
         if self.save_function:
-            # We call the function that returns the RAW string here for the callback
-            self.save_function(json.dumps(self.fs_data))
+            self.save_function(self.get_fs_data_as_json_string())
         else:
             print("CRITICAL: Filesystem save function not provided.")
 
 
     def set_context(self, current_path, user_groups=None):
         self.current_path = current_path if current_path else "/"
-        # A simple way to pass group context from JS for permission checks
         self.user_groups = user_groups or {}
 
     def get_absolute_path(self, target_path):
@@ -34,7 +32,6 @@ class FileSystemManager:
             target_path = "."
         if os.path.isabs(target_path):
             return os.path.normpath(target_path)
-        # We need to handle the join at the root level carefully.
         if self.current_path == "/":
             return os.path.normpath("/" + target_path)
         else:
@@ -82,13 +79,10 @@ class FileSystemManager:
         abs_path = self.get_absolute_path(path)
 
         if abs_path in visited_links:
-            # We've detected a loop!
-            return None
+            return None # Circular reference detected
 
         visited_links.add(abs_path)
 
-
-        # Fast path for root
         if abs_path == '/':
             return self.fs_data.get('/')
 
@@ -103,14 +97,13 @@ class FileSystemManager:
 
             if node.get('type') == 'symlink' and (resolve_symlink or i < len(parts) - 1):
                 target_path = node.get('target', '')
-                current_link_path = "/" + "/".join(parts[:i + 1])
-                base_dir = os.path.dirname(current_link_path)
-                # Correctly resolve the target relative to the link's directory
-                resolved_target_path = self.get_absolute_path(os.path.join(base_dir, target_path))
+                link_directory = os.path.dirname("/" + "/".join(parts[:i+1]))
+                resolved_target_abs_path = self.get_absolute_path(os.path.join(link_directory, target_path))
 
-                # Pass the visited_links set in the recursive call
-                node = self.get_node(resolved_target_path, resolve_symlink=True, visited_links=visited_links)
+                remaining_parts = parts[i+1:]
+                full_new_path = os.path.join(resolved_target_abs_path, *remaining_parts)
 
+                return self.get_node(full_new_path, resolve_symlink=True, visited_links=visited_links)
 
         return node
 
@@ -132,7 +125,6 @@ class FileSystemManager:
         existing_groups = set(groups.keys())
 
         for path, node in all_nodes:
-            # Check 1: Orphaned files/dirs
             if node.get('owner') not in existing_users:
                 report.append(f"Orphaned node found at {path} (owner '{node.get('owner')}' does not exist).")
                 if repair:
@@ -147,20 +139,17 @@ class FileSystemManager:
                     report.append(f" -> Repaired: Set group to 'root'.")
                     changes_made = True
 
-            # Check 2: Dangling symlinks
             if node.get('type') == 'symlink':
                 target_path = self.get_absolute_path(os.path.join(os.path.dirname(path), node.get('target')))
                 if self.get_node(target_path) is None:
                     report.append(f"Dangling symlink found at {path} pointing to '{node.get('target')}'")
                     if repair:
-                        # Simple repair: remove dangling link
                         parent_path = os.path.dirname(path)
                         parent_node = self.get_node(parent_path)
                         del parent_node['children'][os.path.basename(path)]
                         report.append(f" -> Repaired: Removed dangling link.")
                         changes_made = True
 
-        # Check 3: User home directories
         home_dir_node = self.get_node("/home")
         for user in existing_users:
             if user not in home_dir_node.get('children', {}):
@@ -180,16 +169,13 @@ class FileSystemManager:
     def load_state_from_json(self, json_string):
         try:
             self.fs_data = json.loads(json_string)
-            return {"success": True}
+            return True
         except json.JSONDecodeError:
             self._initialize_default_filesystem()
-            return {"success": False, "error": "Failed to decode filesystem JSON."}
+            return False
 
     def get_fs_data_as_json_string(self):
-        return json.dumps({
-            "success": True,
-            "data": json.dumps(self.fs_data)
-        })
+        return json.dumps(self.fs_data)
 
     def save_state_to_json(self):
         return json.dumps(self.fs_data)
@@ -206,11 +192,9 @@ class FileSystemManager:
         existing_node = parent_node['children'].get(file_name)
 
         if existing_node:
-            # File exists, check write permission on the file itself.
             if not self._check_permission(existing_node, user_context, 'write'):
                 raise PermissionError(f"Permission denied to write to '{path}'")
         else:
-            # File does not exist, check write permission on the parent directory.
             if not self._check_permission(parent_node, user_context, 'write'):
                 raise PermissionError(f"Permission denied to create file in '{parent_path}'")
 
@@ -231,12 +215,8 @@ class FileSystemManager:
         self._save_state()
 
     def create_directory(self, path, user_context):
-        """
-        Creates a new directory, including any necessary parent directories.
-        """
         abs_path = self.get_absolute_path(path)
         if self.get_node(abs_path):
-            # Do nothing if it already exists, mimicking `mkdir -p`
             return
 
         parts = [part for part in abs_path.split('/') if part]
@@ -250,7 +230,6 @@ class FileSystemManager:
                 is_creating_own_home_dir = (os.path.dirname(current_path_so_far) == '/home' and
                                             part == user_context.get('name'))
 
-                # Check write permission on the parent, unless the special case applies.
                 if not self._check_permission(current_node, user_context, 'write') and not is_creating_own_home_dir:
                     raise PermissionError(f"Permission denied to create directory in '{os.path.dirname(current_path_so_far)}'")
 
@@ -270,7 +249,6 @@ class FileSystemManager:
 
 
     def chmod(self, path, mode_str):
-        """Changes the permission mode of a file or directory."""
         if not re.match(r'^[0-7]{3,4}$', mode_str):
             raise ValueError(f"Invalid mode: '{mode_str}'")
 
@@ -283,7 +261,6 @@ class FileSystemManager:
         self._save_state()
 
     def _recursive_chown(self, node, new_owner):
-        """Helper for recursively changing ownership."""
         now_iso = datetime.utcnow().isoformat() + "Z"
         node['owner'] = new_owner
         node['mtime'] = now_iso
@@ -292,7 +269,6 @@ class FileSystemManager:
                 self._recursive_chown(child_node, new_owner)
 
     def chown(self, path, new_owner, recursive=False):
-        """Changes the owner of a file or directory."""
         node = self.get_node(path)
         if not node:
             raise FileNotFoundError(f"Cannot access '{path}': No such file or directory")
@@ -306,7 +282,6 @@ class FileSystemManager:
         self._save_state()
 
     def _recursive_chgrp(self, node, new_group):
-        """Helper for recursively changing group ownership."""
         now_iso = datetime.utcnow().isoformat() + "Z"
         node['group'] = new_group
         node['mtime'] = now_iso
@@ -315,7 +290,6 @@ class FileSystemManager:
                 self._recursive_chgrp(child_node, new_group)
 
     def chgrp(self, path, new_group, recursive=False):
-        """Changes the group of a file or directory."""
         node = self.get_node(path)
         if not node:
             raise FileNotFoundError(f"Cannot access '{path}': No such file or directory")
@@ -329,7 +303,6 @@ class FileSystemManager:
         self._save_state()
 
     def ln(self, target, link_name_arg, user_context):
-        """Creates a symbolic link."""
         link_path = self.get_absolute_path(link_name_arg)
         link_name = os.path.basename(link_path)
         parent_path = os.path.dirname(link_path)
@@ -341,16 +314,13 @@ class FileSystemManager:
         if link_name in parent_node.get('children', {}):
             raise FileExistsError(f"cannot create symbolic link '{link_name}': File exists")
 
-        # In a more complex system, we'd check write perms on parent_path
-        # For now, we assume if the command gets this far, it's allowed.
-
         now_iso = datetime.utcnow().isoformat() + "Z"
         symlink_node = {
             "type": "symlink",
             "target": target,
             "owner": str(user_context.get('name', 'guest')),
             "group": str(user_context.get('group', 'guest')),
-            "mode": 0o777, # Symlinks often have permissive modes
+            "mode": 0o777,
             "mtime": now_iso
         }
 
@@ -359,7 +329,6 @@ class FileSystemManager:
         self._save_state()
 
     def rename_node(self, old_path, new_path):
-        """Renames or moves a file or directory."""
         abs_old_path = self.get_absolute_path(old_path)
         abs_new_path = self.get_absolute_path(new_path)
 
@@ -389,20 +358,13 @@ class FileSystemManager:
             raise FileExistsError(f"Cannot rename to '{new_path}': Destination already exists.")
 
         now_iso = datetime.utcnow().isoformat() + "Z"
-
-        # Explicitly remove the old entry before adding the new one.
-        # This avoids any potential subtle bugs with dict.pop() when the source
-        # and destination parent nodes are the same object.
         node_to_move = old_parent_node['children'][old_name]
         del old_parent_node['children'][old_name]
-
         node_to_move['mtime'] = now_iso
         new_parent_node['children'][new_name] = node_to_move
-
         old_parent_node['mtime'] = now_iso
         if old_parent_node is not new_parent_node:
             new_parent_node['mtime'] = now_iso
-
         self._save_state()
 
     def remove(self, path, recursive=False):
@@ -457,10 +419,8 @@ class FileSystemManager:
 
     def calculate_node_size(self, path):
         node = self.get_node(path)
-        if not node:
-            return 0
-        if node.get('type') == 'file':
-            return len(node.get('content', ''))
+        if not node: return 0
+        if node.get('type') == 'file': return len(node.get('content', ''))
         if node.get('type') == 'directory':
             total_size = 0
             for child_name in node.get('children', {}):
@@ -470,67 +430,47 @@ class FileSystemManager:
         return 0
 
     def validate_path(self, path, user_context, options_json):
-        """
-        A robust path validator that checks for existence, type, and permissions
-        for both the final node and all parent directories in the path.
-        """
         options = json.loads(options_json)
         expected_type = options.get('expectedType')
         permissions_to_check = options.get('permissions', [])
         allow_missing = options.get('allowMissing', False)
-
         abs_path = self.get_absolute_path(path)
         parts = [part for part in abs_path.split('/') if part]
-
-        # Start traversal from the root directory
         current_node_for_traversal = self.fs_data.get('/')
         current_path_for_traversal = '/'
-
-        # Check traversal permissions on all parent directories of the target
         for part in parts[:-1]:
             if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
                 return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
-
-            # Descend to the next part of the path
             if 'children' not in current_node_for_traversal or part not in current_node_for_traversal['children']:
                 return {"success": False, "error": "No such file or directory"}
             current_node_for_traversal = current_node_for_traversal['children'][part]
             current_path_for_traversal = os.path.join(current_path_for_traversal, part)
-
             if current_node_for_traversal.get('type') != 'directory':
                 return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
 
-        # After the loop, `current_node_for_traversal` is the immediate parent of the target.
-        # Now we can check the final target node.
         final_name = parts[-1] if parts else None
         final_node = None
-
         if final_name:
-            # We need 'execute' permission on the PARENT to access children.
             if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
                 return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
             final_node = current_node_for_traversal.get('children', {}).get(final_name)
         elif abs_path == '/':
             final_node = self.fs_data.get('/')
-        else: # Should only happen for paths like '/home/'
+        else:
             final_node = current_node_for_traversal
 
-        # --- Validation logic for the FINAL node ---
         if not final_node:
             if allow_missing:
-                # We already checked 'execute' on the parent, now check 'write'
                 if not self._check_permission(current_node_for_traversal, user_context, 'write'):
                     return {"success": False, "error": f"Permission denied to create in '{current_path_for_traversal}'"}
                 return {"success": True, "node": None, "resolvedPath": abs_path}
             return {"success": False, "error": "No such file or directory"}
 
         if expected_type and final_node.get('type') != expected_type:
-            # Special case for directories, e.g., 'cd /path/to/file'
             if expected_type == 'directory' and final_node.get('type') == 'file':
                 return {"success": False, "error": "Not a directory"}
             return {"success": False, "error": f"Is not a {expected_type}"}
 
-        # Check the final set of permissions on the target node itself
         for perm in permissions_to_check:
             if not self._check_permission(final_node, user_context, perm):
                 return {"success": False, "error": "Permission denied"}
