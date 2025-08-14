@@ -21,7 +21,7 @@ def define_flags():
 def _format_long(path, name, node):
     """Formats a single line for the long listing format."""
     mode = node.get('mode', 0)
-    type_char_map = {"directory": "d", "file": "-", "symlink": "l"} # Added symlink!
+    type_char_map = {"directory": "d", "file": "-", "symlink": "l"}
     type_char = type_char_map.get(node.get('type'), '-')
 
     perms = ""
@@ -35,8 +35,7 @@ def _format_long(path, name, node):
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
 
-    # Correctly calculate size for symlinks (length of the target path).
-    size_val = len(node.get('target', '').encode('utf-8')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
+    size_val = len(node.get('target', '')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
     size = str(size_val).rjust(6)
 
     mtime_str = node.get('mtime', '')

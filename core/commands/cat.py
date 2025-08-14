@@ -21,17 +21,6 @@ def run(args, flags, user_context, stdin_data=None):
         output_parts.extend(stdin_data.splitlines())
 
     for file_path in files:
-        # We get the node WITHOUT resolving the symlink first to check its type.
-        node_unresolved = fs_manager.get_node(file_path, resolve_symlink=False)
-        if node_unresolved and node_unresolved.get('type') == 'symlink':
-            # Now, try to resolve it to see if it's dangling
-            node_resolved = fs_manager.get_node(file_path, resolve_symlink=True)
-            if not node_resolved:
-                had_error = True
-                output_parts.append(f"cat: {file_path}: No such file or directory")
-                continue
-
-        # Use the standard validation, which will now correctly follow the link.
         validation_result = fs_manager.validate_path(
             file_path,
             user_context,
@@ -41,11 +30,7 @@ def run(args, flags, user_context, stdin_data=None):
         if not validation_result.get("success"):
             had_error = True
             error_msg = validation_result.get('error', 'An unknown error occurred')
-            # Custom error message for symlinks that point to non-files
-            if node_unresolved and node_unresolved.get('type') == 'symlink' and validation_result.get("error") == "Is not a file":
-                output_parts.append(f"cat: {file_path}: Is not a file")
-            else:
-                output_parts.append(f"cat: {file_path}: {error_msg}")
+            output_parts.append(f"cat: {file_path}: {error_msg}")
             continue
 
         try:

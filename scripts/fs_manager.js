@@ -98,7 +98,7 @@ class FileSystemManager {
         const { ErrorHandler } = this.dependencies;
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
             try {
-                const resultJson = await OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
+                const resultJson = await OopisOS_Kernel.syscall("filesystem", "get_fs_data_as_json_string");
                 const result = JSON.parse(resultJson);
                 if (!result.success) {
                     throw new Error(result.error || "Failed to get filesystem JSON from kernel.");

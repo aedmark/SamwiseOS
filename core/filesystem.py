@@ -18,9 +18,11 @@ class FileSystemManager:
 
     def _save_state(self):
         if self.save_function:
-            self.save_function(self.save_state_to_json())
+            # We call the function that returns the RAW string here for the callback
+            self.save_function(json.dumps(self.fs_data))
         else:
             print("CRITICAL: Filesystem save function not provided.")
+
 
     def set_context(self, current_path, user_groups=None):
         self.current_path = current_path if current_path else "/"
@@ -73,8 +75,18 @@ class FileSystemManager:
         self._initialize_default_filesystem()
         self._save_state()
 
-    def get_node(self, path, resolve_symlink=True):
+    def get_node(self, path, resolve_symlink=True, visited_links=None):
+        if visited_links is None:
+            visited_links = set()
+
         abs_path = self.get_absolute_path(path)
+
+        if abs_path in visited_links:
+            # We've detected a loop!
+            return None
+
+        visited_links.add(abs_path)
+
 
         # Fast path for root
         if abs_path == '/':
@@ -89,14 +101,16 @@ class FileSystemManager:
 
             node = node['children'][part]
 
-            # Resolve symlink if it's not the last part of the path, or if resolve_symlink is true
             if node.get('type') == 'symlink' and (resolve_symlink or i < len(parts) - 1):
                 target_path = node.get('target', '')
-                # To handle nested symlinks, we can recursively call get_node
-                # This is a simplified implementation; a real one would need loop detection
-                base_dir = os.path.dirname(self.get_absolute_path(os.path.join(abs_path, '..', part)))
-                resolved_target = self.get_absolute_path(os.path.join(base_dir, target_path))
-                node = self.get_node(resolved_target)
+                current_link_path = "/" + "/".join(parts[:i + 1])
+                base_dir = os.path.dirname(current_link_path)
+                # Correctly resolve the target relative to the link's directory
+                resolved_target_path = self.get_absolute_path(os.path.join(base_dir, target_path))
+
+                # Pass the visited_links set in the recursive call
+                node = self.get_node(resolved_target_path, resolve_symlink=True, visited_links=visited_links)
+
 
         return node
 
@@ -166,10 +180,16 @@ class FileSystemManager:
     def load_state_from_json(self, json_string):
         try:
             self.fs_data = json.loads(json_string)
-            return True
+            return {"success": True}
         except json.JSONDecodeError:
             self._initialize_default_filesystem()
-            return False
+            return {"success": False, "error": "Failed to decode filesystem JSON."}
+
+    def get_fs_data_as_json_string(self):
+        return json.dumps({
+            "success": True,
+            "data": json.dumps(self.fs_data)
+        })
 
     def save_state_to_json(self):
         return json.dumps(self.fs_data)
