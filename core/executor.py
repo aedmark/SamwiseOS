@@ -11,6 +11,7 @@ import os
 import re
 import fnmatch
 import asyncio
+import traceback
 
 class CommandExecutor:
     def __init__(self):

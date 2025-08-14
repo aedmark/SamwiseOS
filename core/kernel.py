@@ -16,7 +16,7 @@ from apps import log as log_app
 from apps import basic as basic_app
 import json
 import traceback
-import inspect  # We need this to check for async functions!
+import inspect
 import asyncio
 
 # --- Module Initialization ---
@@ -37,7 +37,7 @@ def initialize_kernel(save_function):
 
 async def syscall_handler(request_json):
     """
-    The single, now ASYNCHRONOUS, entry point for all calls from the JavaScript frontend.
+    The single, now ASYNC, entry point for all calls from the JavaScript frontend.
     """
     try:
         request = json.loads(request_json)
@@ -86,16 +86,6 @@ async def execute_command(command_string: str, js_context_json: str, stdin_data:
             "success": False, "error": f"Kernel Error before execution: {repr(e)}",
             "traceback": traceback.format_exc()
         })
-# (The rest of the stubs below do not need to change, as they all call the now-async-aware syscall_handler)
-def get_session_state_for_saving():
-    req = {"module": "session", "function": "get_session_state_for_saving"}
-    result_json = asyncio.ensure_future(syscall_handler(json.dumps(req)))
-    # This is a synchronous stub, so we can't await. This part needs careful review,
-    # but for now, we assume this specific call is not async.
-    # A better long-term solution would make the JS side handle this.
-    # For now, we assume this specific function is sync.
-    return json.loads(result_json.result()).get("data", "{}")
-
 
 def load_session_state(state_json):
     req = {"module": "session", "function": "load_session_state", "args": [state_json]}

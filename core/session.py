@@ -113,18 +113,6 @@ class SessionManager:
         self.user_session_stack = [username]
         return self.user_session_stack
 
-    def get_session_state_for_saving(self):
-        """
-        Gathers all relevant session state from the Python managers
-        and returns it as a JSON string, ready to be saved by the JS side.
-        """
-        state = {
-            "commandHistory": history_manager.get_full_history(),
-            "environmentVariables": env_manager.get_all(),
-            "aliases": alias_manager.get_all_aliases(),
-        }
-        return json.dumps(state)
-
     def load_session_state(self, state_json):
         """
         Takes a JSON string of session state from the JS side

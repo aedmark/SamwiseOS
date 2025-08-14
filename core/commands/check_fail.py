@@ -1,4 +1,4 @@
-# gem/core/commands/check_fail.py
+# /core/commands/check_fail.py
 import json
 from executor import command_executor
 
@@ -8,7 +8,7 @@ def define_flags():
         {'name': 'check-empty', 'short': 'z', 'long': 'check-empty', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, **kwargs):
+async def run(args, flags, user_context, **kwargs):
     """
     Checks if a given command string fails or produces empty output.
     """
@@ -28,7 +28,7 @@ def run(args, flags, user_context, **kwargs):
         **serializable_kwargs
     })
 
-    test_result_json = command_executor.execute(command_to_test, js_context_json)
+    test_result_json = await command_executor.execute(command_to_test, js_context_json)
     test_result = json.loads(test_result_json)
 
     if check_empty_output:

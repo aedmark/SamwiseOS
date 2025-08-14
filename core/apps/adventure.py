@@ -1,4 +1,4 @@
-# gem/core/apps/adventure.py
+# /core/apps/adventure.py
 
 import json
 import random
@@ -8,7 +8,6 @@ class AdventureManager:
     """Manages the state and logic for the text adventure game."""
     def __init__(self):
         self.state = {}
-        # This will be populated with default verbs and can be extended by adventure data
         self.verbs = self._get_default_verbs()
 
     def _get_default_verbs(self):

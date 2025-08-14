@@ -133,9 +133,16 @@ class SessionManager {
     }
 
     async saveAutomaticState(username) {
-        if (!username) { console.warn("saveAutomaticState: No username provided."); return; }
-        const result = JSON.parse(await OopisOS_Kernel.syscall("session", "get_session_state_for_saving"));
-        const sessionState = result.success ? JSON.parse(result.data) : {};
+        if (!username) {
+            console.warn("saveAutomaticState: No username provided.");
+            return;
+        }
+        const { HistoryManager, EnvironmentManager, AliasManager } = this.dependencies;
+        const sessionState = {
+            commandHistory: await HistoryManager.getFullHistory(),
+            environmentVariables: await EnvironmentManager.getAll(),
+            aliases: await AliasManager.getAllAliases(),
+        };
         const uiState = {
             currentPath: this.fsManager.getCurrentPath(),
             outputHTML: this.elements.outputDiv ? this.elements.outputDiv.innerHTML : "",
