@@ -223,32 +223,84 @@ const OopisOS_Kernel = {
     async chidi_analysis(jsContextJson, filesContext, analysisType, question = null) {
         return await this.kernel.chidi_analysis(jsContextJson, filesContext, analysisType, question);
     },
-    async renameNode(oldPath, newPath, jsContextJson) { return await this.kernel.rename_node(oldPath, newPath, jsContextJson); },
-    async explorerGetView(path, jsContextJson) { return await this.kernel.explorer_get_view(path, jsContextJson); },
-    async explorerToggleTree(path) { return await this.kernel.explorer_toggle_tree(path); },
-    async explorerCreateNode(path, name, nodeType, jsContextJson) { return await this.kernel.explorer_create_node(path, name, nodeType, jsContextJson); },
-    async explorerRenameNode(oldPath, newName, jsContextJson) { return await this.kernel.explorer_rename_node(oldPath, newName, jsContextJson); },
-    async explorerDeleteNode(path, jsContextJson) { return await this.kernel.explorer_delete_node(path, jsContextJson); },
-    async editorLoadFile(filePath, fileContent) { return await this.kernel.editor_load_file(filePath, fileContent); },
-    async editorPushUndo(content) { return await this.kernel.editor_push_undo(content); },
-    async editorUndo() { return await this.kernel.editor_undo(); },
-    async editorRedo() { return await this.kernel.editor_redo(); },
-    async editorUpdateOnSave(path, content) { return await this.kernel.editor_update_on_save(path, content); },
-    async paintGetInitialState(filePath, fileContent) { return await this.kernel.paint_get_initial_state(filePath, fileContent); },
-    async paintPushUndoState(canvasDataJson) { return await this.kernel.paint_push_undo_state(canvasDataJson); },
-    async paintUndo() { return await this.kernel.paint_undo(); },
-    async paintRedo() { return await this.kernel.paint_redo(); },
-    async paintUpdateOnSave(path) { return await this.kernel.paint_update_on_save(path); },
-    async adventureInitializeState(adventureDataJson, scriptingContextJson) { return await this.kernel.adventure_initialize_state(adventureDataJson, scriptingContextJson); },
-    async adventureProcessCommand(command) { return await this.kernel.adventure_process_command(command); },
-    async adventureCreatorInitialize(filename, initialDataJson) { return await this.kernel.adventure_creator_initialize(filename, initialDataJson); },
-    async adventureCreatorGetPrompt() { return await this.kernel.adventure_creator_get_prompt(); },
-    async adventureCreatorProcessCommand(command) { return await this.kernel.adventure_creator_process_command(command); },
-    async top_get_process_list(jobs) { return await this.kernel.top_get_process_list(jobs); },
-    async log_ensure_dir() { return await this.kernel.log_ensure_dir(this._createKernelContext()); },
-    async log_load_entries() { return await this.kernel.log_load_entries(this._createKernelContext()); },
-    async log_save_entry(path, content) { return await this.kernel.log_save_entry(path, content, this._createKernelContext()); },
-    async basic_run_program(programText, outputCallback, inputCallback) { return await this.kernel.basic_run_program(programText, outputCallback, inputCallback); },
+    async renameNode(oldPath, newPath, jsContextJson) {
+        return await this.kernel.rename_node(oldPath, newPath, jsContextJson);
+    },
+    async explorerGetView(path, jsContextJson) {
+        return await this.kernel.explorer_get_view(path, jsContextJson);
+    },
+    async explorerToggleTree(path) {
+        return await this.kernel.explorer_toggle_tree(path);
+    },
+    async explorerCreateNode(path, name, nodeType, jsContextJson) {
+        return await this.kernel.explorer_create_node(path, name, nodeType, jsContextJson);
+    },
+    async explorerRenameNode(oldPath, newName, jsContextJson) {
+        return await this.kernel.explorer_rename_node(oldPath, newName, jsContextJson);
+    },
+    async explorerDeleteNode(path, jsContextJson) {
+        return await this.kernel.explorer_delete_node(path, jsContextJson);
+    },
+    async editorLoadFile(filePath, fileContent) {
+        return await this.kernel.editor_load_file(filePath, fileContent);
+    },
+    async editorPushUndo(content) {
+        return await this.kernel.editor_push_undo(content);
+    },
+    async editorUndo() {
+        return await this.kernel.editor_undo();
+    },
+    async editorRedo() {
+        return await this.kernel.editor_redo();
+    },
+    async editorUpdateOnSave(path, content) {
+        return await this.kernel.editor_update_on_save(path, content);
+    },
+    async paintGetInitialState(filePath, fileContent) {
+        return await this.kernel.paint_get_initial_state(filePath, fileContent);
+    },
+    async paintPushUndoState(canvasDataJson) {
+        return await this.kernel.paint_push_undo_state(canvasDataJson);
+    },
+    async paintUndo() {
+        return await this.kernel.paint_undo();
+    },
+    async paintRedo() {
+        return await this.kernel.paint_redo();
+    },
+    async paintUpdateOnSave(path) {
+        return await this.kernel.paint_update_on_save(path);
+    },
+    async adventureInitializeState(adventureDataJson, scriptingContextJson) {
+        return await this.kernel.adventure_initialize_state(adventureDataJson, scriptingContextJson);
+    },
+    async adventureProcessCommand(command) {
+        return await this.kernel.adventure_process_command(command);
+    },
+    async adventureCreatorInitialize(filename, initialDataJson) {
+        return await this.kernel.adventure_creator_initialize(filename, initialDataJson);
+    },
+    async adventureCreatorGetPrompt() {
+        return await this.kernel.adventure_creator_get_prompt();
+    },
+    async adventureCreatorProcessCommand(command) {
+        return await this.kernel.adventure_creator_process_command(command);
+    },
+    async top_get_process_list(jobs) {
+        return await this.kernel.top_get_process_list(jobs);
+    },
+    async log_ensure_dir() {
+        return await this.kernel.log_ensure_dir(this._createKernelContext());
+    },
+    async log_load_entries() {
+        return await this.kernel.log_load_entries(this._createKernelContext());
+    },
+    async log_save_entry(path, content) {
+        return await this.kernel.log_save_entry(path, content, this._createKernelContext());
+    },
+    async basic_run_program(programText, outputCallback, inputCallback) {
+        return await this.kernel.basic_run_program(programText, outputCallback, inputCallback);
+    },
 
     async saveFileSystem(fsJsonString) {
         const { StorageHAL } = OopisOS_Kernel.dependencies;
