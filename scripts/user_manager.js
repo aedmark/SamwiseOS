@@ -25,34 +25,39 @@ class UserManager {
         this.modalManager = modalManager;
     }
 
-    _saveUsers() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
+    async _saveUsers() {
+        const resultJson = await OopisOS_Kernel.syscall("users", "get_all_users");
+        const result = JSON.parse(resultJson);
         const allUsers = result.success ? result.data : {};
         this.storageManager.saveItem(this.config.STORAGE_KEYS.USER_CREDENTIALS, allUsers, "User list");
     }
 
-    syncAndSave(usersData) {
+    async syncAndSave(usersData) {
         const { StorageManager, Config } = this.dependencies;
         StorageManager.saveItem(Config.STORAGE_KEYS.USER_CREDENTIALS, usersData, "User list");
-        OopisOS_Kernel.syscall("users", "load_users", [usersData]);
+        await OopisOS_Kernel.syscall("users", "load_users", [usersData]);
     }
 
-    getCurrentUser() {
-        return { name: this.sessionManager.getCurrentUserFromStack() };
+    async getCurrentUser() {
+        const username = await this.sessionManager.getCurrentUserFromStack();
+        return { name: username };
     }
 
-    getPrimaryGroupForUser(username) {
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
+    async getPrimaryGroupForUser(username) {
+        const resultJson = await OopisOS_Kernel.syscall("users", "get_user", [username]);
+        const result = JSON.parse(resultJson);
         return (result.success && result.data) ? result.data.primaryGroup : null;
     }
 
     async userExists(username) {
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "user_exists", [username]));
+        const resultJson = await OopisOS_Kernel.syscall("users", "user_exists", [username]);
+        const result = JSON.parse(resultJson);
         return result.success && result.data;
     }
 
     async hasPassword(username) {
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "has_password", [username]));
+        const resultJson = await OopisOS_Kernel.syscall("users", "has_password", [username]);
+        const result = JSON.parse(resultJson);
         return result.success && result.data;
     }
 
@@ -62,28 +67,24 @@ class UserManager {
         if (!formatValidation.isValid) return ErrorHandler.createError(formatValidation.error);
         if (await this.userExists(username)) return ErrorHandler.createError(`User '${username}' already exists.`);
 
-        // 1. Create the primary group for the user. (No change here)
         this.groupManager.createGroup(username);
         this.groupManager.addUserToGroup(username, username);
 
-        // 2. Register the user in the Python kernel directly. (No change here)
-        const registrationResultJson = OopisOS_Kernel.syscall("users", "register_user", [username, password, username]);
+        const registrationResultJson = await OopisOS_Kernel.syscall("users", "register_user", [username, password, username]);
         const registrationResult = JSON.parse(registrationResultJson);
 
         if (!registrationResult.success) {
-            // If kernel registration fails, we can't proceed.
             return ErrorHandler.createError(registrationResult.error || "Failed to register new user in kernel.");
         }
 
-        const allUsersResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
+        const allUsersResultJson = await OopisOS_Kernel.syscall("users", "get_all_users");
+        const allUsersResult = JSON.parse(allUsersResultJson);
         if (allUsersResult.success) {
-            this.syncAndSave(allUsersResult.data);
+            await this.syncAndSave(allUsersResult.data);
         } else {
-            // This is a fallback in case something goes wrong, but it shouldn't.
             return ErrorHandler.createError("User was registered, but failed to sync user list.");
         }
 
-        // 4. Create the home directory and set permissions as root. (No change here)
         const homePath = `/home/${username}`;
         await CommandExecutor.processSingleCommand(`mkdir -p ${homePath}`, { isInteractive: false, sudoContext: true });
         await CommandExecutor.processSingleCommand(`chown ${username} ${homePath}`, { isInteractive: false, sudoContext: true });
@@ -139,7 +140,8 @@ class UserManager {
         if (username === 'root') {
             return ErrorHandler.createError("removeuser: cannot remove the root user.");
         }
-        if (username === this.getCurrentUser().name) {
+        const currentUser = await this.getCurrentUser();
+        if (username === currentUser.name) {
             return ErrorHandler.createError("removeuser: you cannot remove yourself.");
         }
         if (!(await this.userExists(username))) {
@@ -162,14 +164,12 @@ class UserManager {
             }));
 
             if (confirmed) {
-                // Call our new, powerful Python function
-                const resultJson = OopisOS_Kernel.syscall("users", "delete_user_and_data", [username, removeHome]);
+                const resultJson = await OopisOS_Kernel.syscall("users", "delete_user_and_data", [username, removeHome]);
                 const result = JSON.parse(resultJson);
 
                 if (result.success) {
-                    // Sync the updated state to localStorage
-                    this._saveUsers();
-                    GroupManager._save();
+                    await this._saveUsers();
+                    await GroupManager._save();
                     AuditManager.log(this.getCurrentUser().name, 'removeuser_success', `Removed user '${username}'.`);
                     resolve(ErrorHandler.createSuccess(`User '${username}' has been removed.`));
                 } else {
@@ -184,20 +184,23 @@ class UserManager {
     async verifyPassword(username, password) {
         const { ErrorHandler } = this.dependencies;
         if (!await this.userExists(username)) return ErrorHandler.createError("User not found.");
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, password]));
+        const resultJson = await OopisOS_Kernel.syscall("users", "verify_password", [username, password]);
+        const result = JSON.parse(resultJson);
         return result.success && result.data ? ErrorHandler.createSuccess() : ErrorHandler.createError("Incorrect password.");
     }
 
     async sudoExecute(commandStr, options) {
         const { ErrorHandler, SudoManager, ModalManager } = this.dependencies;
-        const currentUserName = this.getCurrentUser().name;
+        const currentUser = await this.getCurrentUser();
+        const currentUserName = currentUser.name;
 
         if (currentUserName === 'root') {
             return await this.commandExecutor.processSingleCommand(commandStr, { ...options, sudoContext: true });
         }
 
         const commandName = commandStr.split(" ")[0];
-        const canRun = JSON.parse(OopisOS_Kernel.syscall("sudo", "can_user_run_command", [currentUserName, this.groupManager.getGroupsForUser(currentUserName), commandName])).data;
+        const canRunResult = await OopisOS_Kernel.syscall("sudo", "can_user_run_command", [currentUserName, this.groupManager.getGroupsForUser(currentUserName), commandName]);
+        const canRun = JSON.parse(canRunResult).data;
         if (!canRun) {
             return ErrorHandler.createError(`sudo: user ${currentUserName} is not allowed to execute '${commandStr}' as root.`);
         }
@@ -241,7 +244,6 @@ class UserManager {
         });
     }
 
-
     async changePassword(actorUsername, targetUsername, oldPassword, newPassword) {
         const { ErrorHandler } = this.dependencies;
         if (!(await this.userExists(targetUsername))) return ErrorHandler.createError(`User '${targetUsername}' not found.`);
@@ -252,9 +254,10 @@ class UserManager {
         }
         if (!newPassword || newPassword.trim() === "") return ErrorHandler.createError("New password cannot be empty.");
 
-        const result = JSON.parse(OopisOS_Kernel.syscall("users", "change_password", [targetUsername, newPassword]));
+        const resultJson = await OopisOS_Kernel.syscall("users", "change_password", [targetUsername, newPassword]);
+        const result = JSON.parse(resultJson);
         if (result.success && result.data) {
-            this._saveUsers();
+            await this._saveUsers();
             return ErrorHandler.createSuccess(`Password for '${targetUsername}' updated successfully.`);
         }
         return ErrorHandler.createError("Failed to save updated password.");
@@ -262,7 +265,8 @@ class UserManager {
 
     async _handleAuthFlow(username, providedPassword, successCallback, failureMessage, options) {
         const { ErrorHandler, AuditManager, ModalManager, Config } = this.dependencies;
-        const userResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", [username]));
+        const userResultJson = await OopisOS_Kernel.syscall("users", "get_user", [username]);
+        const userResult = JSON.parse(userResultJson);
         if (!userResult.success || !userResult.data) {
             AuditManager.log(username, 'auth_failure', `Attempted login for non-existent user '${username}'.`);
             return ErrorHandler.createError(failureMessage);
@@ -278,7 +282,8 @@ class UserManager {
                 ModalManager.request({
                     context: "terminal", type: "input", messageLines: [Config.MESSAGES.PASSWORD_PROMPT], obscured: true,
                     onConfirm: async (passwordFromPrompt) => {
-                        const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]));
+                        const verifyResultJson = await OopisOS_Kernel.syscall("users", "verify_password", [username, passwordFromPrompt || ""]);
+                        const verifyResult = JSON.parse(verifyResultJson);
                         if (verifyResult.success && verifyResult.data) {
                             resolve(await successCallback(username, options));
                         } else {
@@ -292,7 +297,8 @@ class UserManager {
             });
         }
 
-        const verifyResult = JSON.parse(OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]));
+        const verifyResultJson = await OopisOS_Kernel.syscall("users", "verify_password", [username, providedPassword]);
+        const verifyResult = JSON.parse(verifyResultJson);
         if (verifyResult.success && verifyResult.data) {
             return await successCallback(username, options);
         } else {
@@ -302,10 +308,10 @@ class UserManager {
         }
     }
 
-
     async login(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;
-        if (username === this.getCurrentUser().name) {
+        const currentUser = await this.getCurrentUser();
+        if (username === currentUser.name) {
             return ErrorHandler.createSuccess(`${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_PREFIX}${username}${this.config.MESSAGES.ALREADY_LOGGED_IN_AS_SUFFIX}`, { noAction: true });
         }
         return this._handleAuthFlow(username, providedPassword, this._performLogin.bind(this), "Login failed.", options);
@@ -313,21 +319,22 @@ class UserManager {
 
     async _performLogin(username, options) {
         const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager } = this.dependencies;
-        const oldUser = this.getCurrentUser().name;
-        if (oldUser !== this.config.USER.DEFAULT_NAME) {
-            SessionManager.saveAutomaticState(oldUser);
-            this.sudoManager.clearUserTimestamp(oldUser);
+        const oldUser = await this.getCurrentUser();
+        if (oldUser.name !== this.config.USER.DEFAULT_NAME) {
+            await SessionManager.saveAutomaticState(oldUser.name);
+            this.sudoManager.clearUserTimestamp(oldUser.name);
         }
-        SessionManager.clearUserStack(username);
+        await SessionManager.clearUserStack(username);
         const sessionStatus = await SessionManager.loadAutomaticState(username);
-        EnvironmentManager.initialize();
+        await EnvironmentManager.initialize();
         AuditManager.log(username, 'login_success', `User logged in successfully.`);
         return ErrorHandler.createSuccess(`Logged in as ${username}.`, { isLogin: true, shouldWelcome: sessionStatus.newStateCreated });
     }
 
     async su(username, providedPassword, options = {}) {
         const { ErrorHandler } = this.dependencies;
-        if (username === this.getCurrentUser().name) {
+        const currentUser = await this.getCurrentUser();
+        if (username === currentUser.name) {
             return ErrorHandler.createSuccess(`Already user ${username}.`, { noAction: true });
         }
         return this._handleAuthFlow(username, providedPassword, this._performSu.bind(this), "su: Authentication failure.", options);
@@ -335,54 +342,54 @@ class UserManager {
 
     async _performSu(username, options) {
         const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI } = this.dependencies;
-        const oldUser = this.getCurrentUser().name;
+        const oldUser = await this.getCurrentUser();
 
-        SessionManager.saveAutomaticState(oldUser);
-        this.sudoManager.clearUserTimestamp(oldUser);
+        await SessionManager.saveAutomaticState(oldUser.name);
+        this.sudoManager.clearUserTimestamp(oldUser.name);
 
-        AuditManager.log(oldUser, 'su_success', `Switched to user '${username}'.`);
-        SessionManager.pushUserToStack(username);
+        AuditManager.log(oldUser.name, 'su_success', `Switched to user '${username}'.`);
+        await SessionManager.pushUserToStack(username);
 
         await SessionManager.loadAutomaticState(username);
-        EnvironmentManager.initialize();
-        TerminalUI.updatePrompt();
+        await EnvironmentManager.initialize();
+        await TerminalUI.updatePrompt();
 
         return ErrorHandler.createSuccess("", { shouldWelcome: false });
     }
 
     async logout() {
         const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI, FileSystemManager, Config } = this.dependencies;
-        const oldUser = this.getCurrentUser().name;
+        const oldUser = await this.getCurrentUser();
+        const sessionStack = await SessionManager.getStack();
 
-        if (SessionManager.getStack().length <= 1) {
-            return ErrorHandler.createSuccess(`Cannot log out from user '${oldUser}'. This is the only active session. Use 'login <username>' to switch users.`, { noAction: true });
+        if (sessionStack.length <= 1) {
+            return ErrorHandler.createSuccess(`Cannot log out from user '${oldUser.name}'. This is the only active session. Use 'login <username>' to switch users.`, { noAction: true });
         }
 
-        SessionManager.saveAutomaticState(oldUser);
-        this.sudoManager.clearUserTimestamp(oldUser);
+        await SessionManager.saveAutomaticState(oldUser.name);
+        this.sudoManager.clearUserTimestamp(oldUser.name);
 
-        SessionManager.popUserFromStack();
-        const newUsername = SessionManager.getCurrentUserFromStack();
+        await SessionManager.popUserFromStack();
+        const newUsername = await SessionManager.getCurrentUserFromStack();
 
-        AuditManager.log(oldUser, 'su_exit', `Reverted from user '${oldUser}' to '${newUsername}'.`);
+        AuditManager.log(oldUser.name, 'su_exit', `Reverted from user '${oldUser.name}' to '${newUsername}'.`);
         await SessionManager.loadAutomaticState(newUsername);
-        EnvironmentManager.initialize();
-        TerminalUI.updatePrompt();
+        await EnvironmentManager.initialize();
+        await TerminalUI.updatePrompt();
 
         const homePath = `/home/${newUsername}`;
         const homeNode = await FileSystemManager.getNodeByPath(homePath);
-        FileSystemManager.setCurrentPath(homeNode ? homePath : Config.FILESYSTEM.ROOT_PATH);
+        await FileSystemManager.setCurrentPath(homeNode ? homePath : Config.FILESYSTEM.ROOT_PATH);
 
         return ErrorHandler.createSuccess(`logout`, { isLogout: true, newUser: newUsername });
     }
-
 
     async initializeDefaultUsers() {
         const { OutputManager, Config } = this.dependencies;
         const usersFromStorage = this.storageManager.loadItem(this.config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
 
-        OopisOS_Kernel.syscall("users", "load_users", [usersFromStorage]);
-        OopisOS_Kernel.syscall("users", "initialize_defaults", [Config.USER.DEFAULT_NAME]);
+        await OopisOS_Kernel.syscall("users", "load_users", [usersFromStorage]);
+        await OopisOS_Kernel.syscall("users", "initialize_defaults", [Config.USER.DEFAULT_NAME]);
 
         const guestHomePath = `/home/${Config.USER.DEFAULT_NAME}`;
         const guestHomeNode = await this.dependencies.FileSystemManager.getNodeByPath(guestHomePath);
@@ -400,13 +407,15 @@ class UserManager {
             await this.sudoExecute(`chgrp root ${rootHomePath}`, { isInteractive: false });
         }
 
-        const rootResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", ['root']));
+        const rootResultJson = await OopisOS_Kernel.syscall("users", "get_user", ['root']);
+        const rootResult = JSON.parse(rootResultJson);
         const rootNeedsPassword = rootResult.success && rootResult.data && !rootResult.data.passwordData;
 
-        const usersResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
+        const usersResultJson = await OopisOS_Kernel.syscall("users", "get_all_users");
+        const usersResult = JSON.parse(usersResultJson);
         const allUsers = usersResult.success ? usersResult.data : {};
         if (Object.keys(allUsers).length > Object.keys(usersFromStorage).length) {
-            this._saveUsers();
+            await this._saveUsers();
         }
     }
 
@@ -414,12 +423,12 @@ class UserManager {
         const { username, password, rootPassword } = userData;
         const { ErrorHandler } = this.dependencies;
 
-        const resultJson = OopisOS_Kernel.syscall("users", "first_time_setup", [username, password, rootPassword]);
+        const resultJson = await OopisOS_Kernel.syscall("users", "first_time_setup", [username, password, rootPassword]);
         const result = JSON.parse(resultJson);
 
         if (result.success) {
-            this._saveUsers();
-            this.groupManager._save();
+            await this._saveUsers();
+            await this.dependencies.GroupManager._save();
             return ErrorHandler.createSuccess();
         } else {
             return ErrorHandler.createError(result.error || "An unknown error occurred during first-time setup.");

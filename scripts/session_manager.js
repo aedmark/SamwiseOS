@@ -11,28 +11,28 @@ class EnvironmentManager {
         const baseEnv = { "USER": currentUser, "HOME": `/home/${currentUser}`, "HOST": config.OS.DEFAULT_HOST_NAME, "PATH": "/bin:/usr/bin" };
         this.load(baseEnv);
     }
-    get(varName) {
-        const result = JSON.parse(OopisOS_Kernel.syscall("env", "get", [varName]));
+    async get(varName) {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("env", "get", [varName]));
         return result.success ? result.data : "";
     }
-    set(varName, value) {
+    async set(varName, value) {
         if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(varName)) return { success: false, error: `Invalid variable name: '${varName}'.` };
-        const result = JSON.parse(OopisOS_Kernel.syscall("env", "set", [varName, value]));
+        const result = JSON.parse(await OopisOS_Kernel.syscall("env", "set", [varName, value]));
         return result.success ? { success: true } : { success: false, error: result.error };
     }
-    unset(varName) { OopisOS_Kernel.syscall("env", "unset", [varName]); }
-    getAll() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("env", "get_all"));
+    async unset(varName) { await OopisOS_Kernel.syscall("env", "unset", [varName]); }
+    async getAll() {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("env", "get_all"));
         return result.success ? result.data : {};
     }
-    load(vars) { OopisOS_Kernel.syscall("env", "load", [vars]); }
+    async load(vars) { await OopisOS_Kernel.syscall("env", "load", [vars]); }
 }
 
 class HistoryManager {
     constructor() { this.dependencies = {}; this.historyIndex = 0; this.jsHistoryCache = []; }
     setDependencies(injectedDependencies) { this.dependencies = injectedDependencies; }
-    _syncCache() { this.jsHistoryCache = this.getFullHistory(); this.historyIndex = this.jsHistoryCache.length; }
-    add(command) { OopisOS_Kernel.syscall("history", "add", [command]); this._syncCache(); }
+    async _syncCache() { this.jsHistoryCache = await this.getFullHistory(); this.historyIndex = this.jsHistoryCache.length; }
+    async add(command) { await OopisOS_Kernel.syscall("history", "add", [command]); await this._syncCache(); }
     getPrevious() {
         if (this.jsHistoryCache.length > 0 && this.historyIndex > 0) { this.historyIndex--; return this.jsHistoryCache[this.historyIndex]; }
         return null;
@@ -42,45 +42,44 @@ class HistoryManager {
         else { this.historyIndex = this.jsHistoryCache.length; return ""; }
     }
     resetIndex() { this.historyIndex = this.jsHistoryCache.length; }
-    getFullHistory() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("history", "get_full_history"));
+    async getFullHistory() {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("history", "get_full_history"));
         return result.success ? result.data : [];
     }
-    clearHistory() { OopisOS_Kernel.syscall("history", "clear_history"); this._syncCache(); }
-    setHistory(newHistory) { OopisOS_Kernel.syscall("history", "set_history", [newHistory]); this._syncCache(); }
+    async clearHistory() { await OopisOS_Kernel.syscall("history", "clear_history"); await this._syncCache(); }
+    async setHistory(newHistory) { await OopisOS_Kernel.syscall("history", "set_history", [newHistory]); await this._syncCache(); }
 }
 
 class AliasManager {
     constructor() { this.dependencies = {}; }
     setDependencies(injectedDependencies) { this.dependencies = injectedDependencies; }
-    initialize() {
-        const allAliases = this.getAllAliases();
+    async initialize() {
+        const allAliases = await this.getAllAliases();
         if (Object.keys(allAliases).length === 0) {
             const defaultAliases = { 'll': 'ls -la', 'la': 'ls -a', '..': 'cd ..', '...': 'cd ../..', 'h': 'history', 'c': 'clear', 'q': 'exit', 'e': 'edit', 'ex': 'explore' };
-            OopisOS_Kernel.syscall("alias", "load_aliases", [defaultAliases]);
+            await OopisOS_Kernel.syscall("alias", "load_aliases", [defaultAliases]);
         }
     }
-    setAlias(name, value) { return JSON.parse(OopisOS_Kernel.syscall("alias", "set_alias", [name, value])).success; }
-    removeAlias(name) { return JSON.parse(OopisOS_Kernel.syscall("alias", "remove_alias", [name])).success; }
-    getAlias(name) {
-        const result = JSON.parse(OopisOS_Kernel.syscall("alias", "get_alias", [name]));
+    async setAlias(name, value) { return JSON.parse(await OopisOS_Kernel.syscall("alias", "set_alias", [name, value])).success; }
+    async removeAlias(name) { return JSON.parse(await OopisOS_Kernel.syscall("alias", "remove_alias", [name])).success; }
+    async getAlias(name) {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("alias", "get_alias", [name]));
         return result.success ? result.data : null;
     }
-    getAllAliases() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("alias", "get_all_aliases"));
+    async getAllAliases() {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("alias", "get_all_aliases"));
         return result.success ? result.data : {};
     }
-    resolveAlias(commandString) {
-        // This logic is pure JS and doesn't need to change as it calls the public API above.
+    async resolveAlias(commandString) {
         const { AliasManager } = this.dependencies;
         const parts = commandString.split(/\s+/); let commandName = parts[0];
         const remainingArgs = parts.slice(1).join(" "); const MAX_RECURSION = 10; let count = 0;
-        let aliasValue = this.getAlias(commandName);
+        let aliasValue = await this.getAlias(commandName);
         while (aliasValue && count < MAX_RECURSION) {
             const aliasParts = aliasValue.split(/\s+/); commandName = aliasParts[0];
             const aliasArgs = aliasParts.slice(1).join(" ");
             commandString = `${commandName} ${aliasArgs} ${remainingArgs}`.trim();
-            count++; aliasValue = this.getAlias(commandName);
+            count++; aliasValue = await this.getAlias(commandName);
         }
         if (count === MAX_RECURSION) return { error: `Alias loop detected for '${parts[0]}'` };
         return { newCommand: commandString };
@@ -102,46 +101,40 @@ class SessionManager {
         this.storageManager = dependencies.StorageManager;
     }
 
-    initializeStack() { OopisOS_Kernel.syscall("session", "clear", [this.config.USER.DEFAULT_NAME]); }
-    getStack() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_stack"));
+    async initializeStack() { await OopisOS_Kernel.syscall("session", "clear", [this.config.USER.DEFAULT_NAME]); }
+    async getStack() {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("session", "get_stack"));
         return result.success ? result.data : [];
     }
-    pushUserToStack(username) { OopisOS_Kernel.syscall("session", "push", [username]); }
-    popUserFromStack() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("session", "pop"));
+    async pushUserToStack(username) { await OopisOS_Kernel.syscall("session", "push", [username]); }
+    async popUserFromStack() {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("session", "pop"));
         return result.success ? result.data : null;
     }
-    getCurrentUserFromStack() {
-        const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_current_user"));
+    async getCurrentUserFromStack() {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("session", "get_current_user"));
         return result.success ? result.data : this.config.USER.DEFAULT_NAME;
     }
-    clearUserStack(username) { OopisOS_Kernel.syscall("session", "clear", [username]); }
+    async clearUserStack(username) { await OopisOS_Kernel.syscall("session", "clear", [username]); }
 
     _getAutomaticSessionStateKey(user) { return `${this.config.STORAGE_KEYS.USER_TERMINAL_STATE_PREFIX}${user}`; }
     _getManualUserTerminalStateKey(user) { const userName = typeof user === "object" && user !== null && user.name ? user.name : String(user); return `${this.config.STORAGE_KEYS.MANUAL_TERMINAL_STATE_PREFIX}${userName}`; }
 
-    /**
-     * Receives an updated session state object from a Python effect, syncs it with
-     * the Python kernel's state (just to be safe), and saves it to localStorage.
-     * @param {object} effectData The data object from the Python effect.
-     */
-    syncAndSave(effectData) {
+    async syncAndSave(effectData) {
         const { AliasManager, EnvironmentManager, StorageManager, Config, UserManager } = this.dependencies;
         if (effectData.aliases) {
-            AliasManager.aliases = effectData.aliases; // Update local JS cache/proxy
+            await OopisOS_Kernel.syscall("alias", "load_aliases", [effectData.aliases]);
             StorageManager.saveItem(Config.STORAGE_KEYS.ALIAS_DEFINITIONS, effectData.aliases, "Aliases");
         }
         if (effectData.env) {
-            EnvironmentManager.env = effectData.env; // Update local JS cache/proxy
-            this.saveAutomaticState(UserManager.getCurrentUser().name);
+            await OopisOS_Kernel.syscall("env", "load", [effectData.env]);
+            await this.saveAutomaticState(await UserManager.getCurrentUser().name);
         }
     }
 
-
-    saveAutomaticState(username) {
+    async saveAutomaticState(username) {
         if (!username) { console.warn("saveAutomaticState: No username provided."); return; }
-        const result = JSON.parse(OopisOS_Kernel.syscall("session", "get_session_state_for_saving"));
+        const result = JSON.parse(await OopisOS_Kernel.syscall("session", "get_session_state_for_saving"));
         const sessionState = result.success ? JSON.parse(result.data) : {};
         const uiState = {
             currentPath: this.fsManager.getCurrentPath(),
@@ -161,13 +154,11 @@ class SessionManager {
             this.terminalUI.setCurrentInputValue(loadedState.currentInput || "");
             this.terminalUI.updatePrompt();
             if (this.elements.outputDiv) this.elements.outputDiv.scrollTop = this.elements.outputDiv.scrollHeight;
-            // Return that we successfully loaded an existing state
             return { success: true, newStateCreated: false };
         } else {
-            // This is a new session for this user.
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
-            OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify({})]);
+            await OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify({})]);
             const homePath = `/home/${username}`;
             this.fsManager.setCurrentPath(homePath);
             const currentNode = await this.fsManager.getNodeByPath(this.fsManager.getCurrentPath());
@@ -175,7 +166,6 @@ class SessionManager {
                 this.fsManager.setCurrentPath(this.config.FILESYSTEM.ROOT_PATH);
             }
             this.terminalUI.updatePrompt();
-            // Return that we created a new state. DO NOT print a welcome message here.
             return { success: true, newStateCreated: true };
         }
     }

@@ -41,12 +41,11 @@ class FileSystemManager {
         this.storageHAL = dependencies.StorageHAL;
     }
 
-    _createKernelContext() {
-        // This helper ensures the kernel gets the right user context for permission checks.
-        // It duplicates some logic from bridge.js, a small price for security and order!
-        const { UserManager, GroupManager, StorageManager, Config } = this.dependencies;
-        const user = UserManager.getCurrentUser();
-        return { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) };
+    async _createKernelContext() {
+        const { UserManager } = this.dependencies;
+        const user = await UserManager.getCurrentUser(); // Must await this now!
+        const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
+        return { name: user.name, group: primaryGroup };
     }
 
     /**
@@ -99,20 +98,14 @@ class FileSystemManager {
         const { ErrorHandler } = this.dependencies;
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
             try {
-                // BEHOLD! The new, correct way to communicate!
-                const resultJson = OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
+                const resultJson = await OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
                 const result = JSON.parse(resultJson);
-
-                // We must always check if our request was successful!
                 if (!result.success) {
-                    // If the kernel reported an error, we throw it so our catch block can see it.
                     throw new Error(result.error || "Failed to get filesystem JSON from kernel.");
                 }
-
-                const fsJsonString = result.data; // The data is now in a 'data' property!
+                const fsJsonString = result.data;
                 const saveData = JSON.parse(fsJsonString);
                 const success = await this.storageHAL.save(saveData);
-
                 if (success) return ErrorHandler.createSuccess();
                 return ErrorHandler.createError("OopisOs failed to save the file system via kernel.");
             } catch (e) {
@@ -142,16 +135,13 @@ class FileSystemManager {
         this.currentPath = path;
     }
 
-    getFsData() {
-        // Refactored to fetch from Python for legacy support (e.g., backup command)
+    async getFsData() {
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            // Let's use the new syscall for this read-only operation, too, for consistency!
-            const resultJson = OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
+            const resultJson = await OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
             const result = JSON.parse(resultJson);
             if (result.success) {
                 return JSON.parse(result.data);
             }
-            // Fallback in case of error
             console.error("Failed to get FS data from kernel:", result.error);
             return this.fsData;
         }
@@ -159,13 +149,11 @@ class FileSystemManager {
         return this.fsData;
     }
 
-    setFsData(newData) {
-        // This is now primarily for restoring backups. The data will be sent to Python.
+    async setFsData(newData) {
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            // Use the new, unified syscall to set the filesystem state!
-            OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(newData)]);
+            await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(newData)]);
         }
-        this.fsData = newData; // Keep a JS copy for safety until full transition
+        this.fsData = newData;
     }
 
     getAbsolutePath(targetPath, basePath) {
@@ -188,8 +176,7 @@ class FileSystemManager {
     async getNodeByPath(absolutePath) {
         if (!OopisOS_Kernel.isReady) return null;
         try {
-            // Use the new, unified syscall. No context needed for this call.
-            const resultJson = OopisOS_Kernel.syscall("filesystem", "get_node", [absolutePath]);
+            const resultJson = await OopisOS_Kernel.syscall("filesystem", "get_node", [absolutePath]);
             const result = JSON.parse(resultJson);
             return result.success ? result.data : null;
         } catch (e) {
@@ -204,10 +191,9 @@ class FileSystemManager {
             return ErrorHandler.createError("Filesystem kernel not ready.");
         }
         try {
-            // Use the new, unified syscall and provide the necessary user context.
-            const context = this._createKernelContext();
+            const context = await this._createKernelContext();
             const optionsJson = JSON.stringify(options);
-            const resultJson = OopisOS_Kernel.syscall("filesystem", "validate_path", [pathArg, context, optionsJson]);
+            const resultJson = await OopisOS_Kernel.syscall("filesystem", "validate_path", [pathArg, context, optionsJson]);
             const result = JSON.parse(resultJson);
             if (result.success) {
                 return ErrorHandler.createSuccess({ node: result.node, resolvedPath: result.resolvedPath });
@@ -218,22 +204,6 @@ class FileSystemManager {
             return ErrorHandler.createError(`Path validation failed: ${e.message}`);
         }
     }
-
-    /** @deprecated This function is deprecated. Commands should be refactored to use a path-based kernel call. */
-    async calculateNodeSize(node) {
-        console.warn("calculateNodeSize on JS node is deprecated. Refactor the calling command to use a path-based kernel call.");
-        if (!node) return 0;
-        // This is a rough estimation based on JS object, not the source of truth.
-        return JSON.stringify(node).length;
-    }
-
-    /** @deprecated This function is deprecated. Commands should use validatePath with the permissions option. */
-    async hasPermission(node, username, permissionType) {
-        console.warn("hasPermission on JS node is deprecated. Refactor the calling command to use validatePath with a permissions check.");
-        // We return true as a fallback to prevent breaking old code, but this is not secure.
-        return true;
-    }
-
 
     formatModeToString(node) {
         if (!node || typeof node.mode !== "number") return "----------";
@@ -259,24 +229,17 @@ class FileSystemManager {
     async createOrUpdateFile(absolutePath, content, context) {
         const { ErrorHandler } = this.dependencies;
         const { isDirectory = false } = context;
-
         if (!OopisOS_Kernel.isReady) {
             return ErrorHandler.createError("Filesystem kernel not ready for write operation.");
         }
-
         try {
-            const kernelContext = context
-                ? { name: context.currentUser, group: context.primaryGroup }
-                : this._createKernelContext();
-
+            const kernelContext = context ? { name: context.currentUser, group: context.primaryGroup } : await this._createKernelContext();
             let resultJson;
-
             if (isDirectory) {
-                resultJson = OopisOS_Kernel.createDirectory(absolutePath, kernelContext);
+                resultJson = await OopisOS_Kernel.syscall("filesystem", "create_directory", [absolutePath, kernelContext]);
             } else {
-                resultJson = OopisOS_Kernel.writeFile(absolutePath, content, kernelContext);
+                resultJson = await OopisOS_Kernel.syscall("filesystem", "write_file", [absolutePath, content, kernelContext]);
             }
-
             const result = JSON.parse(resultJson);
             if (result.success) {
                 return ErrorHandler.createSuccess();

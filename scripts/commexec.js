@@ -516,7 +516,7 @@ class CommandExecutor {
                 try {
                     const filesForPython = await Promise.all(fileDataPromises);
                     const user = UserManager.getCurrentUser();
-                    const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
+                    const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
                     const userContext = { name: user.name, group: primaryGroup };
 
                     const resultJson = await OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
