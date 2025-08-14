@@ -49,9 +49,6 @@ class FileSystemManager:
                 }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso,
             }
         }
-        # Ensure root home exists on init
-        self.create_directory("/home/root", {"name": "root", "group": "root"})
-
 
     def reset(self):
         """Resets the filesystem to a default state."""
@@ -212,8 +209,6 @@ class FileSystemManager:
         for i, part in enumerate(parts):
             current_path_so_far = os.path.join(current_path_so_far, part)
             if part not in current_node.get('children', {}):
-                # Special case: A user should be allowed to create their own home directory,
-                # even without general write permissions on /home.
                 is_creating_own_home_dir = (os.path.dirname(current_path_so_far) == '/home' and
                                             part == user_context.get('name'))
 

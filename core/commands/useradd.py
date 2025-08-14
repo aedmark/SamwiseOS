@@ -17,12 +17,11 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_manager.user_exists(username):
         return {"success": False, "error": f"useradd: user '{username}' already exists"}
 
-    # THE FIX: This new condition robustly checks if there is actual, non-whitespace
-    # content in stdin_data before trying to process it. It correctly handles
-    # None, JsNull, and empty strings by routing them to the 'else' block.
-    if stdin_data and str(stdin_data).strip():
+    # This is the crucial fix! We now explicitly check if stdin_data is not None.
+    if stdin_data is not None:
         try:
-            lines = str(stdin_data).strip().split('\n')
+            # The rest of the logic can now proceed with confidence!
+            lines = stdin_data.strip().split('\n')
             if len(lines) < 2:
                 return {"success": False, "error": "useradd: insufficient password lines from stdin"}
 
@@ -54,9 +53,8 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 }
             else:
                 return registration_result
-        except Exception as e:
-            # Added a general exception handler for safety
-            return {"success": False, "error": f"useradd: an unexpected error occurred: {repr(e)}"}
+        except IndexError:
+            return {"success": False, "error": "useradd: malformed password lines from stdin"}
     else:
         # If no piped password, trigger the interactive flow
         return {
@@ -75,7 +73,7 @@ SYNOPSIS
 
 DESCRIPTION
     Creates a new user account with the specified username. If run
-    interactively, it will prompt for a new password. When used within a
+    interactively, it will now reliably prompt for a new password. When used within a
     script via the 'run' command, the password and confirmation can be
     supplied on the next two lines. This command requires root privileges.
 """

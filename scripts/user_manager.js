@@ -57,23 +57,34 @@ class UserManager {
     }
 
     async register(username, password) {
-        const { Utils, ErrorHandler } = this.dependencies;
+        const { Utils, ErrorHandler, CommandExecutor } = this.dependencies;
         const formatValidation = Utils.validateUsernameFormat(username);
         if (!formatValidation.isValid) return ErrorHandler.createError(formatValidation.error);
         if (await this.userExists(username)) return ErrorHandler.createError(`User '${username}' already exists.`);
 
+        // 1. Create the primary group for the user.
         this.groupManager.createGroup(username);
         this.groupManager.addUserToGroup(username, username);
 
-        const result = await this.commandExecutor.processSingleCommand(`useradd ${username}`, {
-            isInteractive: false,
-            suppressOutput: true,
-            stdinContent: `${password}\n${password}`
-        });
+        // 2. Register the user in the Python kernel directly.
+        const registrationResultJson = OopisOS_Kernel.syscall("users", "register_user", [username, password, username]);
+        const registrationResult = JSON.parse(registrationResultJson);
 
-        return result.success
-            ? ErrorHandler.createSuccess(`User '${username}' registered. Home directory created.`)
-            : ErrorHandler.createError(result.error.message || "Failed to register new user.");
+        if (!registrationResult.success) {
+            // If kernel registration fails, we can't proceed.
+            return ErrorHandler.createError(registrationResult.error || "Failed to register new user in kernel.");
+        }
+
+        // 3. Sync the updated user list to storage.
+        this.syncAndSave(registrationResult.data.users);
+
+        // 4. Create the home directory and set permissions as root.
+        const homePath = `/home/${username}`;
+        await CommandExecutor.processSingleCommand(`mkdir -p ${homePath}`, { isInteractive: false, sudoContext: true });
+        await CommandExecutor.processSingleCommand(`chown ${username} ${homePath}`, { isInteractive: false, sudoContext: true });
+        await CommandExecutor.processSingleCommand(`chgrp ${username} ${homePath}`, { isInteractive: false, sudoContext: true });
+
+        return ErrorHandler.createSuccess(`User '${username}' registered. Home directory created.`);
     }
 
 

@@ -186,7 +186,7 @@ const OopisOS_Kernel = {
             }
 
             this.kernel = this.pyodide.pyimport("kernel");
-            this.kernel.initialize_kernel(this.saveFileSystem);
+            this.kernel.initialize_kernel(this.saveFileSystem.bind(this));
 
             const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             pythonCommands.forEach(cmd => CommandRegistry.addCommandToManifest(cmd));
