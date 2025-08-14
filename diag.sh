@@ -602,13 +602,14 @@ check_fail "ls interactive_test.txt"
 touch another_file.txt
 delay 200
 echo "Interactive Copy Test"
-cp -i another_file.txt overwrite_dir < yes.txt
+mkdir overwrite_dir
+cp -i another_file.txt overwrite_dir/another_file.txt < yes.txt
 delay 200
 cat ./overwrite_dir/another_file.txt
 delay 200
-echo "Did it work?
+echo "Did it work?"
 delay 200
-rm no.txt yes.txt another_file.txt
+rm -r no.txt yes.txt another_file.txt overwrite_dir
 echo "Interactive flag and logical OR tests complete."
 delay 400
 echo "---------------------------------------------------------------------"
