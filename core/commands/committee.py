@@ -44,6 +44,7 @@ def run(args, flags, user_context, **kwargs):
             group_manager.add_user_to_group(member, committee_name)
 
         fs_manager.create_directory(project_path, {"name": "root", "group": "root"})
+        fs_manager.chown(project_path, "root")
         fs_manager.chgrp(project_path, committee_name)
         fs_manager.chmod(project_path, "770") # rwxrwx---
 
