@@ -652,6 +652,8 @@ class CommandExecutor {
                 if (App) { const appInstance = new App(); AppLayerManager.show(appInstance, { ...options, dependencies: this.dependencies, ...result.options }); }
                 else { console.error(`Attempted to launch unknown app: ${result.app_name}`); }
                 break;
+            // THIS IS THE FIX! We are adding the missing case.
+            case 'useradd': await UserManager.registerWithPrompt(result.username, options); break;
             case 'sudo_exec': return await UserManager.sudoExecute(result.command, { ...options, password: result.password });
             case 'visudo': await this.processSingleCommand(`edit /etc/sudoers`, { ...options, isVisudo: true }); break;
             case 'passwd': await UserManager.changePasswordWithPrompt(result.username, options); break;

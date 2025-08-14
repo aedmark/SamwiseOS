@@ -39,7 +39,20 @@ class FileSystemManager:
         self.fs_data = {
             "/": {
                 "type": "directory", "children": {
-                    "home": {"type": "directory", "children": {}, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},
+                    "home": {
+                        "type": "directory",
+                        "children": {
+                            "root": {
+                                "type": "directory", "children": {}, "owner": "root", "group": "root",
+                                "mode": 0o755, "mtime": now_iso
+                            },
+                            "Guest": {
+                                "type": "directory", "children": {}, "owner": "Guest", "group": "Guest",
+                                "mode": 0o755, "mtime": now_iso
+                            }
+                        },
+                        "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso
+                    },
                     "etc": {"type": "directory", "children": {
                         'sudoers': {"type": "file", "content": "# /etc/sudoers...", "owner": "root", "group": "root", "mode": 0o440, "mtime": now_iso}
                     }, "owner": "root", "group": "root", "mode": 0o755, "mtime": now_iso},

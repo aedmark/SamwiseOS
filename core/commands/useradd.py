@@ -17,8 +17,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_manager.user_exists(username):
         return {"success": False, "error": f"useradd: user '{username}' already exists"}
 
-    # This is the crucial fix! We now explicitly check if stdin_data is not None.
-    if stdin_data is not None:
+    if stdin_data:
         try:
             # The rest of the logic can now proceed with confidence!
             lines = stdin_data.strip().split('\n')

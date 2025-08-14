@@ -339,6 +339,14 @@ class UserManager {
             await this.sudoExecute(`chgrp ${Config.USER.DEFAULT_NAME} ${guestHomePath}`, { isInteractive: false });
         }
 
+        const rootHomePath = `/home/root`;
+        const rootHomeNode = await this.dependencies.FileSystemManager.getNodeByPath(rootHomePath);
+        if (!rootHomeNode) {
+            await this.sudoExecute(`mkdir -p ${rootHomePath}`, { isInteractive: false });
+            await this.sudoExecute(`chown root ${rootHomePath}`, { isInteractive: false });
+            await this.sudoExecute(`chgrp root ${rootHomePath}`, { isInteractive: false });
+        }
+
         const rootResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_user", ['root']));
         const rootNeedsPassword = rootResult.success && rootResult.data && !rootResult.data.passwordData;
 

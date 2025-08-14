@@ -170,6 +170,10 @@ class SessionManager {
             OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify({})]);
             const homePath = `/home/${username}`;
             this.fsManager.setCurrentPath(homePath);
+            const currentNode = await this.fsManager.getNodeByPath(this.fsManager.getCurrentPath());
+            if (!currentNode) {
+                this.fsManager.setCurrentPath(this.config.FILESYSTEM.ROOT_PATH);
+            }
             this.terminalUI.updatePrompt();
             // Return that we created a new state. DO NOT print a welcome message here.
             return { success: true, newStateCreated: true };
