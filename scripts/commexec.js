@@ -333,7 +333,6 @@ class CommandExecutor {
                 }
 
                 const kernelContextJson = await this.createKernelContext();
-                // [MODIFIED] Await the result from the now-async execute_command
                 const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
                 const result = JSON.parse(jsonResult);
 
@@ -445,6 +444,9 @@ class CommandExecutor {
                         if (result.on_confirm) {
                             const confirmResult = await this._handleEffect(result.on_confirm, options);
                             resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || ""));
+                        } else if (result.on_confirm_command) {
+                            const cmdResult = await this.dependencies.CommandExecutor.processSingleCommand(result.on_confirm_command, { ...options, stdinContent: null, isInteractive: false });
+                            resolve(cmdResult);
                         } else {
                             resolve(ErrorHandler.createSuccess("Confirmed."));
                         }
