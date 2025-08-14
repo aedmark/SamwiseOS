@@ -32,6 +32,8 @@ window.RunCommand = class RunCommand extends Command {
       and accessed via $1, $2, $#, etc.
       - Lines starting with # are treated as comments and ignored.
       - Blank lines are ignored.
+      - Special handling for 'useradd' and 'sudo' allows for non-interactive
+        password input on subsequent lines.
       EXAMPLES
       run setup_project.sh
       run my_script.sh "first arg" "second arg"`,
@@ -55,36 +57,67 @@ window.RunCommand = class RunCommand extends Command {
      * Executes the core logic of the 'run' command. It reads the content of the
      * specified script file, sanitizes each line for basic security, and then
      * passes the lines to the CommandExecutor to be executed sequentially in a
-     * non-interactive context.
+     * non-interactive context. It now includes logic to handle non-interactive
+     * password inputs for specific commands.
      * @param {object} context - The command execution context.
      * @returns {Promise<object>} A promise that resolves with a success or error object from the ErrorHandler.
      */
     async coreLogic(context) {
         const { args, validatedPaths, dependencies } = context;
-        const { CommandExecutor, ErrorHandler, Utils } = dependencies;
+        const { CommandExecutor, ErrorHandler } = dependencies;
         const fileNode = validatedPaths[0].node;
-        const scriptArgs = args.slice(1); // All args after the script path are for the script itself
+        const scriptArgs = args.slice(1);
 
         const scriptContent = fileNode.content || "";
         const lines = scriptContent.split("\n");
 
-        for (const line of lines) {
-            const sanitized = Utils.sanitizeForExecution(line, { context: "script" });
-            if (!sanitized.isValid) {
-                return ErrorHandler.createError({ message: `run: security error in script: ${sanitized.error}` });
+        const commandObjects = [];
+        let i = 0;
+        while (i < lines.length) {
+            const line = lines[i];
+            const strippedLine = line.trim();
+
+            if (!strippedLine || strippedLine.startsWith('#')) {
+                i++;
+                continue;
+            }
+
+            let passwordLinesNeeded = 0;
+            if (strippedLine.startsWith("useradd")) passwordLinesNeeded = 2;
+            else if (strippedLine.startsWith("sudo")) passwordLinesNeeded = 1;
+
+            if (passwordLinesNeeded > 0) {
+                const passwordPipe = [];
+                let lookaheadIndex = i + 1;
+                let linesConsumed = 0;
+                while (lookaheadIndex < lines.length && passwordPipe.length < passwordLinesNeeded) {
+                    const nextLine = lines[lookaheadIndex];
+                    linesConsumed++;
+                    if (nextLine.trim() && !nextLine.trim().startsWith('#')) {
+                        passwordPipe.push(nextLine);
+                    }
+                    lookaheadIndex++;
+                }
+
+                const commandObj = {
+                    command: line,
+                    password_pipe: passwordPipe.length === passwordLinesNeeded ? passwordPipe : null
+                };
+                commandObjects.push(commandObj);
+                i += 1 + linesConsumed;
+            } else {
+                commandObjects.push({ command: line });
+                i++;
             }
         }
 
         try {
-            // We now pass the script arguments to the executor!
-            await CommandExecutor.executeScript(lines, {
+            await CommandExecutor.executeScript(commandObjects, {
                 isInteractive: false,
                 args: scriptArgs,
             });
-            // A successful script execution in OopisOS returns an empty success object.
             return ErrorHandler.createSuccess("");
         } catch (e) {
-            // The message from executeScript is already well-formatted.
             return ErrorHandler.createError(`run: ${e.message}`);
         }
     }

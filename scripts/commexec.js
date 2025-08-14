@@ -124,8 +124,6 @@ class CommandExecutor {
         const MAX_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS || 10000;
 
         try {
-            // We are removing the old 'while' loop and the manual 'i' counter.
-            // We now loop directly over the commandObjects prepared by Python.
             for (let i = 0; i < commandObjects.length; i++) {
                 stepCounter++;
                 if (stepCounter > MAX_STEPS) {
@@ -136,13 +134,11 @@ class CommandExecutor {
                 const line = commandObj.command.trim();
 
                 if (!line || line.startsWith("#")) {
-                    continue; // Simply skip comments and empty lines.
+                    continue;
                 }
 
-                // This is the streamlined logic. We only check for the 'password_pipe'
-                // provided by Python. The old JS-based lookahead is gone!
                 const stdinForCommand = commandObj.password_pipe
-                    ? commandObj.password_pipe.join('\\n')
+                    ? commandObj.password_pipe.join('\n')
                     : null;
 
                 const result = await this.processSingleCommand(line, {
@@ -233,12 +229,6 @@ class CommandExecutor {
         TerminalUI.setIsNavigatingHistory(false);
     }
 
-    /**
-     * Creates a JSON string containing the full execution context for the Python kernel.
-     * This includes the current path, user info, environment variables, etc.
-     * @returns {string} The JSON string of the kernel context.
-     * @public
-     */
     createKernelContext() {
         const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager } = this.dependencies;
         const user = UserManager.getCurrentUser();
@@ -377,7 +367,6 @@ class CommandExecutor {
                     await OutputManager.appendToOutput(finalResult.data, finalResult);
                 }
             } else if (finalResult && finalResult.error) {
-                // With the new ErrorHandler, the structure is always predictable.
                 let errorMessage = finalResult.error.message || 'An unknown error occurred.';
                 if (finalResult.error.suggestion) {
                     errorMessage += `\nSuggestion: ${finalResult.error.suggestion}`;
@@ -400,11 +389,15 @@ class CommandExecutor {
             case 'sync_group_state':
                 this.dependencies.GroupManager.syncAndSave(result.groups);
                 break;
-            case 'sync_session_state':
-                this.dependencies.SessionManager.syncAndSave(result);
-                break;
             case 'sync_user_state':
                 this.dependencies.UserManager.syncAndSave(result.users);
+                break;
+            case 'sync_user_and_group_state':
+                this.dependencies.UserManager.syncAndSave(result.users);
+                this.dependencies.GroupManager.syncAndSave(result.groups);
+                break;
+            case 'sync_session_state':
+                this.dependencies.SessionManager.syncAndSave(result);
                 break;
             case 'play_sound':
                 if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
@@ -631,7 +624,6 @@ class CommandExecutor {
                 if (App) { const appInstance = new App(); AppLayerManager.show(appInstance, { ...options, dependencies: this.dependencies, ...result.options }); }
                 else { console.error(`Attempted to launch unknown app: ${result.app_name}`); }
                 break;
-            // THIS IS THE FIX! We are adding the missing case.
             case 'useradd': await UserManager.registerWithPrompt(result.username, options); break;
             case 'sudo_exec': return await UserManager.sudoExecute(result.command, { ...options, password: result.password });
             case 'visudo': await this.processSingleCommand(`edit /etc/sudoers`, { ...options, isVisudo: true }); break;

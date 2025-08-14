@@ -19,7 +19,6 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     if stdin_data:
         try:
-            # The rest of the logic can now proceed with confidence!
             lines = stdin_data.strip().split('\n')
             if len(lines) < 2:
                 return {"success": False, "error": "useradd: insufficient password lines from stdin"}
@@ -30,11 +29,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             if password != confirm_password:
                 return {"success": False, "error": "passwd: passwords do not match."}
 
-            # Create the primary group for the user
+            # Create the primary group for the user if it doesn't exist
             if not group_manager.group_exists(username):
                 if not group_manager.create_group(username):
                     return {"success": False, "error": f"useradd: failed to create group '{username}'"}
-                group_manager.add_user_to_group(username, username)
+
+            # Add the user to their own primary group
+            group_manager.add_user_to_group(username, username)
 
             registration_result = user_manager.register_user(username, password, username)
             if registration_result["success"]:
@@ -44,11 +45,14 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 # Change ownership to the new user
                 fs_manager.chown(home_path, username)
                 fs_manager.chgrp(home_path, username)
+
+                # We need to sync both user AND group state now
                 return {
                     "success": True,
                     "output": f"User '{username}' registered. Home directory created at /home/{username}.",
-                    "effect": "sync_user_state",
-                    "users": user_manager.get_all_users()
+                    "effect": "sync_user_and_group_state", # A conceptual effect name
+                    "users": user_manager.get_all_users(),
+                    "groups": group_manager.get_all_groups()
                 }
             else:
                 return registration_result
