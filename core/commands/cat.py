@@ -41,7 +41,11 @@ def run(args, flags, user_context, stdin_data=None):
         if not validation_result.get("success"):
             had_error = True
             error_msg = validation_result.get('error', 'An unknown error occurred')
-            output_parts.append(f"cat: {file_path}: {error_msg}")
+            # Custom error message for symlinks that point to non-files
+            if node_unresolved and node_unresolved.get('type') == 'symlink' and validation_result.get("error") == "Is not a file":
+                output_parts.append(f"cat: {file_path}: Is not a file")
+            else:
+                output_parts.append(f"cat: {file_path}: {error_msg}")
             continue
 
         try:
@@ -60,6 +64,7 @@ def run(args, flags, user_context, stdin_data=None):
         numbered_output = []
         line_num = 1
         for line in output_parts:
+            # We must not number our own error messages!
             if not line.startswith("cat:"):
                 numbered_output.append(f"     {line_num}  {line}")
                 line_num += 1
@@ -69,10 +74,12 @@ def run(args, flags, user_context, stdin_data=None):
     else:
         final_output_str = "\n".join(output_parts)
 
+    # If we encountered any errors along the way, the whole operation is a failure.
     if had_error:
         return {"success": False, "error": final_output_str}
 
     return final_output_str
+
 
 def man(args, flags, user_context, **kwargs):
     """Displays the manual page for the cat command."""
