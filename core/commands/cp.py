@@ -27,7 +27,6 @@ def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, 
     if not preserve:
         new_node['owner'] = user_context.get('name', 'guest')
         new_node['group'] = user_context.get('group', 'guest')
-        # Preserve mode only if the flag is set
         if 'mode' not in new_node or not preserve:
             new_node['mode'] = source_node.get('mode', 0o644 if source_node['type'] == 'file' else 0o755)
 
@@ -70,12 +69,14 @@ def run(args, flags, user_context, **kwargs):
             return {"success": False, "error": f"cp: -r not specified; omitting directory '{source_path}'"}
 
         final_dest_path = os.path.join(dest_path_arg, os.path.basename(source_path)) if dest_is_dir else dest_path_arg
+        final_dest_abs_path = fs_manager.get_absolute_path(final_dest_path)
 
-        if is_interactive and not is_force and not is_pre_confirmed and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
+
+        if is_interactive and not is_force and not is_pre_confirmed and fs_manager.get_node(final_dest_abs_path) and confirmed_path != final_dest_abs_path:
             return {
                 "effect": "confirm",
                 "message": [f"cp: overwrite '{final_dest_path}'?"],
-                "on_confirm_command": f"cp {'-r ' if is_recursive else ''}{'-p ' if is_preserve else ''} --confirmed={shlex.quote(final_dest_path)} {shlex.quote(source_path)} {shlex.quote(dest_path_arg)}"
+                "on_confirm_command": f"cp {'-r ' if is_recursive else ''}{'-p ' if is_preserve else ''} --confirmed={shlex.quote(final_dest_abs_path)} {shlex.quote(source_path)} {shlex.quote(dest_path_arg)}"
             }
 
         if is_force and fs_manager.get_node(final_dest_path):
@@ -94,9 +95,10 @@ def run(args, flags, user_context, **kwargs):
                 new_name = os.path.basename(dest_path_arg)
 
             if not dest_parent_node or dest_parent_node.get('type') != 'directory':
-                # If the parent does not exist, we create it. This aligns with standard 'cp' behavior.
+                # If the parent directory doesn't exist, we create it.
+                # This is the proactive step that prevents our file/directory mixup.
                 fs_manager.create_directory(dest_parent_path, user_context)
-                dest_parent_node = fs_manager.get_node(dest_parent_path)
+                dest_parent_node = fs_manager.get_node(dest_parent_path) # Re-fetch after creation
                 if not dest_parent_node:
                     return {"success": False, "error": f"cp: cannot create directory for '{dest_path_arg}'"}
 
