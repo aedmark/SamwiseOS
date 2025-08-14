@@ -79,7 +79,7 @@ const OopisOS_Kernel = {
                 '/core/commands/mv.py': './core/commands/mv.py',
                 '/core/commands/set.py': './core/commands/set.py',
                 '/core/commands/unset.py': './core/commands/unset.py',
-
+                '/core/commands/run.py': './core/commands/run.py',
                 '/core/commands/history.py': './core/commands/history.py',
                 '/core/commands/date.py': './core/commands/date.py',
                 '/core/commands/pwd.py': './core/commands/pwd.py',
