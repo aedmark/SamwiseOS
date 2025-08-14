@@ -1,5 +1,4 @@
-# gem/diag.sh
-
+delay 800
 echo "===== SamwiseOS Core Test Suite v0.1 Initializing ====="
 echo "This script tests all non-interactive core functionality with maximum paranoia."
 delay 200
