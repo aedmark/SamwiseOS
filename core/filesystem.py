@@ -18,7 +18,7 @@ class FileSystemManager:
 
     def _save_state(self):
         if self.save_function:
-            self.save_function(self.get_fs_data_as_json_string())
+            self.save_function(json.dumps(self.get_fs_data()))
         else:
             print("CRITICAL: Filesystem save function not provided.")
 
@@ -174,8 +174,8 @@ class FileSystemManager:
             self._initialize_default_filesystem()
             return False
 
-    def get_fs_data_as_json_string(self):
-        return json.dumps(self.fs_data)
+    def get_fs_data(self):
+        return self.fs_data
 
     def save_state_to_json(self):
         return json.dumps(self.fs_data)
@@ -449,15 +449,8 @@ class FileSystemManager:
                 return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
 
         final_name = parts[-1] if parts else None
-        final_node = None
-        if final_name:
-            if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
-                return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
-            final_node = current_node_for_traversal.get('children', {}).get(final_name)
-        elif abs_path == '/':
-            final_node = self.fs_data.get('/')
-        else:
-            final_node = current_node_for_traversal
+
+        final_node = self.get_node(abs_path)
 
         if not final_node:
             if allow_missing:

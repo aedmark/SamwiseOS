@@ -98,16 +98,15 @@ class FileSystemManager {
         const { ErrorHandler } = this.dependencies;
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
             try {
-                const resultJson = await OopisOS_Kernel.syscall("filesystem", "get_fs_data_as_json_string");
+                const resultJson = await OopisOS_Kernel.syscall("filesystem", "get_fs_data");
                 const result = JSON.parse(resultJson);
                 if (!result.success) {
-                    throw new Error(result.error || "Failed to get filesystem JSON from kernel.");
+                    throw new Error(result.error || "Failed to get filesystem data from kernel.");
                 }
-                const fsJsonString = result.data;
-                const saveData = JSON.parse(fsJsonString);
-                const success = await this.storageHAL.save(saveData);
+                const fsData = result.data;
+                const success = await this.storageHAL.save(fsData);
                 if (success) return ErrorHandler.createSuccess();
-                return ErrorHandler.createError("OopisOs failed to save the file system via kernel.");
+                return ErrorHandler.createError("SamwiseOS failed to save the file system via kernel.");
             } catch (e) {
                 console.error("Error during Python-JS save operation:", e);
                 return ErrorHandler.createError("Failed to serialize or save Python filesystem state.");
@@ -288,7 +287,7 @@ class FileSystemManager {
             } else {
                 finalName = destValidationResult.data.resolvedPath.substring(destValidationResult.data.resolvedPath.lastIndexOf("/") + 1);
                 destinationAbsPath = destValidationResult.data.resolvedPath;
-                const destParentPath = destinationAbsPath.substring(0, destinationAbsPath.lastIndexOf("/")) || "/";
+                const destParentPath = destinationAbsPath.substring(0, destinationAbsPath.lastIndexOf("/") || "/");
                 const destParentValidation = await this.validatePath(destParentPath, { expectedType: "directory", permissions: ["write"] });
                 if (!destParentValidation.success) {
                     return ErrorHandler.createError(destParentValidation.error);
