@@ -6,7 +6,7 @@ This project is a bold exploration into creating a unique, web-based operating s
 
 ## What is this?
 
-SamwiseOS is a web-based operating system designed from the ground up to be AI-first. Instead of a traditional GUI or a simple command line, you interact with the system through a conversation with an AI. The AI can understand complex commands, create and manage files, and even write and execute code on your behalf. The entire OS is a single-page application that runs right in your browser.
+SamwiseOS is a web-based operating system designed from the ground up to be **AI-first**. Instead of a traditional GUI or a simple command line, you interact with the system through a conversation with an AI. The AI can understand complex commands, create and manage files, and even write and execute code on your behalf. The entire OS is a single-page application that runs right in your browser.
 
 ## The Hybrid Kernel: Our Superpower
 
@@ -21,57 +21,97 @@ Our architecture is a deliberate fusion of two powerful environments. We combine
 
 ### How It Works: The `effect` Contract
 
-The magic happens through a simple, powerful contract. When a command needs to interact with the browser, the Python kernel doesn't perform the action itself. Instead, it validates the request and returns a JSON object called an `effect`.
+The magic happens through a simple, powerful contract. When a command needs to interact with the browser, the Python kernel doesn't perform the action itself. Instead, it validates the request and returns a JSON object called an `effect`. For example, when you run `play C4 4n`, the Python kernel returns `{"effect": "play_sound", "notes": ["C4"], "duration": "4n"}`, and the JavaScript `CommandExecutor` plays the note.
 
-For example, when you run `play C4 4n`:
+### A Tale of Two Pings: Why Hybrid Matters
 
-1. The command is sent to the Python kernel.
+The power and trade-offs of this model became crystal clear when we built the `ping` command.
 
-2. `play.py` validates the arguments.
+- A **traditional OS** has direct network access. Its `ping` command sends low-level ICMP packets.
 
-3. It returns an effect: `{"effect": "play_sound", "notes": ["C4"], "duration": "4n"}`.
-
-4. The JavaScript `CommandExecutor` receives this object.
-
-5. Its `_handleEffect` function interprets the request and calls the JavaScript `SoundManager` to play the note through the browser's audio API.
+- Our **SamwiseOS `ping`** runs in the browser's sandbox. It sends an HTTP request via the browser's `fetch` API.
 
 
-This model gives us the best of both worlds: the structured, robust environment of Python and the rich, interactive capabilities of the browser.
+For security, browsers enforce a **Cross-Origin Resource Sharing (CORS)** policy. This means our `ping` can only succeed if the destination server (e.g., `jsonplaceholder.typicode.com`) explicitly allows it. It will be blocked by servers like `google.com` or `github.com`.
 
-### The Future is Weird and Wonderful
+This isn't a bug; **it's a feature of our user-centric security model**. The browser acts as a protective layer, and our OS is designed to respect that. This hybrid approach gives us the best of both worlds: the structured power of Python and the rich, secure, interactive capabilities of the browser.
 
-This hybrid model opens up incredible possibilities. Because our "hardware" is the web browser, we can dream of integrating features that traditional operating systems can't easily touch:
+---
 
-- **WebGPU:** For powerful, hardware-accelerated graphics and computation.
+## The Road Ahead: Our Next Five Parks
 
-- **WebSockets & WebRTC:** For seamless, real-time networking.
+A vision without a plan is just a dream. Here is our official roadmap—a commitment to our users and a guide for our development.
 
-- **WebUSB & WebBluetooth:** For direct interaction with hardware devices.
+### Milestone 1: The AI Town Manager 🧠
 
-- **WebXR:** For immersive augmented and virtual reality experiences.
+The AI is the heart of SamwiseOS. Our next priority is to make it a true partner in productivity.
+
+- **Long-Term Memory:** Enable the AI to remember context across multiple sessions.
+
+- **Advanced Tool Use:** Greatly expand the number of `effects` the AI can use, allowing it to perform more complex, multi-step tasks on its own.
+
+- **Self-Correction:** Implement logic for the AI to analyze the output of commands it runs, recognize errors, and attempt to correct its own course of action.
 
 
-In SamwiseOS, the browser isn't just a host; it's the motherboard.
+### Milestone 2: The Creative Suite 🎨
+
+An OS needs powerful, intuitive applications. We will expand our suite of GUI programs to empower human creativity.
+
+- **`edit` v2.0:** Add syntax highlighting and collaborative multi-user editing.
+
+- **`calc`:** A new grid-based spreadsheet application for calculations and data organization.
+
+- **`slides`:** A new application for creating and presenting simple slideshows.
+
+
+### Milestone 3: The Social Fabric 🤝
+
+Leverage the browser's native networking capabilities to connect users in new ways.
+
+- **Peer-to-Peer Filesystem:** Using **WebRTC**, allow users to securely and directly share files or entire directories with each other, right from the terminal.
+
+- **`talk` command:** A simple, end-to-end encrypted chat client for real-time communication between SamwiseOS users.
+
+
+### Milestone 4: The Hardware Bridge 🔌
+
+The browser is our motherboard. It's time to plug things into it.
+
+- **`joypad` API:** Integrate the **WebUSB/WebBluetooth** APIs to allow games and applications to respond to physical game controllers.
+
+- **`g-paint`:** Create a new version of our `paint` application that uses **WebGPU** for hardware-accelerated graphics and effects.
+
+- **`device-link`:** A command and API for interacting with microcontrollers and other USB-serial devices.
+
+
+### Milestone 5: The Town Hall 🏛️
+
+Focus on community, polish, and long-term sustainability.
+
+- **Theming Engine:** Allow users to customize the look and feel of the OS with custom colors, fonts, and sound packs.
+
+- **Developer SDK:** Create clear, robust documentation and tooling to help third-party developers build and share their own commands and applications for SamwiseOS.
+
+- **Accessibility Overhaul:** A top-to-bottom review to ensure the OS is usable and enjoyable for everyone.
+
 
 ---
 
 ## Features
 
-We've been hard at work, and I am thrilled to present our progress!
+- **Brand New Onboarding!** A friendly, guided setup process to create your user account and secure the `root` password.
 
-- **Brand New Onboarding!** A friendly, guided setup process to create your user account and secure the `root` password. It's the "Harvest Festival" of first-time user experiences!
-
-- **AI-Powered Shell:** Interact with the OS using natural language. Ask it to find files, write code, or summarize documents for you.
+- **AI-Powered Shell:** Interact with the OS using natural language.
 
 - **Python Backend, JS Frontend:** A powerful and unique combination running entirely in your browser.
 
-- **Self-Contained & Offline-First:** All dependencies, including the Python runtime and packages, are bundled with the app. No internet connection required after the initial setup!
+- **Self-Contained & Offline-First:** No internet connection required after the initial setup!
 
-- **Persistent File System:** Your files and directory structure are saved locally to your browser's IndexedDB.
+- **Persistent File System:** Your files are saved locally to your browser's IndexedDB.
 
-- **Rich Command Set:** A growing list of standard POSIX-like commands (e.g., `ls`, `cat`, `grep`, `mkdir`) and custom AI-powered commands like `forge` and `storyboard`.
+- **Rich Command Set:** A growing list of POSIX-like commands (`ls`, `cat`, `mkdir`) and custom AI-powered commands.
 
-- **GUI Applications:** It's not just a terminal! SamwiseOS supports graphical applications like a text editor (`edit`), file explorer (`explore`), and even a paint program (`paint`).
+- **GUI Applications:** Supports graphical applications like a text editor (`edit`), file explorer (`explore`), and a paint program (`paint`).
 
 - **User and Group Management:** A robust, secure system for managing users and groups, complete with `sudo` capabilities.
 
@@ -80,21 +120,9 @@ We've been hard at work, and I am thrilled to present our progress!
 
 1. **Clone the repository.**
 
-2. **Download Pyodide:**
+2. **Download Pyodide** into the `dist/pyodide/` directory by following the instructions on their releases page and in the local `README.md`.
 
-    - Go to the [Pyodide releases page](https://github.com/pyodide/pyodide/releases).
-
-    - Download the latest full release file.
-
-    - Extract the contents and copy them into the `dist/pyodide/` directory. (Follow the instructions in `dist/pyodide/README.md`).
-
-3. **Run a local web server** in the project's root directory. A simple way to do this is with Python:
-
-   Bash
-
-    ```
-    python -m http.server
-    ```
+3. **Run a local web server** in the project's root directory (e.g., `python -m http.server`).
 
 4. Open your browser and navigate to the server's address (e.g., `http://localhost:8000`).
 
