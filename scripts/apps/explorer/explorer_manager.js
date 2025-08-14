@@ -1,4 +1,4 @@
-// gem/scripts/apps/explorer/explorer_manager.js
+// /scripts/apps/explorer/explorer_manager.js
 
 window.ExplorerManager = class ExplorerManager extends App {
     constructor() {
@@ -31,9 +31,10 @@ window.ExplorerManager = class ExplorerManager extends App {
         if (event.key === "Escape") this.exit();
     }
 
-    _getContext() {
+    async _getContext() {
         const { UserManager } = this.dependencies;
-        return { name: UserManager.getCurrentUser().name };
+        const user = await UserManager.getCurrentUser();
+        return { name: user.name };
     }
 
     _createCallbacks() {
@@ -41,12 +42,12 @@ window.ExplorerManager = class ExplorerManager extends App {
         return {
             onExit: this.exit.bind(this),
             onTreeItemSelect: async (path) => {
-                OopisOS_Kernel.syscall("explorer", "toggle_tree_expansion", [path]);
+                await OopisOS_Kernel.syscall("explorer", "toggle_tree_expansion", [path]);
                 await this._updateView(path);
             },
             onMainItemActivate: async (path, type) => {
                 if (type === "directory") {
-                    OopisOS_Kernel.syscall("explorer", "toggle_tree_expansion", [path]);
+                    await OopisOS_Kernel.syscall("explorer", "toggle_tree_expansion", [path]);
                     await this._updateView(path);
                 } else {
                     this.exit();
@@ -57,7 +58,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onCreateFile: async (path) => {
                 const name = await new Promise(r => ModalManager.request({ context: "graphical", type: "input", messageLines: ["Enter New File Name:"], onConfirm: val => r(val), onCancel: () => r(null)}));
                 if (name) {
-                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "create_node", [path, name, 'file', this._getContext()]));
+                    const result = JSON.parse(await OopisOS_Kernel.syscall("explorer", "create_node", [path, name, 'file', await this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -65,7 +66,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onCreateDirectory: async (path) => {
                 const name = await new Promise(r => ModalManager.request({ context: "graphical", type: "input", messageLines: ["Enter New Directory Name:"], onConfirm: val => r(val), onCancel: () => r(null)}));
                 if (name) {
-                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "create_node", [path, name, 'directory', this._getContext()]));
+                    const result = JSON.parse(await OopisOS_Kernel.syscall("explorer", "create_node", [path, name, 'directory', await this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -73,7 +74,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onRename: async (path, oldName) => {
                 const newName = await new Promise(r => ModalManager.request({ context: "graphical", type: "input", messageLines: [`Rename "${oldName}":`], placeholder: oldName, onConfirm: val => r(val), onCancel: () => r(null)}));
                 if (newName && newName !== oldName) {
-                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "rename_node", [path, newName, this._getContext()]));
+                    const result = JSON.parse(await OopisOS_Kernel.syscall("explorer", "rename_node", [path, newName, await this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -81,7 +82,7 @@ window.ExplorerManager = class ExplorerManager extends App {
             onDelete: async (path, name) => {
                 const confirmed = await new Promise(r => ModalManager.request({ context: "graphical", messageLines: [`Are you sure you want to delete "${name}"?`], onConfirm: () => r(true), onCancel: () => r(false)}));
                 if (confirmed) {
-                    const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "delete_node", [path, this._getContext()]));
+                    const result = JSON.parse(await OopisOS_Kernel.syscall("explorer", "delete_node", [path, await this._getContext()]));
                     if (!result.success) alert(`Error: ${result.error}`);
                     await this._updateView(this.currentPath);
                 }
@@ -91,11 +92,10 @@ window.ExplorerManager = class ExplorerManager extends App {
 
     async _updateView(path) {
         if (!this.ui) return;
-        const { UserManager } = this.dependencies;
         this.currentPath = path;
-        const context = { name: UserManager.getCurrentUser().name };
+        const context = await this._getContext();
 
-        const result = JSON.parse(OopisOS_Kernel.syscall("explorer", "get_view_data", [path, context]));
+        const result = JSON.parse(await OopisOS_Kernel.syscall("explorer", "get_view_data", [path, context]));
 
         if (result.success) {
             const { treeData, mainPaneItems, expandedPaths } = result.data;

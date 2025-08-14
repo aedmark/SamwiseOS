@@ -15,14 +15,14 @@ window.EditorManager = class EditorManager extends App {
         this.dependencies = dependencies;
         this.callbacks = this._createCallbacks();
 
-        this._debouncedPushUndo = this.dependencies.Utils.debounce((content) => {
+        this._debouncedPushUndo = this.dependencies.Utils.debounce(async (content) => { // Make debounced function async
             if (!this.isActive) return;
-            const result = JSON.parse(OopisOS_Kernel.syscall("editor", "push_undo_state", [content]));
+            const result = JSON.parse(await OopisOS_Kernel.syscall("editor", "push_undo_state", [content]));
             this._updateStateFromPython(result);
         }, 500);
 
         const normalizedContent = (fileContent || "").replace(/\r\n|\r/g, "\n");
-        const loadResult = JSON.parse(OopisOS_Kernel.syscall("editor", "load_file", [filePath, normalizedContent]));
+        const loadResult = JSON.parse(await OopisOS_Kernel.syscall("editor", "load_file", [filePath, normalizedContent]));
 
         if (!loadResult.success) {
             const errorMessage = `Failed to initialize editor: ${loadResult.error}`;
@@ -69,7 +69,6 @@ window.EditorManager = class EditorManager extends App {
 
     _createCallbacks() {
         return {
-            // ... (rest of callbacks remain the same, they call the public methods below)
             onContentChange: (element) => {
                 const newContent = element.textContent || "";
                 this.state.currentContent = newContent;
@@ -96,14 +95,15 @@ window.EditorManager = class EditorManager extends App {
 
                 const currentContent = this.ui.elements.textarea.textContent || "";
                 const saveResult = await FileSystemManager.createOrUpdateFile(savePath, currentContent, {
-                        currentUser: UserManager.getCurrentUser().name,
-                        primaryGroup: UserManager.getPrimaryGroupForUser(UserManager.getCurrentUser().name),
+                        currentUser: (await UserManager.getCurrentUser()).name,
+                        primaryGroup: await UserManager.getPrimaryGroupForUser((await UserManager.getCurrentUser()).name),
                     }
                 );
 
                 if (saveResult.success) {
                     await FileSystemManager.save();
-                    const pyResult = JSON.parse(OopisOS_Kernel.syscall("editor", "update_on_save", [savePath, currentContent]));
+                    // [MODIFIED] Await the syscall
+                    const pyResult = JSON.parse(await OopisOS_Kernel.syscall("editor", "update_on_save", [savePath, currentContent]));
                     this.state.originalContent = currentContent;
                     this._updateStateFromPython(pyResult);
                     this._checkDirty();
@@ -121,12 +121,12 @@ window.EditorManager = class EditorManager extends App {
                 this.state.viewMode = modes[(modes.indexOf(this.state.viewMode) + 1) % modes.length];
                 this.ui.setViewMode(this.state.viewMode, this.state.fileMode, this.ui.elements.textarea.textContent || "");
             },
-            onUndo: () => {
-                const result = JSON.parse(OopisOS_Kernel.syscall("editor", "undo"));
+            onUndo: async () => {
+                const result = JSON.parse(await OopisOS_Kernel.syscall("editor", "undo"));
                 this._updateStateFromPython(result);
             },
-            onRedo: () => {
-                const result = JSON.parse(OopisOS_Kernel.syscall("editor", "redo"));
+            onRedo: async () => {
+                const result = JSON.parse(await OopisOS_Kernel.syscall("editor", "redo"));
                 this._updateStateFromPython(result);
             },
             onWordWrapToggle: () => {
@@ -137,7 +137,6 @@ window.EditorManager = class EditorManager extends App {
             },
         };
     }
-    // ... (rest of the file remains the same)
     _checkDirty() {
         const newContent = this.ui.elements.textarea.textContent || "";
         this.state.isDirty = newContent !== this.state.originalContent;

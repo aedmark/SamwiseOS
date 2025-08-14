@@ -103,7 +103,7 @@ function initializeTerminalEventListeners(domElements, commandExecutor, dependen
                 break;
             case "ArrowUp":
                 e.preventDefault();
-                const prevCmd = HistoryManager.getPrevious();
+                const prevCmd = await HistoryManager.getPrevious();
                 if (prevCmd !== null) {
                     TerminalUI.setIsNavigatingHistory(true);
                     TerminalUI.setCurrentInputValue(prevCmd, true);
@@ -111,7 +111,7 @@ function initializeTerminalEventListeners(domElements, commandExecutor, dependen
                 break;
             case "ArrowDown":
                 e.preventDefault();
-                const nextCmd = HistoryManager.getNext();
+                const nextCmd = await HistoryManager.getNext();
                 if (nextCmd !== null) {
                     TerminalUI.setIsNavigatingHistory(true);
                     TerminalUI.setCurrentInputValue(nextCmd, true);
@@ -308,30 +308,30 @@ window.onload = async () => {
         if (OopisOS_Kernel.isReady) {
             if (fsJsonFromStorage) {
                 const fsJsonString = JSON.stringify(fsJsonFromStorage);
-                OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [fsJsonString]);
-                fsManager.setFsData(fsJsonFromStorage);
+                await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [fsJsonString]);
+                await fsManager.setFsData(fsJsonFromStorage);
             } else {
                 await outputManager.appendToOutput(
                     "No file system found. Initializing new one.",
                     { typeClass: configManager.CSS_CLASSES.CONSOLE_LOG_MSG }
                 );
                 await fsManager.initialize(configManager.USER.DEFAULT_NAME);
-                const initialFsData = fsManager.getFsData();
+                const initialFsData = await fsManager.getFsData();
                 const initialFsJsonString = JSON.stringify(initialFsData);
-                // Use the new, unified syscall here as well!
-                OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [initialFsJsonString]);
+                await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [initialFsJsonString]);
                 await storageHAL.save(initialFsData);
             }
         } else {
+            // This is a fallback, but the async bridge makes the above path the primary one.
             await fsManager.load();
         }
 
         await userManager.initializeDefaultUsers();
         await groupManager.initialize();
 
-        environmentManager.initialize();
-        aliasManager.initialize();
-        sessionManager.initializeStack();
+        await environmentManager.initialize();
+        await aliasManager.initialize();
+        await sessionManager.initializeStack();
 
         await configManager.loadPackageManifest();
 

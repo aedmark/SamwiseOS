@@ -4,7 +4,9 @@
  * @class TopManager
  * @extends App
  */
+
 window.TopManager = class TopManager extends App {
+
     /**
      * Constructs a new TopManager instance.
      */
@@ -89,11 +91,11 @@ window.TopManager = class TopManager extends App {
      * @private
      */
 
-    _updateProcessList() {
+    async _updateProcessList() {
         if (!OopisOS_Kernel || !OopisOS_Kernel.isReady) return;
 
         const jobs = this.dependencies.CommandExecutor.getActiveJobs();
-        const resultJson = OopisOS_Kernel.syscall("top", "get_process_list", [jobs]);
+        const resultJson = await OopisOS_Kernel.syscall("top", "get_process_list", [jobs]);
         const result = JSON.parse(resultJson);
 
         if (this.ui && result.success) {

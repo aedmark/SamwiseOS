@@ -38,7 +38,7 @@ window.AdventureManager = class AdventureManager extends App {
         this.isActive = true;
 
         const initialStateResult = JSON.parse(
-            OopisOS_Kernel.syscall("adventure", "initialize_state", [
+            await OopisOS_Kernel.syscall("adventure", "initialize_state", [
                 JSON.stringify(options.adventureData),
                 options.scriptingContext ? JSON.stringify(options.scriptingContext) : null
             ])
@@ -116,8 +116,8 @@ window.AdventureManager = class AdventureManager extends App {
      * @param {string} command - Player command
      */
 
-    processCommand(command) {
-        const result = JSON.parse(OopisOS_Kernel.syscall("adventure", "process_command", [command]));
+    async processCommand(command) {
+        const result = JSON.parse(await OopisOS_Kernel.syscall("adventure", "process_command", [command]));
         if (result.success) {
             this._applyUiUpdates(result.updates);
             if (result.gameOver) {

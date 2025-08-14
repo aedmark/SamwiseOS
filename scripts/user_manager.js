@@ -67,8 +67,8 @@ class UserManager {
         if (!formatValidation.isValid) return ErrorHandler.createError(formatValidation.error);
         if (await this.userExists(username)) return ErrorHandler.createError(`User '${username}' already exists.`);
 
-        this.groupManager.createGroup(username);
-        this.groupManager.addUserToGroup(username, username);
+        await this.groupManager.createGroup(username);
+        await this.groupManager.addUserToGroup(username, username);
 
         const registrationResultJson = await OopisOS_Kernel.syscall("users", "register_user", [username, password, username]);
         const registrationResult = JSON.parse(registrationResultJson);
@@ -199,7 +199,7 @@ class UserManager {
         }
 
         const commandName = commandStr.split(" ")[0];
-        const canRunResult = await OopisOS_Kernel.syscall("sudo", "can_user_run_command", [currentUserName, this.groupManager.getGroupsForUser(currentUserName), commandName]);
+        const canRunResult = await OopisOS_Kernel.syscall("sudo", "can_user_run_command", [currentUserName, await this.groupManager.getGroupsForUser(currentUserName), commandName]);
         const canRun = JSON.parse(canRunResult).data;
         if (!canRun) {
             return ErrorHandler.createError(`sudo: user ${currentUserName} is not allowed to execute '${commandStr}' as root.`);

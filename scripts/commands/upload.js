@@ -100,22 +100,23 @@ window.UploadCommand = class UploadCommand extends Command {
 
                 try {
                     const filesForPython = await Promise.all(fileDataPromises);
-                    const user = UserManager.getCurrentUser();
-                    const primaryGroup = UserManager.getPrimaryGroupForUser(user.name);
+                    const user = await UserManager.getCurrentUser();
+                    const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
                     const userContext = { name: user.name, group: primaryGroup };
 
-                    const kernelContextJson = CommandExecutor.createKernelContext();
+                    const kernelContextJson = await CommandExecutor.createKernelContext();
 
-                    const resultJson = OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
+                    const resultJson = await OopisOS_Kernel.syscall("executor", "run_command_by_name", [], {
                         command_name: '_upload_handler',
                         args: [],
                         flags: {},
                         user_context: userContext,
                         stdin_data: null,
                         kwargs: { files: filesForPython },
-                        js_context_json: kernelContextJson
+                        js_context_json: kernelContextJson // Pass the full context
                     });
 
+                    // Now we can safely parse the JSON.
                     const pyResult = JSON.parse(resultJson);
 
                     if (pyResult.success) {

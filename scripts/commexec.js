@@ -107,7 +107,7 @@ class CommandExecutor {
 
     async executeScript(lines, options = {}) {
         const { ErrorHandler, EnvironmentManager, Config } = this.dependencies;
-        EnvironmentManager.push();
+        await EnvironmentManager.push();
 
         const commandObjects = lines.map(line =>
             (typeof line === 'object' && line.command) ? line : { command: String(line) }
@@ -153,7 +153,7 @@ class CommandExecutor {
                 }
             }
         } finally {
-            EnvironmentManager.pop();
+            await EnvironmentManager.pop();
         }
         return ErrorHandler.createSuccess("Script finished successfully.");
     }
@@ -190,7 +190,7 @@ class CommandExecutor {
             const varName = assignmentMatch[1]; const subCommand = assignmentMatch[2];
             const result = await this.processSingleCommand(subCommand, { isInteractive: false, suppressOutput: true });
             const output = result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
-            EnvironmentManager.set(varName, output); return "";
+            await EnvironmentManager.set(varName, output); return "";
         }
         const commandSubstitutionRegex = /\$\(([^)]+)\)/g;
         let inlineMatch;
@@ -215,7 +215,7 @@ class CommandExecutor {
             scriptArgs.forEach((arg, i) => { const regex = new RegExp(`\\$${i + 1}`, "g"); commandToProcess = commandToProcess.replace(regex, arg); });
         }
         commandToProcess = commandToProcess.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/g, (match, var1, var2) => { const varName = var1 || var2; return EnvironmentManager.get(varName); });
-        const aliasResult = AliasManager.resolveAlias(commandToProcess);
+        const aliasResult = await AliasManager.resolveAlias(commandToProcess);
         if (aliasResult.error) { throw new Error(aliasResult.error); }
         return aliasResult.newCommand;
     }
@@ -226,34 +226,34 @@ class CommandExecutor {
         await TerminalUI.updatePrompt();
         if (!AppLayerManager.isActive()) { TerminalUI.showInputLine(); TerminalUI.setInputState(true); TerminalUI.focusInput(); }
         TerminalUI.scrollOutputToEnd();
-        if (!TerminalUI.getIsNavigatingHistory() && originalCommandText.trim()) { HistoryManager.resetIndex(); }
+        if (!TerminalUI.getIsNavigatingHistory() && originalCommandText.trim()) { await HistoryManager.resetIndex(); }
         TerminalUI.setIsNavigatingHistory(false);
     }
 
-    createKernelContext() {
+    async createKernelContext() {
         const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager } = this.dependencies;
-        const user = UserManager.getCurrentUser();
+        const user = await UserManager.getCurrentUser();
         const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
         const allUsernames = Object.keys(allUsers);
         const userGroupsMap = {};
         for (const username of allUsernames) {
-            userGroupsMap[username] = GroupManager.getGroupsForUser(username);
+            userGroupsMap[username] = await GroupManager.getGroupsForUser(username);
         }
         if (!userGroupsMap['Guest']) {
-            userGroupsMap['Guest'] = GroupManager.getGroupsForUser('Guest');
+            userGroupsMap['Guest'] = await GroupManager.getGroupsForUser('Guest');
         }
         const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
         return JSON.stringify({
             current_path: FileSystemManager.getCurrentPath(),
-            user_context: { name: user.name, group: UserManager.getPrimaryGroupForUser(user.name) },
+            user_context: { name: user.name, group: await UserManager.getPrimaryGroupForUser(user.name) },
             users: allUsers,
             user_groups: userGroupsMap,
-            groups: GroupManager.getAllGroups(),
+            groups: await GroupManager.getAllGroups(),
             jobs: this.activeJobs,
             config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
             api_key: apiKey,
             session_start_time: window.sessionStartTime.toISOString(),
-            session_stack: SessionManager.getStack()
+            session_stack: await SessionManager.getStack()
         });
     }
 
@@ -282,7 +282,7 @@ class CommandExecutor {
             if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
             return ErrorHandler.createSuccess("");
         }
-        if (isInteractive) HistoryManager.add(cmdToEcho);
+        if (isInteractive) await HistoryManager.add(cmdToEcho);
 
         let finalResult;
         try {
@@ -317,11 +317,12 @@ class CommandExecutor {
                     this.backgroundProcessIdCounter++;
                     const jobId = this.backgroundProcessIdCounter;
                     const abortController = new AbortController();
+                    const currentUser = await this.dependencies.UserManager.getCurrentUser();
                     this.activeJobs[jobId] = {
                         command: commandToExecute.replace('&', '').trim(),
                         status: 'running',
                         abortController: abortController,
-                        user: this.dependencies.UserManager.getCurrentUser().name,
+                        user: currentUser.name,
                     };
                     this.processSingleCommand(commandToExecute.replace('&', '').trim(), { ...options, isBackground: false, suppressOutput: true, signal: abortController.signal, stdinContent: stdinContentForPipeline })
                         .finally(() => {
@@ -331,20 +332,10 @@ class CommandExecutor {
                     break;
                 }
 
-                const kernelContextJson = this.createKernelContext();
-                let resultOrPromise = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
-
-                // --- ASYNC HANDLING ---
-                // Check if the result is a Promise (or thenable), which Pyodide returns for async functions.
-                let result;
-                if (typeof resultOrPromise.then === 'function') {
-                    // It's a promise, so we must await it!
-                    const jsonResult = await resultOrPromise;
-                    result = JSON.parse(jsonResult);
-                } else {
-                    // It's a regular synchronous result.
-                    result = JSON.parse(resultOrPromise);
-                }
+                const kernelContextJson = await this.createKernelContext();
+                // [MODIFIED] Await the result from the now-async execute_command
+                const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
+                const result = JSON.parse(jsonResult);
 
 
                 if (result.success) {
@@ -400,17 +391,17 @@ class CommandExecutor {
                 await new Promise(resolve => setTimeout(resolve, result.milliseconds));
                 break;
             case 'sync_group_state':
-                this.dependencies.GroupManager.syncAndSave(result.groups);
+                await this.dependencies.GroupManager.syncAndSave(result.groups);
                 break;
             case 'sync_user_state':
-                this.dependencies.UserManager.syncAndSave(result.users);
+                await this.dependencies.UserManager.syncAndSave(result.users);
                 break;
             case 'sync_user_and_group_state':
-                this.dependencies.UserManager.syncAndSave(result.users);
-                this.dependencies.GroupManager.syncAndSave(result.groups);
+                await this.dependencies.UserManager.syncAndSave(result.users);
+                await this.dependencies.GroupManager.syncAndSave(result.groups);
                 break;
             case 'sync_session_state':
-                this.dependencies.SessionManager.syncAndSave(result);
+                await this.dependencies.SessionManager.syncAndSave(result);
                 break;
             case 'play_sound':
                 if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
@@ -433,8 +424,8 @@ class CommandExecutor {
             case 'netcat_send':
                 await NetworkManager.sendMessage(result.targetId, 'direct_message', result.message);
                 break;
-            case 'change_directory': FileSystemManager.setCurrentPath(result.path); TerminalUI.updatePrompt(); break;
-            case 'clear_screen': OutputManager.clearOutput(); break;
+            case 'change_directory': await FileSystemManager.setCurrentPath(result.path); await TerminalUI.updatePrompt(); break;
+            case 'clear_screen': await OutputManager.clearOutput(); break;
             case 'beep': SoundManager.beep(); break;
             case 'reboot': await OutputManager.appendToOutput("Rebooting..."); setTimeout(() => window.location.reload(), 1000); break;
             case 'full_reset': await SessionManager.performFullReset(); break;
@@ -516,7 +507,7 @@ class CommandExecutor {
 
                 try {
                     const filesForPython = await Promise.all(fileDataPromises);
-                    const user = UserManager.getCurrentUser();
+                    const user = await UserManager.getCurrentUser();
                     const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
                     const userContext = { name: user.name, group: primaryGroup };
 
@@ -578,7 +569,7 @@ class CommandExecutor {
                                 if (!confirmed) { resolve(ErrorHandler.createSuccess("Restore cancelled.")); return; }
 
                                 await OutputManager.appendToOutput("Restoring system... Please wait.");
-                                const restoreResult = JSON.parse(OopisOS_Kernel.kernel.restore_system_state(JSON.stringify(backupData)));
+                                const restoreResult = JSON.parse(await OopisOS_Kernel.kernel.restore_system_state(JSON.stringify(backupData)));
 
                                 if (restoreResult.success) {
                                     resolve(ErrorHandler.createSuccess("System restored. Please 'reboot' for changes to take effect."));
@@ -625,7 +616,7 @@ class CommandExecutor {
                 const saveResult = await FileSystemManager.createOrUpdateFile(
                     result.path,
                     screenText,
-                    { currentUser: UserManager.getCurrentUser().name, primaryGroup: UserManager.getPrimaryGroupForUser(UserManager.getCurrentUser().name) }
+                    { currentUser: (await UserManager.getCurrentUser()).name, primaryGroup: await UserManager.getPrimaryGroupForUser((await UserManager.getCurrentUser()).name) }
                 );
                 if (saveResult.success) {
                     await FileSystemManager.save();

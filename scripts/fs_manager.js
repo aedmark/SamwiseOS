@@ -43,7 +43,7 @@ class FileSystemManager {
 
     async _createKernelContext() {
         const { UserManager } = this.dependencies;
-        const user = await UserManager.getCurrentUser(); // Must await this now!
+        const user = await UserManager.getCurrentUser();
         const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
         return { name: user.name, group: primaryGroup };
     }
