@@ -198,39 +198,50 @@ class CommandExecutor {
     }
 
     async _preprocessCommandString(rawCommandText, scriptingContext = null, options = {}) {
-        const { EnvironmentManager, AliasManager } = this.dependencies;
+        const { EnvironmentManager, AliasManager, ErrorHandler } = this.dependencies;
         let commandToProcess = rawCommandText.trim();
         commandToProcess = this._expandBraces(commandToProcess);
 
-        // --- Asynchronous Command Substitution ---
+        // --- CORRECTED LOGIC ORDER ---
+        // Step 1: Handle direct assignment from command substitution first.
+        const assignmentSubstitutionRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=\$\(([^)]+)\)$/;
+        const assignmentMatch = commandToProcess.match(assignmentSubstitutionRegex);
+
+        if (assignmentMatch) {
+            const varName = assignmentMatch[1];
+            const subCommand = assignmentMatch[2];
+            // Recursively process the command inside the substitution, passing the current context
+            const result = await this.processSingleCommand(subCommand, { isInteractive: false, suppressOutput: true, ...options });
+            if (!result.success) {
+                // If the subcommand fails, we should throw to halt script execution.
+                throw new Error(result.error?.message || result.error || `Command substitution failed for '${subCommand}'`);
+            }
+            const output = (result.output || '').trim().replace(/\n/g, ' ');
+            await EnvironmentManager.set(varName, output);
+            return ""; // Return an empty string, as the assignment is the entire operation.
+        }
+
+        // Step 2: Handle all other general command substitutions.
         const commandSubstitutionRegex = /\$\(([^)]+)\)/g;
         let commandSubstitutions = [];
         let match;
+        // Important: Reset regex index before using it in a loop
+        commandSubstitutionRegex.lastIndex = 0;
         while ((match = commandSubstitutionRegex.exec(commandToProcess)) !== null) {
             commandSubstitutions.push(this.processSingleCommand(match[1], { isInteractive: false, suppressOutput: true, ...options }));
         }
+
         if (commandSubstitutions.length > 0) {
             const subResults = await Promise.all(commandSubstitutions);
+            // We need a replacer function to handle multiple substitutions correctly
+            let i = 0;
             commandToProcess = commandToProcess.replace(commandSubstitutionRegex, () => {
-                const result = subResults.shift();
+                const result = subResults[i++];
                 return result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
             });
         }
 
-        // --- Assignment Substitution (a special case of command substitution) ---
-        const assignmentSubstitutionRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=\$\(([^)]+)\)$/;
-        const assignmentMatch = commandToProcess.match(assignmentSubstitutionRegex);
-        if (assignmentMatch) {
-            // This is already handled by the general command substitution,
-            // we just need to perform the assignment and return an empty command.
-            const varName = assignmentMatch[1];
-            const subCommand = assignmentMatch[2]; // Re-evaluate the inner part as it was already replaced
-            const result = await this.processSingleCommand(subCommand, { isInteractive: false, suppressOutput: true });
-            const output = result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
-            await EnvironmentManager.set(varName, output);
-            return ""; // Return empty string as the assignment is complete.
-        }
-
+        // Step 3: Continue with the rest of the preprocessing as before.
         // --- Comment Stripping ---
         let inQuote = null; let commentIndex = -1;
         for (let i = 0; i < commandToProcess.length; i++) {

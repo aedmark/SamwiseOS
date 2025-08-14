@@ -731,6 +731,7 @@ delay 200
 
 echo "--- Test: Starting a long-running background job ---"
 delay 30000 &
+delay 500
 # Use ps and grep to get the job ID programmatically
 JOB_ID=$(ps | grep "delay" | awk '{print $1}')
 echo "Started background job with PID: $JOB_ID"
