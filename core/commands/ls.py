@@ -35,7 +35,7 @@ def _format_long(path, name, node):
     owner = node.get('owner', 'root').ljust(8)
     group = node.get('group', 'root').ljust(8)
 
-    size_val = len(node.get('target', '')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
+    size_val = len(node.get('target', '').encode('utf-8')) if node.get('type') == 'symlink' else fs_manager.calculate_node_size(os.path.join(path, name))
     size = str(size_val).rjust(6)
 
     mtime_str = node.get('mtime', '')
