@@ -19,12 +19,14 @@ def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, 
     """Recursively copies a node."""
     now_iso = datetime.utcnow().isoformat() + "Z"
 
+    # Create a deep copy to avoid shared references, especially for children dict
     new_node = {k: v for k, v in source_node.items()}
 
     if not preserve:
         new_node['owner'] = user_context.get('name', 'guest')
         new_node['group'] = user_context.get('group', 'guest')
-        new_node['mode'] = 0o644 if new_node['type'] == 'file' else 0o755
+        # Preserve original mode if not otherwise specified
+        new_node['mode'] = source_node.get('mode', 0o644 if source_node['type'] == 'file' else 0o755)
 
     new_node['mtime'] = now_iso
 
@@ -48,8 +50,9 @@ def run(args, flags, user_context, **kwargs):
     confirmed_path = flags.get("confirmed")
 
     dest_node = fs_manager.get_node(dest_path_arg)
+    dest_is_dir = dest_node and dest_node.get('type') == 'directory'
 
-    if len(source_paths) > 1 and (not dest_node or dest_node.get('type') != 'directory'):
+    if len(source_paths) > 1 and not dest_is_dir:
         return {"success": False, "error": f"cp: target '{dest_path_arg}' is not a directory"}
 
     for source_path in source_paths:
@@ -60,16 +63,10 @@ def run(args, flags, user_context, **kwargs):
         if source_node.get('type') == 'directory' and not is_recursive:
             return {"success": False, "error": f"cp: -r not specified; omitting directory '{source_path}'"}
 
-        dest_parent_path = dest_path_arg if dest_node and dest_node.get('type') == 'directory' else os.path.dirname(dest_path_arg)
-        dest_parent_node = fs_manager.get_node(dest_parent_path)
+        # Determine the final destination path correctly
+        final_dest_path = os.path.join(dest_path_arg, os.path.basename(source_path)) if dest_is_dir else dest_path_arg
 
-        if not dest_parent_node:
-            return {"success": False, "error": f"cp: cannot create regular file '{dest_path_arg}': No such file or directory"}
-
-        new_name = os.path.basename(source_path) if dest_node and dest_node.get('type') == 'directory' else os.path.basename(dest_path_arg)
-
-        final_dest_path = os.path.join(dest_parent_path, new_name)
-
+        # Check for overwrite at the *actual* final destination
         if is_interactive and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
             return {
                 "effect": "confirm",
@@ -77,7 +74,23 @@ def run(args, flags, user_context, **kwargs):
                 "on_confirm_command": f"cp {'-r ' if is_recursive else ''}{'-p ' if is_preserve else ''} --confirmed={shlex.quote(final_dest_path)} {shlex.quote(source_path)} {shlex.quote(dest_path_arg)}"
             }
 
-        _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, is_preserve)
+        try:
+            # Determine the parent directory for the final destination
+            if dest_is_dir:
+                dest_parent_node = dest_node
+                new_name = os.path.basename(source_path)
+            else:
+                dest_parent_path = os.path.dirname(final_dest_path)
+                dest_parent_node = fs_manager.get_node(dest_parent_path)
+                new_name = os.path.basename(final_dest_path)
+
+            if not dest_parent_node:
+                return {"success": False, "error": f"cp: cannot create regular file '{final_dest_path}': No such file or directory"}
+
+            # Perform the copy
+            _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, is_preserve)
+        except Exception as e:
+            return {"success": False, "error": f"cp: an unexpected error occurred: {repr(e)}"}
 
     fs_manager._save_state()
     return "" # Success
