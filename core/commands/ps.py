@@ -7,9 +7,11 @@ def run(args, flags, user_context, jobs=None, **kwargs):
     if not jobs:
         jobs = {}
 
-    output = ["  PID TTY          TIME CMD"]
+    output = ["  PID STAT TTY          TIME CMD"]
     for pid, job_details in jobs.items():
         pid_str = str(pid).rjust(5)
+        # R for running, T for stopped (paused)
+        status = 'T' if job_details.get('status') == 'paused' else 'R'
         tty_str = "tty1".ljust(12)
         time_str = "00:00:00".rjust(8)
         cmd_str = job_details.get("command", "")
@@ -17,7 +19,7 @@ def run(args, flags, user_context, jobs=None, **kwargs):
         if len(cmd_str) > 50:
             cmd_str = cmd_str[:47] + "..."
 
-        output.append(f"{pid_str} {tty_str}{time_str} {cmd_str}")
+        output.append(f"{pid_str} {status.ljust(4)} {tty_str}{time_str} {cmd_str}")
 
     return "\n".join(output)
 
@@ -31,7 +33,7 @@ SYNOPSIS
 
 DESCRIPTION
     ps displays information about a selection of the active processes,
-    including background jobs.
+    including background jobs and their current status (e.g., Running, Stopped).
 """
 
 def help(args, flags, user_context, **kwargs):

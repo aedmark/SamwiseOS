@@ -197,7 +197,7 @@ class CommandExecutor {
         return expandedString;
     }
 
-    async _preprocessCommandString(rawCommandText, scriptingContext = null) {
+    async _preprocessCommandString(rawCommandText, scriptingContext = null, options = {}) {
         const { EnvironmentManager, AliasManager } = this.dependencies;
         let commandToProcess = rawCommandText.trim();
         commandToProcess = this._expandBraces(commandToProcess);
@@ -207,7 +207,7 @@ class CommandExecutor {
         let commandSubstitutions = [];
         let match;
         while ((match = commandSubstitutionRegex.exec(commandToProcess)) !== null) {
-            commandSubstitutions.push(this.processSingleCommand(match[1], { isInteractive: false, suppressOutput: true }));
+            commandSubstitutions.push(this.processSingleCommand(match[1], { isInteractive: false, suppressOutput: true, ...options }));
         }
         if (commandSubstitutions.length > 0) {
             const subResults = await Promise.all(commandSubstitutions);
@@ -335,7 +335,7 @@ class CommandExecutor {
 
         let finalResult;
         try {
-            const commandToExecute = await this._preprocessCommandString(rawCommandText, scriptingContext);
+            const commandToExecute = await this._preprocessCommandString(rawCommandText, scriptingContext, options);
             if (!commandToExecute) {
                 if (isInteractive) await this._finalizeInteractiveModeUI(rawCommandText);
                 return ErrorHandler.createSuccess("");

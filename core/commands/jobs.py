@@ -12,13 +12,16 @@ def run(args, flags, user_context, jobs=None, **kwargs):
         return "" # No active jobs
 
     output_lines = []
-    for job_id, job_details in jobs.items():
-        status = job_details.get('status', 'running').ljust(8)
+    for job_id, job_details in sorted(jobs.items()):
+        status = job_details.get('status', 'running')
+        if status == 'paused':
+            status = 'Stopped'
+        else:
+            status = 'Running'
         command = job_details.get('command', '')
-        output_lines.append(f"[{job_id}]  {status}  {command}")
+        output_lines.append(f"[{job_id}]  {status.ljust(8)}  {command}")
 
-    return "\\n".join(output_lines)
-
+    return "\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -30,7 +33,7 @@ SYNOPSIS
 
 DESCRIPTION
     Lists the background jobs that were started from the current terminal,
-    along with their status and command.
+    along with their status (Running, Stopped) and command.
 """
 
 def help(args, flags, user_context, **kwargs):

@@ -431,46 +431,42 @@ class FileSystemManager:
 
     def validate_path(self, path, user_context, options_json):
         options = json.loads(options_json)
+        expected_type = options.get('expectedType')
+        permissions_to_check = options.get('permissions', [])
+        allow_missing = options.get('allowMissing', False)
         abs_path = self.get_absolute_path(path)
+        parts = [part for part in abs_path.split('/') if part]
+        current_node_for_traversal = self.fs_data.get('/')
+        current_path_for_traversal = '/'
+        for part in parts[:-1]:
+            if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
+                return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
+            if 'children' not in current_node_for_traversal or part not in current_node_for_traversal['children']:
+                return {"success": False, "error": "No such file or directory"}
+            current_node_for_traversal = current_node_for_traversal['children'][part]
+            current_path_for_traversal = os.path.join(current_path_for_traversal, part)
+            if current_node_for_traversal.get('type') != 'directory':
+                return {"success": False, "error": f"Not a directory: {current_path_for_traversal}"}
 
-        # 1. Traverse to the parent directory, checking permissions along the way.
-        parent_path = os.path.dirname(abs_path)
-        parent_node = self.fs_data.get('/')
-        if parent_path != '/':
-            parts = [part for part in parent_path.split('/') if part]
-            current_path_for_error = '/'
-            for part in parts:
-                if not self._check_permission(parent_node, user_context, 'execute'):
-                    return {"success": False, "error": f"Permission denied: {current_path_for_error}"}
-                if 'children' not in parent_node or part not in parent_node['children']:
-                    return {"success": False, "error": "No such file or directory"}
-                parent_node = parent_node['children'][part]
-                current_path_for_error = os.path.join(current_path_for_error, part)
-                if parent_node.get('type') != 'directory':
-                    return {"success": False, "error": f"Not a directory: {current_path_for_error}"}
+        if parts:
+            if not self._check_permission(current_node_for_traversal, user_context, 'execute'):
+                return {"success": False, "error": f"Permission denied: {current_path_for_traversal}"}
 
-        # 2. Get the final node and check its specific permissions.
-        final_name = os.path.basename(abs_path)
-        if abs_path == '/':
-            final_node = parent_node
-        elif final_name in parent_node.get('children', {}):
-            final_node = parent_node['children'][final_name]
-        else:
-            final_node = None
+        final_node = self.get_node(abs_path)
 
         if not final_node:
-            if options.get('allowMissing'):
-                if not self._check_permission(parent_node, user_context, 'write'):
-                    return {"success": False, "error": f"Permission denied to create in '{parent_path}'"}
+            if allow_missing:
+                if not self._check_permission(current_node_for_traversal, user_context, 'write'):
+                    return {"success": False, "error": f"Permission denied to create in '{current_path_for_traversal}'"}
                 return {"success": True, "node": None, "resolvedPath": abs_path}
             return {"success": False, "error": "No such file or directory"}
 
-        if options.get('expectedType') and final_node.get('type') != options.get('expectedType'):
-            if options.get('expectedType') == 'directory':
+        if expected_type and final_node.get('type') != expected_type:
+            if expected_type == 'directory' and final_node.get('type') == 'file':
                 return {"success": False, "error": "Not a directory"}
-            return {"success": False, "error": f"Is not a {options.get('expectedType')}"}
+            return {"success": False, "error": f"Is not a {expected_type}"}
 
-        for perm in options.get('permissions', []):
+        for perm in permissions_to_check:
             if not self._check_permission(final_node, user_context, perm):
                 return {"success": False, "error": "Permission denied"}
 

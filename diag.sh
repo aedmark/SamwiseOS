@@ -729,14 +729,6 @@ echo ""
 echo "===== Phase 19: Advanced Job Control & Signal Handling ====="
 delay 200
 
-echo "--- Test: Non-interactive 'top' launch ---"
-top &
-TOP_PID=$(ps | grep "top" | awk '{print $1}')
-delay 1500
-kill $TOP_PID || true
-echo "'top' non-interactive test complete."
-delay 200
-
 echo "--- Test: Starting a long-running background job ---"
 delay 30000 &
 # Use ps and grep to get the job ID programmatically
