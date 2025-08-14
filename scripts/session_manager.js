@@ -3,13 +3,13 @@
 class EnvironmentManager {
     constructor() { this.dependencies = {}; }
     setDependencies(userManager, fsManager, config) { this.dependencies = { userManager, fsManager, config }; }
-    push() { OopisOS_Kernel.syscall("env", "push"); }
-    pop() { OopisOS_Kernel.syscall("env", "pop"); }
-    initialize() {
+    async push() { await OopisOS_Kernel.syscall("env", "push"); }
+    async pop() { await OopisOS_Kernel.syscall("env", "pop"); }
+    async initialize() {
         const { userManager, config } = this.dependencies;
-        const currentUser = userManager.getCurrentUser().name;
-        const baseEnv = { "USER": currentUser, "HOME": `/home/${currentUser}`, "HOST": config.OS.DEFAULT_HOST_NAME, "PATH": "/bin:/usr/bin" };
-        this.load(baseEnv);
+        const currentUser = (await userManager.getCurrentUser()).name;
+        const baseEnv = { "USER": currentUser, "HOME": `/home/${currentUser}`, "HOST": config.OS.DEFAULT_HOST_NAME, "PATH": "/bin:/usr/bin", "PS1": "\\u@\\h:\\w\\$ " };
+        await this.load(baseEnv);
     }
     async get(varName) {
         const result = JSON.parse(await OopisOS_Kernel.syscall("env", "get", [varName]));
@@ -128,7 +128,7 @@ class SessionManager {
         }
         if (effectData.env) {
             await OopisOS_Kernel.syscall("env", "load", [effectData.env]);
-            await this.saveAutomaticState(await UserManager.getCurrentUser().name);
+            await this.saveAutomaticState((await UserManager.getCurrentUser()).name);
         }
     }
 
@@ -148,24 +148,24 @@ class SessionManager {
     async loadAutomaticState(username) {
         if (!username) { return { success: false, newStateCreated: false }; }
         const loadedState = this.storageManager.loadItem(this._getAutomaticSessionStateKey(username), `Auto session for ${username}`);
+        await OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify(loadedState || {})]);
         if (loadedState) {
             this.fsManager.setCurrentPath(loadedState.currentPath || this.config.FILESYSTEM.ROOT_PATH);
             if (this.elements.outputDiv) { this.elements.outputDiv.innerHTML = loadedState.outputHTML || ""; }
             this.terminalUI.setCurrentInputValue(loadedState.currentInput || "");
-            this.terminalUI.updatePrompt();
+            await this.terminalUI.updatePrompt();
             if (this.elements.outputDiv) this.elements.outputDiv.scrollTop = this.elements.outputDiv.scrollHeight;
             return { success: true, newStateCreated: false };
         } else {
             if (this.elements.outputDiv) this.elements.outputDiv.innerHTML = "";
             this.terminalUI.setCurrentInputValue("");
-            await OopisOS_Kernel.syscall("session", "load_session_state", [JSON.stringify({})]);
             const homePath = `/home/${username}`;
             this.fsManager.setCurrentPath(homePath);
             const currentNode = await this.fsManager.getNodeByPath(this.fsManager.getCurrentPath());
             if (!currentNode) {
                 this.fsManager.setCurrentPath(this.config.FILESYSTEM.ROOT_PATH);
             }
-            this.terminalUI.updatePrompt();
+            await this.terminalUI.updatePrompt();
             return { success: true, newStateCreated: true };
         }
     }

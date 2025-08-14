@@ -357,6 +357,7 @@ class UserManager {
         return ErrorHandler.createSuccess("", { shouldWelcome: false });
     }
 
+
     async logout() {
         const { ErrorHandler, AuditManager, SessionManager, EnvironmentManager, TerminalUI, FileSystemManager, Config } = this.dependencies;
         const oldUser = await this.getCurrentUser();

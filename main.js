@@ -339,8 +339,9 @@ window.onload = async () => {
 
         outputManager.clearOutput();
         if (sessionStatus.newStateCreated) {
+            const currentUser = await userManager.getCurrentUser();
             await outputManager.appendToOutput(
-                `${configManager.MESSAGES.WELCOME_PREFIX} ${await userManager.getCurrentUser().name}${configManager.MESSAGES.WELCOME_SUFFIX}`
+                `${configManager.MESSAGES.WELCOME_PREFIX} ${currentUser.name}${configManager.MESSAGES.WELCOME_SUFFIX}`
             );
         }
 

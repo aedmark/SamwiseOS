@@ -58,18 +58,18 @@ class TerminalUI {
     /**
      * Updates the command prompt display based on the current user, path, and PS1 environment variable.
      */
-    updatePrompt() {
+    async updatePrompt() {
         const { UserManager, FileSystemManager, EnvironmentManager, Config } = this.dependencies;
-        const user = UserManager.getCurrentUser() || {
+        const user = (await UserManager.getCurrentUser()) || {
             name: Config.USER.DEFAULT_NAME,
         };
-        const ps1 = EnvironmentManager.get("PS1");
+        const ps1 = await EnvironmentManager.get("PS1");
 
         if (!this.elements.promptContainer) return;
 
         if (ps1) {
             const host =
-                EnvironmentManager.get("HOST") || Config.OS.DEFAULT_HOST_NAME;
+                (await EnvironmentManager.get("HOST")) || Config.OS.DEFAULT_HOST_NAME;
             const path = FileSystemManager.getCurrentPath() || Config.FILESYSTEM.ROOT_PATH;
             const homeDir = `/home/${user.name}`;
             const displayPath = path.startsWith(homeDir)

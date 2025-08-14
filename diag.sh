@@ -308,7 +308,7 @@ run ./arg_test.sh first "second arg" third
 echo "--- Test: Background jobs (ps, kill) ---"
 delay 5000 &
 ps
-ps | grep delay | awk '{print $1}' | xargs kill
+ps | grep delay | awk '{print $1}' | xargs -I {} kill {}
 ps
 delay 400
 echo "---------------------------------------------------------------------"
@@ -339,7 +339,7 @@ su diagUser testpass
 cd /home/diagUser/diag_workspace
 rm -f file1.tmp file2.tmp file3.tmp
 touch file1.tmp file2.tmp file3.tmp
-ls -1 *.tmp | xargs rm
+ls -1 *.tmp | xargs -I {} rm {}
 check_fail "ls file1.tmp"
 echo "xargs deletion verified."
 delay 400

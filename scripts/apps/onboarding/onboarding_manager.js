@@ -99,11 +99,12 @@ window.OnboardingManager = class OnboardingManager extends App {
                         window.location.reload();
                     }, 3000);
                 } else {
-                    // This is the line we're fixing! It now correctly handles both
-                    // string and object errors from the kernel.
-                    this.state.error = `Setup failed: ${result.error.message || result.error || 'An unknown error occurred.'}`;
-                    this.state.step = 1; // Go back to the beginning on failure
-                    this.state.userData = { username: '', password: '', rootPassword: '' }; // Clear sensitive data
+                    const errorMessage = typeof result.error === 'object' && result.error.message
+                        ? result.error.message
+                        : result.error;
+                    this.state.error = `Setup failed: ${errorMessage || 'An unknown error occurred.'}`;
+                    this.state.step = 1;
+                    this.state.userData = { username: '', password: '', rootPassword: '' };
                     this.ui.update(this.state);
                     this.ui.hideSpinner();
                 }
