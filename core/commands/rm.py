@@ -44,7 +44,7 @@ def run(args, flags, user_context, **kwargs):
             output_messages.append(f"rm: cannot remove '{path}': Is a directory")
             continue
 
-        if is_interactive and not is_pre_confirmed and abs_path != confirmed_path:
+        if is_interactive and not is_force and not is_pre_confirmed and abs_path != confirmed_path:
             prompt_type = "directory" if node.get('type') == 'directory' else "regular file"
             return {
                 "effect": "confirm",

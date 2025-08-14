@@ -184,22 +184,37 @@ class CommandExecutor {
         const { EnvironmentManager, AliasManager } = this.dependencies;
         let commandToProcess = rawCommandText.trim();
         commandToProcess = this._expandBraces(commandToProcess);
+
+        // --- Asynchronous Command Substitution ---
+        const commandSubstitutionRegex = /\$\(([^)]+)\)/g;
+        let commandSubstitutions = [];
+        let match;
+        while ((match = commandSubstitutionRegex.exec(commandToProcess)) !== null) {
+            commandSubstitutions.push(this.processSingleCommand(match[1], { isInteractive: false, suppressOutput: true }));
+        }
+        if (commandSubstitutions.length > 0) {
+            const subResults = await Promise.all(commandSubstitutions);
+            commandToProcess = commandToProcess.replace(commandSubstitutionRegex, () => {
+                const result = subResults.shift();
+                return result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
+            });
+        }
+
+        // --- Assignment Substitution (a special case of command substitution) ---
         const assignmentSubstitutionRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=\$\(([^)]+)\)$/;
         const assignmentMatch = commandToProcess.match(assignmentSubstitutionRegex);
         if (assignmentMatch) {
-            const varName = assignmentMatch[1]; const subCommand = assignmentMatch[2];
+            // This is already handled by the general command substitution,
+            // we just need to perform the assignment and return an empty command.
+            const varName = assignmentMatch[1];
+            const subCommand = assignmentMatch[2]; // Re-evaluate the inner part as it was already replaced
             const result = await this.processSingleCommand(subCommand, { isInteractive: false, suppressOutput: true });
             const output = result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
-            await EnvironmentManager.set(varName, output); return "";
+            await EnvironmentManager.set(varName, output);
+            return ""; // Return empty string as the assignment is complete.
         }
-        const commandSubstitutionRegex = /\$\(([^)]+)\)/g;
-        let inlineMatch;
-        while ((inlineMatch = commandSubstitutionRegex.exec(commandToProcess)) !== null) {
-            const subCommand = inlineMatch[1];
-            const result = await this.processSingleCommand(subCommand, { isInteractive: false, suppressOutput: true });
-            const output = result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
-            commandToProcess = commandToProcess.replace(inlineMatch[0], output);
-        }
+
+        // --- Comment Stripping ---
         let inQuote = null; let commentIndex = -1;
         for (let i = 0; i < commandToProcess.length; i++) {
             const char = commandToProcess[i];
@@ -208,17 +223,34 @@ class CommandExecutor {
         }
         if (commentIndex > -1) { commandToProcess = commandToProcess.substring(0, commentIndex).trim(); }
         if (!commandToProcess) { return ""; }
+
+        // --- Script Argument Substitution ---
         if (scriptingContext && scriptingContext.args) {
             const scriptArgs = scriptingContext.args;
             commandToProcess = commandToProcess.replace(/\$@/g, scriptArgs.join(" "));
             commandToProcess = commandToProcess.replace(/\$#/g, scriptArgs.length);
             scriptArgs.forEach((arg, i) => { const regex = new RegExp(`\\$${i + 1}`, "g"); commandToProcess = commandToProcess.replace(regex, arg); });
         }
-        commandToProcess = commandToProcess.replace(/\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/g, (match, var1, var2) => { const varName = var1 || var2; return EnvironmentManager.get(varName); });
+
+        // --- Environment Variable Substitution ---
+        const varRegex = /\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/g;
+        let varMatches = [...commandToProcess.matchAll(varRegex)];
+        if (varMatches.length > 0) {
+            const varNames = varMatches.map(m => m[1] || m[2]);
+            const varValues = await Promise.all(varNames.map(name => EnvironmentManager.get(name)));
+            const valueMap = Object.fromEntries(varNames.map((name, i) => [name, varValues[i]]));
+            commandToProcess = commandToProcess.replace(varRegex, (match, var1, var2) => {
+                const varName = var1 || var2;
+                return valueMap[varName] || "";
+            });
+        }
+
+        // --- Alias Resolution ---
         const aliasResult = await AliasManager.resolveAlias(commandToProcess);
         if (aliasResult.error) { throw new Error(aliasResult.error); }
         return aliasResult.newCommand;
     }
+
 
     async _finalizeInteractiveModeUI(originalCommandText) {
         const { TerminalUI, AppLayerManager, HistoryManager } = this.dependencies;
