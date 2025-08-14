@@ -216,7 +216,6 @@ class ConfigManager {
                 "post_message",
                 "read_messages",
                 "tail",
-                "run",
                 "upload"
             ],
         };
