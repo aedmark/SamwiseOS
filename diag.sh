@@ -85,10 +85,6 @@ echo -e "apple\nbanana\napple\napple\norange\nbanana" > uniq_test.txt
 echo -e "id,value,status\n1,150,active\n2,80,inactive\n3,200,active" > awk_test.csv
 echo "Generating xargs assets..."
 delay 200
-echo "Finding assets..."
-touch find_test/a.txt find_test/b.tmp find_test/subdir/c.tmp
-chmod 777 find_test/a.txt
-delay 200
 echo "Zipping assets..."
 echo "file one content" > zip_test/file1.txt
 echo "nested file content" > zip_test/nested_dir/file2.txt
@@ -194,10 +190,8 @@ echo "Append by group member" >> group_test_file.txt
 cat group_test_file.txt
 logout
 delay 500
-# Guest doesn't have a password, so su should switch to Guest without fail. if you're
-# reading this, that means it's not working and we need to fix it!
 echo "Logging in as guest"
-su Guest password
+su Guest
 echo "--- Test: 'Other' permissions (should fail) ---"
 check_fail "echo 'Append by other user' >> /home/diagUser/diag_workspace/group_test_file.txt"
 delay 200
@@ -256,13 +250,13 @@ echo "Checking directory and permissions (should be drwxrwx--- ... harvest_festi
 ls -l /home/ | grep "project_harvest_festival"
 delay 400
 echo "--- Test: Member write access (should succeed) ---"
-logout
 su comm_user1 testpass
 echo "I solemnly swear to bring a pie." > /home/project_harvest_festival/plan.txt
 cat /home/project_harvest_festival/plan.txt
 delay 400
+logout
 echo "--- Test: Non-member access (should fail) ---"
-su Guest password
+su Guest
 check_fail "ls /home/project_harvest_festival"
 check_fail "cat /home/project_harvest_festival/plan.txt"
 delay 400
@@ -274,6 +268,7 @@ echo ""
 echo "===== Phase 6: Testing Sudo & Security Model ====="
 delay 200
 logout
+delay 200
 su sudouser testpass
 echo "Attempting first sudo command (password required)..."
 sudo echo "Sudo command successful."
@@ -282,11 +277,12 @@ delay 200
 echo "Attempting second sudo command (should not require password)..."
 sudo ls /home/root
 logout
-su Guest password
+delay 200
+su Guest
 check_fail "sudo ls /home/root"
-
 echo "--- Test: Granular sudo permissions ---"
 logout
+delay 200
 su sudouser2 testpass
 echo "Attempting allowed specific command (ls)..."
 sudo ls /home/root
@@ -295,16 +291,17 @@ delay 200
 echo "Attempting disallowed specific command (rm)..."
 check_fail "sudo rm -f /home/Guest/README.md"
 logout
+delay 200
 su diagUser testpass
 cd /home/diagUser/diag_workspace
 echo "Granular sudo test complete."
 delay 400
 echo "---------------------------------------------------------------------"
-
 echo ""
 echo "===== Phase 7: Testing Scripting & Process Management ====="
 delay 200
 logout
+delay 200
 cd /home/root
 echo "--- Test: Script argument passing ---"
 run ./arg_test.sh first "second arg" third
@@ -353,7 +350,6 @@ echo "===== Phase 9: Testing 'find' and Archival (zip/unzip) ====="
 delay 200
 echo "--- Test: find by name, type, and permissions ---"
 logout
-cd /
 mkdir -p find_test/subdir
 touch find_test/a.txt find_test/b.tmp find_test/subdir/c.tmp
 chmod 777 find_test/a.txt
@@ -1150,7 +1146,7 @@ echo "Appending to file as group member (should succeed)..."
 echo "appended" >> /home/diagUser/diag_workspace/group_test_file.txt
 cat /home/diagUser/diag_workspace/group_test_file.txt
 logout
-su Guest password
+su Guest
 echo "Appending to file as Guest (should fail)..."
 check_fail "echo 'appended by guest' >> /home/diagUser/diag_workspace/group_test_file.txt"
 echo "Group permissions test complete."
@@ -1339,7 +1335,7 @@ echo -e "testpass\ntestpass" | useradd plan_user2
 
 echo "Users created. Proceeding with tests..."
 delay 300
-su Guest password
+su Guest
 echo ""
 echo "--- Phase 2: 'planner create' Tests ---"
 echo "Attempting to create project as non-root (should fail)..."

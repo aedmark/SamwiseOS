@@ -331,8 +331,20 @@ class CommandExecutor {
                 }
 
                 const kernelContextJson = this.createKernelContext();
-                const resultJson = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
-                const result = JSON.parse(resultJson);
+                let resultOrPromise = OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
+
+                // --- ASYNC HANDLING ---
+                // Check if the result is a Promise (or thenable), which Pyodide returns for async functions.
+                let result;
+                if (typeof resultOrPromise.then === 'function') {
+                    // It's a promise, so we must await it!
+                    const jsonResult = await resultOrPromise;
+                    result = JSON.parse(jsonResult);
+                } else {
+                    // It's a regular synchronous result.
+                    result = JSON.parse(resultOrPromise);
+                }
+
 
                 if (result.success) {
                     if (result.effect) {
@@ -642,7 +654,7 @@ class CommandExecutor {
                 break;
             case 'execute_commands':
                 for (const cmd of result.commands) {
-                    await this.processSingleCommand(cmd, { isInteractive: false });
+                    await this.processSingleCommand(cmd, { ...options, isInteractive: false });
                 }
                 break;
             case 'execute_script':

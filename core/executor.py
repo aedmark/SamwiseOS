@@ -10,6 +10,7 @@ import inspect
 import os
 import re
 import fnmatch
+import asyncio # New import!
 
 class CommandExecutor:
     def __init__(self):
@@ -25,10 +26,19 @@ class CommandExecutor:
 
     def _discover_commands(self):
         """Dynamically finds all available command modules."""
-        command_dir = os.path.join(os.path.dirname(__file__), 'commands')
-        py_files = [f for f in os.listdir(command_dir) if f.endswith('.py') and not f.startswith('__')]
-        # Let's keep this list nice and sorted for our help command!
-        return sorted([os.path.splitext(f)[0] for f in py_files])
+        # This path needs to be adjusted if the script is run from a different context
+        try:
+            command_dir = '/core/commands'
+            py_files = [f for f in os.listdir(command_dir) if f.endswith('.py') and not f.startswith('_')]
+            return sorted([os.path.splitext(f)[0] for f in py_files])
+        except FileNotFoundError:
+            # Fallback for local testing if the Pyodide FS isn't set up
+            local_command_dir = os.path.join(os.path.dirname(__file__), 'commands')
+            if os.path.exists(local_command_dir):
+                py_files = [f for f in os.listdir(local_command_dir) if f.endswith('.py') and not f.startswith('_')]
+                return sorted([os.path.splitext(f)[0] for f in py_files])
+            return []
+
 
     def set_context(self, user_context, users, user_groups, config, groups, jobs, api_key, session_start_time, session_stack):
         """Sets the current user and system context from the JS side."""
@@ -317,20 +327,12 @@ class CommandExecutor:
 
     def run_command_by_name(self, command_name, args, flags, user_context, stdin_data, kwargs, js_context_json=None):
         """
-        Runs a command module directly by name. Now supports setting execution context.
+        Runs a command module directly by name. Now supports async commands.
         """
         if js_context_json:
             context = json.loads(js_context_json)
-            fs_manager.set_context(
-                current_path=context.get("current_path", "/"),
-                user_groups=context.get("user_groups")
-            )
-            self.set_context(
-                user_context=context.get("user_context"), users=context.get("users"),
-                user_groups=context.get("user_groups"), config=context.get("config"),
-                groups=context.get("groups"), jobs=context.get("jobs"), api_key=context.get("api_key"),
-                session_start_time=context.get("session_start_time"), session_stack=context.get("session_stack")
-            )
+            fs_manager.set_context(current_path=context.get("current_path", "/"), user_groups=context.get("user_groups"))
+            self.set_context(user_context=context.get("user_context"), users=context.get("users"), user_groups=context.get("user_groups"), config=context.get("config"), groups=context.get("groups"), jobs=context.get("jobs"), api_key=context.get("api_key"), session_start_time=context.get("session_start_time"), session_stack=context.get("session_stack"))
 
         if command_name not in self.commands:
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
@@ -340,20 +342,33 @@ class CommandExecutor:
             if not run_func:
                 return json.dumps({"success": False, "error": f"Command '{command_name}' is not runnable."})
 
-            possible_kwargs = {
-                "args": args, "flags": flags, "user_context": user_context, "stdin_data": stdin_data,
-                "users": self.users, "user_groups": self.user_groups, "config": self.config,
-                "groups": self.groups, "jobs": self.jobs, "ai_manager": self.ai_manager,
-                "api_key": self.api_key, "session_start_time": self.session_start_time,
-                "session_stack": self.session_stack,
-                "commands": self.commands,
-                **kwargs
-            }
+            # --- ASYNC COMMAND HANDLING ---
+            if inspect.iscoroutinefunction(run_func):
+                # If it's an async function, we need to run it in an event loop.
+                # Pyodide's `asyncio.ensure_future` is the way to do this.
+                async def async_wrapper():
+                    try:
+                        result = await run_func(args=args, flags=flags, user_context=user_context, stdin_data=stdin_data, **kwargs)
+                        if isinstance(result, dict):
+                            if 'success' not in result: result['success'] = True
+                            return json.dumps(result)
+                        else:
+                            return json.dumps({"success": True, "output": str(result)})
+                    except Exception as e:
+                        return json.dumps({"success": False, "error": f"Async execution error in '{command_name}': {repr(e)}"})
+
+                # This is a bit of a trick. We return a promise that the JS side can await.
+                # In Pyodide, `asyncio.ensure_future` returns a JS Promise.
+                return asyncio.ensure_future(async_wrapper())
+
+            # --- REGULAR (SYNC) COMMAND HANDLING ---
+            possible_kwargs = { "args": args, "flags": flags, "user_context": user_context, "stdin_data": stdin_data, "users": self.users, "user_groups": self.user_groups, "config": self.config, "groups": self.groups, "jobs": self.jobs, "ai_manager": self.ai_manager, "api_key": self.api_key, "session_start_time": self.session_start_time, "session_stack": self.session_stack, "commands": self.commands, **kwargs }
             sig = inspect.signature(run_func)
             params = sig.parameters
             has_varkw = any(p.kind == p.VAR_KEYWORD for p in params.values())
             kwargs_for_run = {k: v for k, v in possible_kwargs.items() if k in params} if not has_varkw else possible_kwargs
             result = run_func(**kwargs_for_run)
+
             if isinstance(result, dict):
                 if 'success' not in result: result['success'] = True
                 return json.dumps(result)
