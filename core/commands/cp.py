@@ -12,6 +12,7 @@ def define_flags():
         {'name': 'recursive', 'short': 'R', 'takes_value': False},
         {'name': 'preserve', 'short': 'p', 'long': 'preserve', 'takes_value': False},
         {'name': 'interactive', 'short': 'i', 'long': 'interactive', 'takes_value': False},
+        {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
         {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, "hidden": True},
     ]
 
@@ -44,6 +45,7 @@ def run(args, flags, user_context, **kwargs):
     is_recursive = flags.get('recursive', False)
     is_preserve = flags.get('preserve', False)
     is_interactive = flags.get('interactive', False)
+    is_force = flags.get('force', False)
     confirmed_path = flags.get("confirmed")
 
     dest_node = fs_manager.get_node(dest_path_arg)
@@ -62,15 +64,21 @@ def run(args, flags, user_context, **kwargs):
 
         final_dest_path = os.path.join(dest_path_arg, os.path.basename(source_path)) if dest_is_dir else dest_path_arg
 
-        if is_interactive and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
+        if is_interactive and not is_force and fs_manager.get_node(final_dest_path) and confirmed_path != final_dest_path:
             return {
                 "effect": "confirm",
                 "message": [f"cp: overwrite '{final_dest_path}'?"],
                 "on_confirm_command": f"cp {'-r ' if is_recursive else ''}{'-p ' if is_preserve else ''} --confirmed={shlex.quote(final_dest_path)} {shlex.quote(source_path)} {shlex.quote(dest_path_arg)}"
             }
 
+        if is_force and fs_manager.get_node(final_dest_path):
+            try:
+                fs_manager.remove(final_dest_path, recursive=True)
+            except Exception as e:
+                return {"success": False, "error": f"cp: failed to remove existing destination: {repr(e)}"}
+
+
         try:
-            # Simplified destination logic
             if dest_is_dir:
                 dest_parent_node = dest_node
                 new_name = os.path.basename(source_path)
@@ -82,13 +90,12 @@ def run(args, flags, user_context, **kwargs):
             if not dest_parent_node or dest_parent_node.get('type') != 'directory':
                 return {"success": False, "error": f"cp: cannot copy to '{dest_path_arg}': Not a directory"}
 
-            # The actual copy operation
             _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, is_preserve)
         except Exception as e:
             return {"success": False, "error": f"cp: an unexpected error occurred: {repr(e)}"}
 
     fs_manager._save_state()
-    return "" # Success
+    return ""
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -101,6 +108,8 @@ SYNOPSIS
 DESCRIPTION
     Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
 
+    -f, --force
+            if destination file cannot be opened, remove it and try again
     -i, --interactive
            prompt before overwrite
     -p, --preserve

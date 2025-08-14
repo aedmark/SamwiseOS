@@ -1,4 +1,4 @@
-// scripts/lexpar.js
+// gem/scripts/lexpar.js
 
 /**
  * A simple Enum for the different types of tokens the Lexer can produce.

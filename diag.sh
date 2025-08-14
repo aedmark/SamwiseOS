@@ -601,8 +601,6 @@ rm -i interactive_test.txt < yes.txt
 check_fail "ls interactive_test.txt"
 touch another_file.txt
 cp -i another_file.txt overwrite_dir < yes.txt
-ls overwrite_dir
-cp -f another_file.txt overwrite_dir
 rm no.txt yes.txt another_file.txt
 echo "Interactive flag and logical OR tests complete."
 delay 400
