@@ -106,7 +106,7 @@ class CommandExecutor {
     }
 
     async executeScript(lines, options = {}) {
-        const { ErrorHandler, EnvironmentManager, Config } = this.dependencies;
+        const { ErrorHandler, EnvironmentManager, Config, FileSystemManager } = this.dependencies;
         await EnvironmentManager.push();
 
         const commandObjects = lines.map(line =>
@@ -131,15 +131,32 @@ class CommandExecutor {
                 }
                 scriptingContext.currentLineIndex = i;
                 const commandObj = commandObjects[i];
-                const line = commandObj.command.trim();
+                let line = commandObj.command.trim();
+                let stdinForCommand = commandObj.password_pipe ? commandObj.password_pipe.join('\n') : null;
+
+                // We will now parse for input redirection within the script line itself.
+                const redirMatch = line.match(/< \s*(\S+)/);
+                if (redirMatch) {
+                    const filePath = redirMatch[1];
+                    // Remove the redirection part from the command string
+                    line = line.substring(0, redirMatch.index).trim();
+
+                    // Validate and read the file content
+                    const validationResult = await FileSystemManager.validatePath(
+                        filePath,
+                        { expectedType: 'file', permissions: ['read'] }
+                    );
+
+                    if (validationResult.success) {
+                        stdinForCommand = validationResult.data.node.content;
+                    } else {
+                        throw new Error(`Error on line ${i + 1}: redirection error: ${validationResult.error}`);
+                    }
+                }
 
                 if (!line || line.startsWith("#")) {
                     continue;
                 }
-
-                const stdinForCommand = commandObj.password_pipe
-                    ? commandObj.password_pipe.join('\n')
-                    : null;
 
                 const result = await this.processSingleCommand(line, {
                     ...options,
