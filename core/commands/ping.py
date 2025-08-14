@@ -1,8 +1,11 @@
-# gem/core/commands/ping.py
+# /core/commands/ping.py
 
 import time
 import urllib.request
 import random
+import asyncio
+from pyodide.http import pyfetch
+import os
 
 def define_flags():
     """Declares the flags that the ping command accepts."""
@@ -10,7 +13,7 @@ def define_flags():
         {'name': 'count', 'short': 'c', 'long': 'count', 'takes_value': True},
     ]
 
-def run(args, flags, user_context, **kwargs):
+async def run(args, flags, user_context, **kwargs):
     if not args:
         return {"success": False, "error": "ping: usage error: Destination address required"}
 
@@ -32,30 +35,39 @@ def run(args, flags, user_context, **kwargs):
     for i in range(count):
         packets_sent += 1
         try:
-            req = urllib.request.Request(url_to_ping, method='HEAD', headers={'User-Agent': 'SamwiseOS/1.0'})
+            # Use pyfetch for async network request
             start_time = time.time()
-            with urllib.request.urlopen(req, timeout=5) as response:
-                end_time = time.time()
+            response = await pyfetch(url_to_ping, method='HEAD', headers={'User-Agent': 'SamwiseOS/1.0'})
+            end_time = time.time()
+
+            if not response.ok:
+                # If we get a bad status, that's a failure for this ping attempt
+                output.append(f"Request failed for icmp_seq {i+1}: Status {response.status}")
+            else:
                 rtt = (end_time - start_time) * 1000
                 rtt_times.append(rtt)
                 packets_received += 1
                 ttl = random.randint(50, 64)
                 output.append(f"64 bytes from {host}: icmp_seq={i+1} ttl={ttl} time={rtt:.3f} ms")
+
         except Exception as e:
-            output.append(f"Request timeout for icmp_seq {i+1}")
+            #  If pyfetch fails (e.g., DNS error), we fail the whole command.
+            return {"success": False, "error": f"ping: cannot resolve {host}: Unknown host"}
+
         if i < count - 1:
-            time.sleep(1)
+            await asyncio.sleep(1)
 
     packet_loss = ((packets_sent - packets_received) / packets_sent) * 100 if packets_sent > 0 else 0
-    stats = f"\\n--- {host} ping statistics ---\\n"
+    stats = f"\n--- {host} ping statistics ---\n"
     stats += f"{packets_sent} packets transmitted, {packets_received} received, {packet_loss:.1f}% packet loss"
     if rtt_times:
         min_rtt, avg_rtt, max_rtt = min(rtt_times), sum(rtt_times) / len(rtt_times), max(rtt_times)
-        stats += f"\\nround-trip min/avg/max = {min_rtt:.3f}/{avg_rtt:.3f}/{max_rtt:.3f} ms"
+        stats += f"\nround-trip min/avg/max = {min_rtt:.3f}/{avg_rtt:.3f}/{max_rtt:.3f} ms"
     output.append(stats)
 
-    # Ping should "succeed" even if packets are lost, unless the host is unresolvable at the start.
-    return "\\n".join(output)
+    # The command "succeeds" if it completes, even with 100% packet loss,
+    # but it "fails" if the host can't be resolved at all.
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """

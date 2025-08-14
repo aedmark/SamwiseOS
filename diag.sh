@@ -532,7 +532,7 @@ curl https://raw.githubusercontent.com/aedmark/Oopis-OS/master/README.md > oopis
 cat oopis_curl.txt
 rm oopis_curl.txt
 echo "--- Test: ping - Pinging a known-good host ---"
-ping raw.githubusercontent.com
+ping http://www.google.com
 delay 400
 echo "--- Test: ping - Pinging a non-existent host (should fail gracefully) ---"
 check_fail "ping a-domain-that-does-not-exist-and-never-will.invalid"
