@@ -131,6 +131,46 @@ class UserManager:
         self.users[username]['passwordData'] = new_password_data
         return True
 
+    def remove_user(self, username):
+        """Removes a user account."""
+        if self.user_exists(username):
+            del self.users[username]
+            return True
+        return False
+
+    def delete_user_and_data(self, username, remove_home):
+        """
+        Securely deletes a user, removes them from all groups,
+        and optionally deletes their home directory. This is the new
+        centralized function for user removal.
+        """
+        if not self.user_exists(username):
+            return {"success": False, "error": f"User '{username}' does not exist."}
+        if username == 'root':
+            return {"success": False, "error": "Cannot remove the root user."}
+
+        try:
+            # Remove from all groups
+            group_manager.remove_user_from_all_groups(username)
+
+            # Remove home directory if requested
+            if remove_home:
+                home_path = f"/home/{username}"
+                if fs_manager.get_node(home_path):
+                    fs_manager.remove(home_path, recursive=True)
+
+            # Finally, remove the user account itself
+            self.remove_user(username)
+
+            # Important: Save the state of the filesystem after potential deletion
+            fs_manager._save_state()
+
+            return {"success": True}
+        except Exception as e:
+            # In a real system, we'd have a transaction to roll back group/file changes
+            # if the final user deletion failed. For now, we report the error.
+            return {"success": False, "error": f"An error occurred during deletion: {str(e)}"}
+
     def first_time_setup(self, username, password, root_password):
         """
         Performs the initial system setup in a transactional manner.

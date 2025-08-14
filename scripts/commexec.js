@@ -124,8 +124,9 @@ class CommandExecutor {
         const MAX_STEPS = Config.FILESYSTEM.MAX_SCRIPT_STEPS || 10000;
 
         try {
-            let i = 0;
-            while (i < commandObjects.length) {
+            // We are removing the old 'while' loop and the manual 'i' counter.
+            // We now loop directly over the commandObjects prepared by Python.
+            for (let i = 0; i < commandObjects.length; i++) {
                 stepCounter++;
                 if (stepCounter > MAX_STEPS) {
                     throw new Error(`Maximum script execution steps (${MAX_STEPS}) exceeded.`);
@@ -135,34 +136,14 @@ class CommandExecutor {
                 const line = commandObj.command.trim();
 
                 if (!line || line.startsWith("#")) {
-                    i++;
-                    continue;
+                    continue; // Simply skip comments and empty lines.
                 }
 
-                let stdinForCommand = null;
-                let linesToAdvance = 1;
-
-                // THE FIX: We now handle BOTH password systems!
-                if (commandObj.password_pipe) {
-                    // System 1: The "lunchbox" from run.py (for sudo, etc.)
-                    stdinForCommand = commandObj.password_pipe.join('\\n');
-                } else if (line.startsWith("useradd ") || line.startsWith("passwd")) {
-                    // System 2: The original lookahead logic for useradd/passwd
-                    const linesNeeded = line.startsWith("useradd ") ? 2 : 1;
-                    const passwordLines = [];
-                    let lookaheadIndex = i + 1;
-                    while (lookaheadIndex < commandObjects.length && passwordLines.length < linesNeeded) {
-                        const nextLine = commandObjects[lookaheadIndex].command.trim();
-                        if (nextLine && !nextLine.startsWith('#')) {
-                            passwordLines.push(nextLine);
-                        }
-                        lookaheadIndex++;
-                    }
-                    if (passwordLines.length === linesNeeded) {
-                        stdinForCommand = passwordLines.join('\\n');
-                        linesToAdvance += passwordLines.length;
-                    }
-                }
+                // This is the streamlined logic. We only check for the 'password_pipe'
+                // provided by Python. The old JS-based lookahead is gone!
+                const stdinForCommand = commandObj.password_pipe
+                    ? commandObj.password_pipe.join('\\n')
+                    : null;
 
                 const result = await this.processSingleCommand(line, {
                     ...options,
@@ -170,11 +151,9 @@ class CommandExecutor {
                     stdinContent: stdinForCommand
                 });
 
-                i += linesToAdvance; // Correctly advance the counter
-
                 if (!result.success) {
-                    const errorMessage = result.error.message || 'Unknown script error';
-                    throw new Error(`Error on line ${i}: ${errorMessage}`);
+                    const errorMessage = result.error.message || result.error || 'Unknown script error';
+                    throw new Error(`Error on line ${i + 1}: ${errorMessage}`);
                 }
             }
         } finally {

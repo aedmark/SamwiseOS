@@ -3,10 +3,6 @@
 from filesystem import fs_manager
 
 def run(args, flags, user_context, **kwargs):
-    """
-    Reads a script file and passes its lines to the executor to be run.
-    Now with password piping awareness for both sudo and useradd!
-    """
     if not args:
         return {"success": False, "error": "run: missing file operand"}
 
@@ -31,11 +27,13 @@ def run(args, flags, user_context, **kwargs):
     while i < len(lines):
         line = lines[i]
         stripped_line = line.strip()
-        command_obj = {"command": line}
+
+        # We will handle appending to the list inside each logic block now,
+        # instead of having a single append at the end. This makes the flow clearer.
 
         if not stripped_line or stripped_line.startswith('#'):
+            commands_to_execute.append({"command": line})
             i += 1
-            commands_to_execute.append(command_obj)
             continue
 
         password_lines_needed = 0
@@ -46,24 +44,28 @@ def run(args, flags, user_context, **kwargs):
 
         if password_lines_needed > 0:
             password_pipe = []
-            lines_to_skip = 0
+            lines_to_inspect = []
             lookahead_index = i + 1
             while lookahead_index < len(lines) and len(password_pipe) < password_lines_needed:
-                next_line = lines[lookahead_index].strip()
-                lines_to_skip += 1
-                if next_line and not next_line.startswith('#'):
-                    password_pipe.append(next_line)
+                next_line = lines[lookahead_index]
+                lines_to_inspect.append(next_line)
+                if next_line.strip() and not next_line.strip().startswith('#'):
+                    password_pipe.append(next_line.strip())
                 lookahead_index += 1
 
             if len(password_pipe) == password_lines_needed:
-                command_obj["password_pipe"] = password_pipe
-                i += (lines_to_skip + 1)
+                command_obj = {"command": line, "password_pipe": password_pipe}
+                commands_to_execute.append(command_obj)
+                # Advance past the command and all the lines we inspected (passwords or not)
+                i += 1 + len(lines_to_inspect)
             else:
+                # Not enough password lines, treat it as a normal command
+                commands_to_execute.append({"command": line})
                 i += 1
         else:
+            # It's a normal command
+            commands_to_execute.append({"command": line})
             i += 1
-
-        commands_to_execute.append(command_obj)
 
     return {
         "effect": "execute_script",

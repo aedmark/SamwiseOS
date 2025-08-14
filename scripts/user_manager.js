@@ -62,11 +62,11 @@ class UserManager {
         if (!formatValidation.isValid) return ErrorHandler.createError(formatValidation.error);
         if (await this.userExists(username)) return ErrorHandler.createError(`User '${username}' already exists.`);
 
-        // 1. Create the primary group for the user.
+        // 1. Create the primary group for the user. (No change here)
         this.groupManager.createGroup(username);
         this.groupManager.addUserToGroup(username, username);
 
-        // 2. Register the user in the Python kernel directly.
+        // 2. Register the user in the Python kernel directly. (No change here)
         const registrationResultJson = OopisOS_Kernel.syscall("users", "register_user", [username, password, username]);
         const registrationResult = JSON.parse(registrationResultJson);
 
@@ -75,10 +75,15 @@ class UserManager {
             return ErrorHandler.createError(registrationResult.error || "Failed to register new user in kernel.");
         }
 
-        // 3. Sync the updated user list to storage.
-        this.syncAndSave(registrationResult.data.users);
+        const allUsersResult = JSON.parse(OopisOS_Kernel.syscall("users", "get_all_users"));
+        if (allUsersResult.success) {
+            this.syncAndSave(allUsersResult.data);
+        } else {
+            // This is a fallback in case something goes wrong, but it shouldn't.
+            return ErrorHandler.createError("User was registered, but failed to sync user list.");
+        }
 
-        // 4. Create the home directory and set permissions as root.
+        // 4. Create the home directory and set permissions as root. (No change here)
         const homePath = `/home/${username}`;
         await CommandExecutor.processSingleCommand(`mkdir -p ${homePath}`, { isInteractive: false, sudoContext: true });
         await CommandExecutor.processSingleCommand(`chown ${username} ${homePath}`, { isInteractive: false, sudoContext: true });
@@ -125,6 +130,54 @@ class UserManager {
                 onCancel: () => resolve(ErrorHandler.createSuccess({ output: "useradd: user creation cancelled." })),
                 options,
             });
+        });
+    }
+
+    async removeUserWithPrompt(username, removeHome, options) {
+        const { ModalManager, ErrorHandler, GroupManager, AuditManager } = this.dependencies;
+
+        if (username === 'root') {
+            return ErrorHandler.createError("removeuser: cannot remove the root user.");
+        }
+        if (username === this.getCurrentUser().name) {
+            return ErrorHandler.createError("removeuser: you cannot remove yourself.");
+        }
+        if (!(await this.userExists(username))) {
+            return ErrorHandler.createError(`removeuser: user '${username}' does not exist.`);
+        }
+
+        const messageLines = [`Are you sure you want to permanently delete the user '${username}'?`];
+        if (removeHome) {
+            messageLines.push("This will also DELETE their home directory and all its contents.");
+        }
+
+        return new Promise(async (resolve) => {
+            const confirmed = await new Promise(r => ModalManager.request({
+                context: "terminal",
+                type: "confirm",
+                messageLines: messageLines,
+                onConfirm: () => r(true),
+                onCancel: () => r(false),
+                options,
+            }));
+
+            if (confirmed) {
+                // Call our new, powerful Python function
+                const resultJson = OopisOS_Kernel.syscall("users", "delete_user_and_data", [username, removeHome]);
+                const result = JSON.parse(resultJson);
+
+                if (result.success) {
+                    // Sync the updated state to localStorage
+                    this._saveUsers();
+                    GroupManager._save();
+                    AuditManager.log(this.getCurrentUser().name, 'removeuser_success', `Removed user '${username}'.`);
+                    resolve(ErrorHandler.createSuccess(`User '${username}' has been removed.`));
+                } else {
+                    resolve(ErrorHandler.createError(`removeuser: ${result.error}`));
+                }
+            } else {
+                resolve(ErrorHandler.createSuccess("User removal cancelled."));
+            }
         });
     }
 
