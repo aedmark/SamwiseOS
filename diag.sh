@@ -520,7 +520,7 @@ delay 200
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 15: Testing Edge Cases & Complex Scenarios (Expanded) ====="
+echo "===== Phase 14: Testing Edge Cases & Complex Scenarios (Expanded) ====="
 delay 200
 
 echo "--- Test: Filenames with spaces ---"
@@ -588,7 +588,7 @@ delay 400
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 16: Testing Paranoid Security & Edge Cases ====="
+echo "===== Phase 15: Testing Paranoid Security & Edge Cases ====="
 delay 200
 echo "--- Test: Advanced 'awk' with BEGIN/END blocks ---"
 echo -e "10 alpha\n20 bravo\n30 charlie" > awk_data.txt
@@ -617,7 +617,7 @@ cat < input.txt
 rm empty_via_redir.txt input.txt
 echo "Redirection tests complete."
 echo "---------------------------------------------------------------------"
-echo "===== Phase 17: Testing 'run' Command & Script Execution ====="
+echo "===== Phase 16: Testing 'run' Command & Script Execution ====="
 delay 200
 
 echo "--- Test: Basic script execution ---"
@@ -659,7 +659,7 @@ echo "--- 'run' command diagnostics finished ---"
 echo ""
 
 echo ""
-echo "===== Phase 18: Testing Symbolic Link Infrastructure ====="
+echo "===== Phase 17: Testing Symbolic Link Infrastructure ====="
 delay 200
 
 echo "--- Test: Symlink creation and display ---"
@@ -701,16 +701,31 @@ echo "---------------------------------------------------------------------"
 delay 200
 
 echo ""
-echo "===== Phase 19: Advanced Job Control & Signal Handling ====="
+echo "===== Phase 18: Advanced Job Control & Signal Handling ====="
 delay 200
 
 echo "--- Test: Starting a long-running background job ---"
 delay 30000 &
 delay 500
-# Use ps and grep to get the job ID programmatically
-JOB_ID=$(ps | grep "delay" | awk '{print $1}')
+echo "--- Running pipeline diagnostics ---"
+echo "--- 1. Output of 'ps' ---"
+ps > ps_output.tmp
+cat ps_output.tmp
+echo "--- 2. Output of 'ps | grep delay' ---"
+cat ps_output.tmp | grep "delay" > grep_output.tmp
+cat grep_output.tmp
+echo "--- 3. Output of 'ps | grep delay | awk' ---"
+cat grep_output.tmp | awk '{print $1}' > awk_output.tmp
+cat awk_output.tmp
+echo "--- End of pipeline diagnostics ---"
+
+# Use the final result to set the variable
+JOB_ID=$(cat awk_output.tmp)
 echo "Started background job with PID: $JOB_ID"
+rm ps_output.tmp grep_output.tmp awk_output.tmp
 delay 200
+
+kill -STOP $JOB_ID
 
 echo "--- Test: Verifying job is 'Running' (R) with 'ps' and 'jobs' ---"
 ps | grep "$JOB_ID" | grep 'R'
@@ -754,7 +769,7 @@ delay 400
 echo "---------------------------------------------------------------------"
 echo ""
 
-echo "===== Phase 20: Testing Stream & Text Manipulation Commands ====="
+echo "===== Phase 19: Testing Stream & Text Manipulation Commands ====="
 delay 200
 
 echo "--- Test: nl (Number Lines) Command ---"
@@ -809,7 +824,7 @@ echo "---------------------------------------------------------------------"
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 21: Testing 'tr' Command Suite ====="
+echo "===== Phase 20: Testing 'tr' Command Suite ====="
 delay 200
 
 echo "--- Test: tr - Basic translation (lower to upper) ---"
@@ -838,7 +853,7 @@ delay 200
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 22: Testing 'comm' Command Suite ====="
+echo "===== Phase 21: Testing 'comm' Command Suite ====="
 delay 200
 
 echo "--- Test: comm - Creating sorted test files ---"
@@ -873,7 +888,7 @@ delay 400
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 23: Testing Binder Command Suite ====="
+echo "===== Phase 22: Testing Binder Command Suite ====="
 delay 200
 
 echo "--- Setting up binder test environment ---"
@@ -919,7 +934,7 @@ delay 400
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 24: Testing Agenda Command (Non-Interactive) ====="
+echo "===== Phase 23: Testing Agenda Command (Non-Interactive) ====="
 delay 200
 
 echo "--- Test: Scheduling a job with sudo ---"
@@ -955,7 +970,7 @@ echo "---------------------------------------------------------------------"
 
 echo "---------------------------------------------------------------------"
 echo ""
-echo "===== Phase 25: Testing Brace Expansion Features ====="
+echo "===== Phase 24: Testing Brace Expansion Features ====="
 delay 200
 
 echo "--- Test: Comma expansion {a,b,c} ---"

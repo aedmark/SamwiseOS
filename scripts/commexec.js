@@ -218,12 +218,12 @@ class CommandExecutor {
                     // Propagate the error from the subcommand
                     throw new Error(result.error?.message || result.error || `Command substitution failed for '${substitutionMatches[i-1][1]}'`);
                 }
-                return (result.output || '').trim().replace(/\n/g, ' ');
+                return (result.data || '').trim().replace(/\n/g, ' ');
             });
         }
 
         // --- Assignment Handling (must happen AFTER command substitution) ---
-        const assignmentRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=(.+)$/;
+        const assignmentRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)$/;
         const assignmentMatch = commandToProcess.match(assignmentRegex);
         if (assignmentMatch) {
             const varName = assignmentMatch[1];
