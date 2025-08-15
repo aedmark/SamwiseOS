@@ -154,14 +154,7 @@ class ConfigManager {
             },
 
             COMMANDS_MANIFEST: [],
-            JS_NATIVE_COMMANDS: [
-                "upload",
-                "play",
-                "nc",
-                "netstat",
-                "read_messages",
-                "post_message"
-            ],
+            JS_NATIVE_COMMANDS: [],
         };
 
         Object.assign(this, defaultConfig);

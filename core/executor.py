@@ -309,14 +309,6 @@ class CommandExecutor:
             return json.dumps({"success": False, "error": f"Execution Error: {str(e)}\n{tb_str}"})
 
     async def _execute_segment(self, segment, stdin_data):
-        command_name = segment['command']
-        if command_name in self.js_native_commands:
-            return json.dumps({
-                "success": True, # Indicate success to Python
-                "effect": "run_js_native",
-                "command_details": segment
-            })
-
         kwargs_for_run = {
             "users": self.users,
             "user_groups": self.user_groups,
@@ -351,13 +343,6 @@ class CommandExecutor:
             )
 
         if command_name not in self.commands:
-            # Fallback to check JS commands if not found in Python
-            if command_name in self.js_native_commands:
-                return json.dumps({
-                    "success": True,
-                    "effect": "run_js_native",
-                    "command_details": {'command': command_name, 'args': args, 'flags': flags}
-                })
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
         try:
             command_module = import_module(f"commands.{command_name}")

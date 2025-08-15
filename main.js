@@ -1,13 +1,17 @@
 // main.js
 
 /**
- * @file This is the main entry point for the OopisOS application. It handles the
+ * @file This is the main entry point for the SamwiseOS application. It handles the
  * initialization of all core managers, sets up dependency injection, and attaches
  * the primary event listeners for the terminal interface once the window has loaded.
  */
 
 // This global variable will be our session's birth certificate!
 window.sessionStartTime = new Date();
+
+// --- NEW: Job Management Globals ---
+let backgroundProcessIdCounter = 0;
+const activeJobs = {};
 
 function startOnboardingProcess(dependencies) {
     const { AppLayerManager, OutputManager, TerminalUI } = dependencies;
@@ -25,151 +29,349 @@ function startOnboardingProcess(dependencies) {
     }
 }
 
-function initializeTerminalEventListeners(domElements, commandExecutor, dependencies) {
-    const { AppLayerManager, ModalManager, TerminalUI, TabCompletionManager, HistoryManager, SoundManager } = dependencies;
+// --- NEW: Asynchronous Python Command Execution ---
+async function executePythonCommand(rawCommandText, options = {}) {
+    const { isInteractive = true, scriptingContext = null, stdinContent = null } = options;
+    const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler } = dependencies;
 
-    if (!domElements.terminalDiv || !domElements.editableInputDiv) {
-        console.error(
-            "Terminal event listeners cannot be initialized: Core DOM elements not found."
-        );
-        return;
+    // Handle interactive session UI updates
+    if (isInteractive && !scriptingContext) {
+        TerminalUI.hideInputLine();
+        const prompt = TerminalUI.getPromptText();
+        await OutputManager.appendToOutput(`${prompt}${rawCommandText.trim()}`);
+        await HistoryManager.add(rawCommandText.trim());
     }
 
-    // Focus the input when the terminal area is clicked.
+    if (rawCommandText.trim() === "") {
+        if (isInteractive) await finalizeInteractiveModeUI(rawCommandText);
+        return { success: true, output: "" };
+    }
+
+    let result;
+    try {
+        const kernelContextJson = await createKernelContext();
+        const jsonResult = await OopisOS_Kernel.execute_command(rawCommandText, kernelContextJson, stdinContent);
+        const pyResult = JSON.parse(jsonResult);
+
+        if (pyResult.success) {
+            if (pyResult.effect) {
+                // Handle side effects (like changing directory, launching apps, etc.)
+                result = await handleEffect(pyResult, options);
+            } else if (pyResult.output) {
+                // Handle direct output
+                await OutputManager.appendToOutput(pyResult.output);
+            }
+        } else {
+            // Handle errors from Python
+            await OutputManager.appendToOutput(pyResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            result = { success: false, error: pyResult.error };
+        }
+    } catch (e) {
+        const errorMsg = e.message || "An unknown JavaScript error occurred.";
+        await OutputManager.appendToOutput(errorMsg, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+        result = { success: false, error: errorMsg };
+    }
+
+    // Finalize UI for interactive commands
+    if (isInteractive) {
+        await finalizeInteractiveModeUI(rawCommandText);
+    }
+
+    return result || { success: true, output: "" };
+}
+
+// --- NEW: Kernel Context Creation ---
+async function createKernelContext() {
+    const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager, AliasManager, HistoryManager } = dependencies;
+    const user = await UserManager.getCurrentUser();
+    const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
+    const allUsernames = Object.keys(allUsers);
+    const userGroupsMap = {};
+    for (const username of allUsernames) {
+        userGroupsMap[username] = await GroupManager.getGroupsForUser(username);
+    }
+    if (!userGroupsMap['Guest']) {
+        userGroupsMap['Guest'] = await GroupManager.getGroupsForUser('Guest');
+    }
+    const apiKey = StorageManager.loadItem(Config.STORAGE_KEYS.GEMINI_API_KEY);
+
+    // This syncs the JS-side session state to Python before execution
+    await OopisOS_Kernel.syscall("alias", "load_aliases", [await AliasManager.getAllAliases()]);
+    await OopisOS_Kernel.syscall("history", "set_history", [await HistoryManager.getFullHistory()]);
+    // Environment variables are already synced via `set` and `unset` effects
+
+    return JSON.stringify({
+        current_path: FileSystemManager.getCurrentPath(),
+        user_context: { name: user.name, group: await UserManager.getPrimaryGroupForUser(user.name) },
+        users: allUsers,
+        user_groups: userGroupsMap,
+        groups: await GroupManager.getAllGroups(),
+        jobs: activeJobs,
+        config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+        api_key: apiKey,
+        session_start_time: window.sessionStartTime.toISOString(),
+        session_stack: await SessionManager.getStack()
+    });
+}
+
+// --- NEW: Effect Handler ---
+async function handleEffect(result, options) {
+    const {
+        FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager,
+        UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils,
+        GroupManager, NetworkManager, MessageBusManager, ModalManager, StorageManager,
+        AuditManager
+    } = dependencies;
+
+    switch (result.effect) {
+        case 'background_job':
+            const newJobId = ++backgroundProcessIdCounter;
+            const abortController = new AbortController();
+            const jobUser = (await UserManager.getCurrentUser()).name;
+
+            activeJobs[newJobId] = {
+                command: result.command_string, status: 'running', user: jobUser,
+                startTime: new Date().toISOString(), abortController: abortController
+            };
+            MessageBusManager.registerJob(newJobId);
+
+            (async () => {
+                const bgOptions = { ...options, isInteractive: false, suppressOutput: true, signal: abortController.signal };
+                await executePythonCommand(result.command_string, bgOptions);
+                if (activeJobs[newJobId]) {
+                    delete activeJobs[newJobId];
+                    MessageBusManager.unregisterJob(newJobId);
+                }
+            })();
+            await OutputManager.appendToOutput(`[${newJobId}] ${result.command_string}`);
+            break;
+
+        case 'signal_job':
+            const signalResult = sendSignalToJob(result.job_id, result.signal);
+            if (!signalResult.success) {
+                await OutputManager.appendToOutput(signalResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            }
+            break;
+
+        case 'change_directory':
+            await FileSystemManager.setCurrentPath(result.path);
+            await TerminalUI.updatePrompt();
+            break;
+
+        case 'clear_screen':
+            await OutputManager.clearOutput();
+            break;
+
+        case 'beep':
+            SoundManager.beep();
+            break;
+
+        case 'reboot':
+            await OutputManager.appendToOutput("Rebooting...");
+            setTimeout(() => window.location.reload(), 1000);
+            break;
+
+        case 'launch_app':
+            const App = window[result.app_name + "Manager"];
+            if (App) {
+                const appInstance = new App();
+                AppLayerManager.show(appInstance, { ...options, dependencies, ...result.options });
+            } else {
+                console.error(`Attempted to launch unknown app: ${result.app_name}`);
+            }
+            break;
+
+        // Add cases for all the former JS-native commands here...
+        case 'trigger_upload_flow':
+            return new Promise(async (resolve) => {
+                const input = Utils.createElement("input", { type: "file", multiple: true });
+                input.onchange = async (e) => {
+                    const files = e.target.files;
+                    document.body.removeChild(input);
+                    if (!files || files.length === 0) {
+                        resolve({success: true, output: "Upload cancelled."});
+                        return;
+                    }
+                    const filesForPython = await Promise.all(Array.from(files).map(file => {
+                        return new Promise((res, rej) => {
+                            const reader = new FileReader();
+                            reader.onload = (event) => res({ name: file.name, path: FileSystemManager.getAbsolutePath(file.name), content: event.target.result });
+                            reader.onerror = () => rej(new Error(`Could not read file: ${file.name}`));
+                            reader.readAsText(file);
+                        });
+                    }));
+                    const userContext = await createKernelContext();
+                    const uploadResult = JSON.parse(await OopisOS_Kernel.execute_command("_upload_handler", userContext, JSON.stringify(filesForPython)));
+                    await OutputManager.appendToOutput(uploadResult.output || uploadResult.error, { typeClass: uploadResult.success ? null : 'text-error' });
+                    resolve({success: uploadResult.success});
+                };
+                document.body.appendChild(input);
+                input.click();
+            });
+
+        case 'netcat_listen':
+            await OutputManager.appendToOutput(`Listening on instance ${NetworkManager.getInstanceId()} in '${result.execute ? 'execute' : 'print'}' mode...`);
+            NetworkManager.setListenCallback((payload) => {
+                const { sourceId, data } = payload;
+                if (result.execute) {
+                    OutputManager.appendToOutput(`[NET EXEC from ${sourceId}]> ${data}`);
+                    executePythonCommand(data, { isInteractive: false });
+                } else {
+                    OutputManager.appendToOutput(`[NET] From ${sourceId}: ${data}`);
+                }
+            });
+            break;
+
+        case 'netcat_send':
+            await NetworkManager.sendMessage(result.targetId, 'direct_message', result.message);
+            break;
+
+        case 'netstat_display':
+            const output = [`Your Instance ID: ${NetworkManager.getInstanceId()}`, "\nDiscovered Remote Instances:"];
+            const instances = NetworkManager.getRemoteInstances();
+            if (instances.length === 0) output.push("  (None)");
+            else instances.forEach(id => {
+                const peer = NetworkManager.getPeers().get(id);
+                output.push(`  - ${id} (Status: ${peer ? peer.connectionState : 'Disconnected'})`);
+            });
+            await OutputManager.appendToOutput(output.join('\n'));
+            break;
+
+        case 'read_messages':
+            const messages = MessageBusManager.getMessages(result.job_id);
+            // This implicitly becomes the command's output
+            await OutputManager.appendToOutput(messages.join(" "));
+            break;
+
+        case 'post_message':
+            MessageBusManager.postMessage(result.job_id, result.message);
+            break;
+
+        // ... and other existing effects
+        case 'play_sound':
+            if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
+            SoundManager.playNote(result.notes, result.duration);
+            const durationInSeconds = new Tone.Time(result.duration).toSeconds();
+            await new Promise(resolve => setTimeout(resolve, Math.ceil(durationInSeconds * 1000)));
+            break;
+
+        case 'sync_session_state':
+            if (result.aliases) {
+                await OopisOS_Kernel.syscall("alias", "load_aliases", [result.aliases]);
+                StorageManager.saveItem(Config.STORAGE_KEYS.ALIAS_DEFINITIONS, result.aliases, "Aliases");
+            }
+            if (result.env) {
+                await OopisOS_Kernel.syscall("env", "load", [result.env]);
+                await SessionManager.saveAutomaticState((await UserManager.getCurrentUser()).name);
+            }
+            break;
+
+        default:
+            await OutputManager.appendToOutput(`Unknown effect from Python: ${result.effect}`, { typeClass: 'text-warning' });
+            break;
+    }
+}
+
+// --- NEW: Job Signal Handler ---
+function sendSignalToJob(jobId, signal) {
+    const job = activeJobs[jobId];
+    if (!job) return { success: false, error: `Job ${jobId} not found.` };
+    switch (signal.toUpperCase()) {
+        case 'KILL': case 'TERM':
+            if (job.abortController) {
+                job.abortController.abort("Killed by user.");
+                delete activeJobs[jobId];
+                dependencies.MessageBusManager.unregisterJob(jobId);
+            }
+            break;
+        case 'STOP': job.status = 'paused'; break;
+        case 'CONT': job.status = 'running'; break;
+        default: return { success: false, error: `Invalid signal '${signal}'.` };
+    }
+    return { success: true, output: `Signal ${signal} sent to job ${jobId}.` };
+}
+
+
+async function finalizeInteractiveModeUI(originalCommandText) {
+    const { TerminalUI, AppLayerManager, HistoryManager } = dependencies;
+    TerminalUI.clearInput();
+    await TerminalUI.updatePrompt();
+    if (!AppLayerManager.isActive()) {
+        TerminalUI.showInputLine();
+        TerminalUI.setInputState(true);
+        TerminalUI.focusInput();
+    }
+    TerminalUI.scrollOutputToEnd();
+    if (!TerminalUI.getIsNavigatingHistory() && originalCommandText.trim()) {
+        await HistoryManager.resetIndex();
+    }
+    TerminalUI.setIsNavigatingHistory(false);
+}
+
+function initializeTerminalEventListeners(domElements, dependencies) {
+    const { AppLayerManager, ModalManager, TerminalUI, TabCompletionManager, HistoryManager, SoundManager } = dependencies;
+
     domElements.terminalDiv.addEventListener("click", (e) => {
         if (AppLayerManager.isActive()) return;
-
-        const selection = window.getSelection();
-        if (selection && selection.toString().length > 0) {
-            return;
-        }
-        if (
-            !e.target.closest("button, a") &&
-            (!domElements.editableInputDiv ||
-                !domElements.editableInputDiv.contains(e.target))
-        ) {
-            if (domElements.editableInputDiv.contentEditable === "true")
-                TerminalUI.focusInput();
-        }
+        if (!e.target.closest("button, a")) TerminalUI.focusInput();
     });
 
-    // Main keyboard event handler for the document.
     document.addEventListener("keydown", async (e) => {
-        // Handle input for modal dialogs.
         if (ModalManager.isAwaiting()) {
             if (e.key === "Enter") {
                 e.preventDefault();
-                await ModalManager.handleTerminalInput(
-                    TerminalUI.getCurrentInputValue()
-                );
-            } else if (TerminalUI.isObscured()) {
-                if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                    e.preventDefault();
-                    TerminalUI.updateInputForObscure(e.key);
-                } else if (e.key === "Backspace" || e.key === "Delete") {
-                    e.preventDefault();
-                    TerminalUI.updateInputForObscure(e.key);
-                }
+                await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
             }
             return;
         }
 
-        // Ignore key events if a full-screen app is active.
         if (AppLayerManager.isActive()) {
-            // Allow the active app to handle the keydown event
             const activeApp = AppLayerManager.activeApp;
-            if (activeApp && typeof activeApp.handleKeyDown === 'function') {
-                activeApp.handleKeyDown(e);
-            }
+            if (activeApp?.handleKeyDown) activeApp.handleKeyDown(e);
             return;
         }
 
-        // Ignore key events not targeted at the input div.
-        if (e.target !== domElements.editableInputDiv) {
-            return;
-        }
+        if (e.target !== domElements.editableInputDiv) return;
 
         switch (e.key) {
             case "Enter":
                 e.preventDefault();
-                if (!SoundManager.isInitialized) {
-                    await SoundManager.initialize();
-                }
+                if (!SoundManager.isInitialized) await SoundManager.initialize();
                 TabCompletionManager.resetCycle();
-                await commandExecutor.processSingleCommand(
-                    TerminalUI.getCurrentInputValue(),
-                    { isInteractive: true }
-                );
+                // --- MODIFIED: Call the new Python executor function ---
+                await executePythonCommand(TerminalUI.getCurrentInputValue(), { isInteractive: true });
                 break;
             case "ArrowUp":
                 e.preventDefault();
                 const prevCmd = await HistoryManager.getPrevious();
-                if (prevCmd !== null) {
-                    TerminalUI.setIsNavigatingHistory(true);
-                    TerminalUI.setCurrentInputValue(prevCmd, true);
-                }
+                if (prevCmd !== null) TerminalUI.setCurrentInputValue(prevCmd, true);
                 break;
             case "ArrowDown":
                 e.preventDefault();
                 const nextCmd = await HistoryManager.getNext();
-                if (nextCmd !== null) {
-                    TerminalUI.setIsNavigatingHistory(true);
-                    TerminalUI.setCurrentInputValue(nextCmd, true);
-                }
+                if (nextCmd !== null) TerminalUI.setCurrentInputValue(nextCmd, true);
                 break;
             case "Tab":
                 e.preventDefault();
                 const currentInput = TerminalUI.getCurrentInputValue();
-                const sel = window.getSelection();
-                let cursorPos = 0;
-                if (sel && sel.rangeCount > 0) {
-                    const range = sel.getRangeAt(0);
-                    if (
-                        domElements.editableInputDiv &&
-                        domElements.editableInputDiv.contains(range.commonAncestorContainer)
-                    ) {
-                        const preCaretRange = range.cloneRange();
-                        preCaretRange.selectNodeContents(domElements.editableInputDiv);
-                        preCaretRange.setEnd(range.endContainer, range.endOffset);
-                        cursorPos = preCaretRange.toString().length;
-                    } else {
-                        cursorPos = currentInput.length;
-                    }
-                } else {
-                    cursorPos = currentInput.length;
-                }
-                const result = await TabCompletionManager.handleTab(
-                    currentInput,
-                    cursorPos
-                );
-                if (
-                    result?.textToInsert !== null &&
-                    result.textToInsert !== undefined
-                ) {
+                const result = await TabCompletionManager.handleTab(currentInput, TerminalUI.getSelection().start);
+                if (result?.textToInsert !== null) {
                     TerminalUI.setCurrentInputValue(result.textToInsert, false);
-                    TerminalUI.setCaretPosition(
-                        domElements.editableInputDiv,
-                        result.newCursorPos
-                    );
+                    TerminalUI.setCaretPosition(domElements.editableInputDiv, result.newCursorPos);
                 }
                 break;
         }
     });
 
-    // Handle paste events to sanitize input.
-    if (domElements.editableInputDiv) {
-        domElements.editableInputDiv.addEventListener("paste", (e) => {
-            e.preventDefault();
-            if (domElements.editableInputDiv.contentEditable !== "true") return;
-            const text = (e.clipboardData || window.clipboardData).getData(
-                "text/plain"
-            );
-            const processedText = text.replace(/\r?\n|\r/g, " ");
-            TerminalUI.handlePaste(processedText);
-        });
-    }
+    domElements.editableInputDiv.addEventListener("paste", (e) => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/\r?\n|\r/g, " ");
+        TerminalUI.handlePaste(text);
+    });
 }
 
+// Global dependencies object, will be populated on window.onload
+const dependencies = {};
 
 window.onload = async () => {
     const domElements = {
@@ -186,13 +388,10 @@ window.onload = async () => {
     // Instantiate all manager classes
     const configManager = new ConfigManager();
     const storageManager = new StorageManager();
-    const indexedDBManager = new IndexedDBManager();
     const groupManager = new GroupManager();
     const fsManager = new FileSystemManager(configManager);
     const sessionManager = new SessionManager();
     const sudoManager = new SudoManager();
-    const environmentManager = new EnvironmentManager();
-    const commandExecutor = new CommandExecutor();
     const messageBusManager = new MessageBusManager();
     const outputManager = new OutputManager();
     const terminalUI = new TerminalUI();
@@ -203,160 +402,88 @@ window.onload = async () => {
     const tabCompletionManager = new TabCompletionManager();
     const uiComponents = new UIComponents();
     const aiManager = new AIManager();
-    const commandRegistry = new CommandRegistry();
-    window.CommandRegistry = commandRegistry;
     const networkManager = new NetworkManager();
     const soundManager = new SoundManager();
-    const storageHAL = new IndexedDBStorageHAL();
     const auditManager = new AuditManager();
 
-    const dependencies = {
-        Config: configManager,
-        StorageManager: storageManager,
-        IndexedDBManager: indexedDBManager,
-        FileSystemManager: fsManager,
-        UserManager: null,
-        SessionManager: sessionManager,
-        CommandExecutor: commandExecutor,
-        SudoManager: sudoManager,
-        GroupManager: groupManager,
-        EnvironmentManager: environmentManager,
-        OutputManager: outputManager,
-        TerminalUI: terminalUI,
-        ModalManager: modalManager,
-        AppLayerManager: appLayerManager,
-        AliasManager: aliasManager,
-        HistoryManager: historyManager,
-        TabCompletionManager: tabCompletionManager,
-        Utils: Utils,
-        ErrorHandler: ErrorHandler,
-        CommandRegistry: commandRegistry,
-        TimestampParser: TimestampParser,
-        DiffUtils: DiffUtils,
-        PatchUtils: PatchUtils,
-        AIManager: aiManager,
-        MessageBusManager: messageBusManager,
-        NetworkManager: networkManager,
-        UIComponents: uiComponents,
-        domElements: domElements,
-        SoundManager: soundManager,
-        StorageHAL: storageHAL,
-        AuditManager: auditManager,
-        TextAdventureModal: window.TextAdventureModal,
-        Adventure_create: window.Adventure_create,
-        Basic_interp: window.Basic_interp,
-        BasicUI: window.BasicUI,
-        ChidiUI: window.ChidiUI,
-        EditorUI: window.EditorUI,
-        ExplorerUI: window.ExplorerUI,
-        GeminiChatUI: window.GeminiChatUI,
-        LogUI: window.LogUI,
-        PaintUI: window.PaintUI,
-        TopUI: window.TopUI,
-    };
+    // Populate the global dependencies object
+    Object.assign(dependencies, {
+        Config: configManager, StorageManager: storageManager, FileSystemManager: fsManager,
+        SessionManager: sessionManager, SudoManager: sudoManager, GroupManager: groupManager,
+        MessageBusManager: messageBusManager, OutputManager: outputManager, TerminalUI: terminalUI,
+        ModalManager: modalManager, AppLayerManager: appLayerManager, AliasManager: aliasManager,
+        HistoryManager: historyManager, TabCompletionManager: tabCompletionManager, Utils: Utils,
+        ErrorHandler: ErrorHandler, AIManager: aiManager, NetworkManager: networkManager,
+        UIComponents: uiComponents, domElements: domElements, SoundManager: soundManager,
+        // App classes
+        TextAdventureModal: window.TextAdventureModal, Adventure_create: window.Adventure_create,
+        BasicUI: window.BasicUI, ChidiUI: window.ChidiUI, EditorUI: window.EditorUI,
+        ExplorerUI: window.ExplorerUI, GeminiChatUI: window.GeminiChatUI, LogUI: window.LogUI,
+        PaintUI: window.PaintUI, TopUI: window.TopUI,
+    });
 
     const userManager = new UserManager(dependencies);
     dependencies.UserManager = userManager;
-
     const pagerManager = new PagerManager(dependencies);
     dependencies.PagerManager = pagerManager;
 
-    configManager.setDependencies(dependencies);
-    storageManager.setDependencies(dependencies);
-    indexedDBManager.setDependencies(dependencies);
-    fsManager.setDependencies(dependencies);
-    userManager.setDependencies(sessionManager, sudoManager, commandExecutor, modalManager);
-    sessionManager.setDependencies(dependencies);
+    // Set dependencies for all managers
+    Object.values(dependencies).forEach(dep => {
+        if (dep && typeof dep.setDependencies === 'function') {
+            dep.setDependencies(dependencies);
+        }
+    });
+    // Special cases
+    userManager.setDependencies(sessionManager, sudoManager, null, modalManager);
     sudoManager.setDependencies(fsManager, groupManager, configManager);
-    environmentManager.setDependencies(userManager, fsManager, configManager);
-    commandExecutor.setDependencies(dependencies);
-    groupManager.setDependencies(dependencies);
-    outputManager.setDependencies(dependencies);
-    terminalUI.setDependencies(dependencies);
-    modalManager.setDependencies(dependencies);
-    appLayerManager.setDependencies(dependencies);
-    aliasManager.setDependencies(dependencies);
-    historyManager.setDependencies(dependencies);
-    tabCompletionManager.setDependencies(dependencies);
-    uiComponents.setDependencies(dependencies);
-    aiManager.setDependencies(dependencies);
-    networkManager.setDependencies(dependencies);
-    storageHAL.setDependencies(dependencies);
-    auditManager.setDependencies(dependencies);
-    commandRegistry.setDependencies(dependencies);
 
     outputManager.initialize(domElements);
     terminalUI.initialize(domElements);
     modalManager.initialize(domElements);
     appLayerManager.initialize(domElements);
-    await storageHAL.init();
     outputManager.initializeConsoleOverrides();
-
-    const onboardingComplete = storageManager.loadItem(configManager.STORAGE_KEYS.ONBOARDING_COMPLETE, "Onboarding Status", false);
 
     await OopisOS_Kernel.initialize(dependencies);
 
+    const onboardingComplete = storageManager.loadItem(configManager.STORAGE_KEYS.ONBOARDING_COMPLETE, "Onboarding Status", false);
     if (!onboardingComplete) {
         startOnboardingProcess(dependencies);
         return;
     }
 
+    // --- Post-Onboarding Initialization ---
     try {
-        const fsJsonFromStorage = await storageHAL.load();
-        if (OopisOS_Kernel.isReady) {
-            if (fsJsonFromStorage) {
-                const fsJsonString = JSON.stringify(fsJsonFromStorage);
-                await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [fsJsonString]);
-                await fsManager.setFsData(fsJsonFromStorage);
-            } else {
-                await outputManager.appendToOutput(
-                    "No file system found. Initializing new one.",
-                    { typeClass: configManager.CSS_CLASSES.CONSOLE_LOG_MSG }
-                );
-                await fsManager.initialize(configManager.USER.DEFAULT_NAME);
-                const initialFsData = await fsManager.getFsData();
-                const initialFsJsonString = JSON.stringify(initialFsData);
-                await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [initialFsJsonString]);
-                await storageHAL.save(initialFsData);
-            }
+        if (fsJsonFromStorage) {
+            await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(fsJsonFromStorage)]);
+            await fsManager.setFsData(fsJsonFromStorage);
         } else {
-            // This is a fallback, but the async bridge makes the above path the primary one.
-            await fsManager.load();
+            await outputManager.appendToOutput("No file system found. Initializing new one.", { typeClass: configManager.CSS_CLASSES.CONSOLE_LOG_MSG });
+            await fsManager.initialize(configManager.USER.DEFAULT_NAME);
+            const initialFsData = await fsManager.getFsData();
+            await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(initialFsData)]);
+            await storageHAL.save(initialFsData);
         }
 
         await userManager.initializeDefaultUsers();
         await groupManager.initialize();
-
-        await environmentManager.initialize();
         await aliasManager.initialize();
         await sessionManager.initializeStack();
-
-        await configManager.loadPackageManifest();
-
         const sessionStatus = await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
 
         outputManager.clearOutput();
         if (sessionStatus.newStateCreated) {
             const currentUser = await userManager.getCurrentUser();
-            await outputManager.appendToOutput(
-                `${configManager.MESSAGES.WELCOME_PREFIX} ${currentUser.name}${configManager.MESSAGES.WELCOME_SUFFIX}`
-            );
+            await outputManager.appendToOutput(`${configManager.MESSAGES.WELCOME_PREFIX} ${currentUser.name}${configManager.MESSAGES.WELCOME_SUFFIX}`);
         }
 
-        initializeTerminalEventListeners(domElements, commandExecutor, dependencies);
+        initializeTerminalEventListeners(domElements, dependencies);
 
         await terminalUI.updatePrompt();
         terminalUI.focusInput();
-        console.log(
-            `${configManager.OS.NAME} v.${configManager.OS.VERSION} loaded successfully!`
-        );
+        console.log(`${configManager.OS.NAME} v.${configManager.OS.VERSION} loaded successfully!`);
 
     } catch (error) {
-        console.error(
-            "Failed to initialize OopisOs on window.onload:",
-            error,
-            error.stack
-        );
+        console.error("Failed to initialize SamwiseOS on window.onload:", error, error.stack);
         if (domElements.outputDiv) {
             domElements.outputDiv.innerHTML += `<div class="text-error">FATAL ERROR: ${error.message}. Check console for details.</div>`;
         }
