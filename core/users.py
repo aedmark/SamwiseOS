@@ -15,6 +15,11 @@ class UserManager:
     """Manages user accounts, credentials, and properties."""
     def __init__(self):
         self.users = {}
+        # A simple list of reserved names. In a real system, this might be in a config file.
+        self.RESERVED_USERNAMES = ["guest", "root", "admin", "system"]
+        self.MIN_USERNAME_LENGTH = 3
+        self.MAX_USERNAME_LENGTH = 20
+
 
     def initialize_defaults(self, default_username):
         """Initializes default users if they don't exist."""
@@ -131,12 +136,19 @@ class UserManager:
         self.users[username]['passwordData'] = new_password_data
         return True
 
-    def remove_user(self, username):
-        """Removes a user account."""
-        if self.user_exists(username):
-            del self.users[username]
-            return True
-        return False
+    def validate_username_format(self, username):
+        """Validates a new username against system rules."""
+        if not isinstance(username, str) or not username.strip():
+            return {"success": False, "error": "Username cannot be empty."}
+        if ' ' in username:
+            return {"success": False, "error": "Username cannot contain spaces."}
+        if username.lower() in self.RESERVED_USERNAMES:
+            return {"success": False, "error": f"Cannot use '{username}'. This username is reserved."}
+        if len(username) < self.MIN_USERNAME_LENGTH:
+            return {"success": False, "error": f"Username must be at least {self.MIN_USERNAME_LENGTH} characters long."}
+        if len(username) > self.MAX_USERNAME_LENGTH:
+            return {"success": False, "error": f"Username cannot exceed {self.MAX_USERNAME_LENGTH} characters."}
+        return {"success": True}
 
     def delete_user_and_data(self, username, remove_home):
         """

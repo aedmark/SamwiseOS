@@ -1,10 +1,5 @@
 // scripts/apps/onboarding/onboarding_manager.js
 
-/**
- * Manages the multi-step user onboarding process for first-time setup.
- * @class OnboardingManager
- * @extends App
- */
 window.OnboardingManager = class OnboardingManager extends App {
     constructor() {
         super();
@@ -53,9 +48,10 @@ window.OnboardingManager = class OnboardingManager extends App {
                 // --- Step Validation ---
                 if (this.state.step === 1) { // Create User Account
                     const { username, password, confirmPassword } = data;
-                    const formatValidation = Utils.validateUsernameFormat(username);
-                    if (!formatValidation.isValid) {
-                        this.state.error = formatValidation.error;
+                    const validationResult = JSON.parse(await OopisOS_Kernel.syscall("users", "validate_username_format", [username]));
+
+                    if (!validationResult.success) {
+                        this.state.error = validationResult.error;
                     } else if (!password || password.length < 4) {
                         this.state.error = "Password must be at least 4 characters long.";
                     } else if (password !== confirmPassword) {
