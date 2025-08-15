@@ -2,13 +2,15 @@
 
 class EnvironmentManager {
     constructor() { this.dependencies = {}; }
-    setDependencies(userManager, fsManager, config) { this.dependencies = { userManager, fsManager, config }; }
+    setDependencies(injectedDependencies) {
+        this.dependencies = injectedDependencies;
+    }
     async push() { await OopisOS_Kernel.syscall("env", "push"); }
     async pop() { await OopisOS_Kernel.syscall("env", "pop"); }
     async initialize() {
-        const { userManager, config } = this.dependencies;
-        const currentUser = (await userManager.getCurrentUser()).name;
-        const baseEnv = { "USER": currentUser, "HOME": `/home/${currentUser}`, "HOST": config.OS.DEFAULT_HOST_NAME, "PATH": "/bin:/usr/bin", "PS1": "\\u@\\h:\\w\\$ " };
+        const { UserManager, Config } = this.dependencies;
+        const currentUser = (await UserManager.getCurrentUser()).name;
+        const baseEnv = { "USER": currentUser, "HOME": `/home/${currentUser}`, "HOST": Config.OS.DEFAULT_HOST_NAME, "PATH": "/bin:/usr/bin", "PS1": "\\u@\\h:\\w\\$ " };
         await this.load(baseEnv);
     }
     async get(varName) {

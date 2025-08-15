@@ -405,6 +405,7 @@ window.onload = async () => {
     const networkManager = new NetworkManager();
     const soundManager = new SoundManager();
     const auditManager = new AuditManager();
+    const environmentManager = new EnvironmentManager(); // Define it here
 
     // Populate the global dependencies object
     Object.assign(dependencies, {
@@ -415,6 +416,7 @@ window.onload = async () => {
         HistoryManager: historyManager, TabCompletionManager: tabCompletionManager, Utils: Utils,
         ErrorHandler: ErrorHandler, AIManager: aiManager, NetworkManager: networkManager,
         UIComponents: uiComponents, domElements: domElements, SoundManager: soundManager,
+        EnvironmentManager: environmentManager, // Add it to dependencies
         // App classes
         TextAdventureModal: window.TextAdventureModal, Adventure_create: window.Adventure_create,
         BasicUI: window.BasicUI, ChidiUI: window.ChidiUI, EditorUI: window.EditorUI,
@@ -469,7 +471,13 @@ window.onload = async () => {
         await groupManager.initialize();
         await aliasManager.initialize();
         await sessionManager.initializeStack();
+
         const sessionStatus = await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
+
+        // Initialize environment if it's a new session state
+        if (sessionStatus.newStateCreated) {
+            await environmentManager.initialize();
+        }
 
         outputManager.clearOutput();
         if (sessionStatus.newStateCreated) {

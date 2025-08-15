@@ -198,10 +198,14 @@ const OopisOS_Kernel = {
     },
 
     async saveFileSystem(fsJsonString) {
-        const { StorageHAL } = OopisOS_Kernel.dependencies;
+        const { StorageManager, Config } = OopisOS_Kernel.dependencies;
         try {
+            if (!StorageManager || !Config) {
+                console.error("JS Bridge: StorageManager or Config not available in dependencies for saveFileSystem.");
+                return;
+            }
             const fsData = JSON.parse(fsJsonString);
-            await StorageHAL.save(fsData);
+            StorageManager.saveItem(Config.DATABASE.UNIFIED_FS_KEY, fsData, "File System");
         } catch (e) {
             console.error("JS Bridge: Failed to save filesystem state.", e);
         }
