@@ -22,12 +22,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     line_number = 1
     for line in lines:
         if line.strip():
-            output_lines.append(f"{str(line_number).rjust(6)}\\t{line}")
+            output_lines.append(f"{str(line_number).rjust(6)}\t{line}")
             line_number += 1
         else:
             output_lines.append("")
 
-    return "\\n".join(output_lines)
+    return "\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return """

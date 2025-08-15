@@ -18,7 +18,7 @@ def run(args, flags, user_context, session_stack=None, **kwargs):
     for user in session_stack:
         output.append(f"{user.ljust(8)}   tty1         {login_time}")
 
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """

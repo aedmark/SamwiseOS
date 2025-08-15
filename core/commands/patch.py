@@ -46,7 +46,7 @@ def _apply_patch(original_content, hunks):
         new_lines[start_index : start_index + len(hunk_original_lines)] = lines_to_add
         offset += len(lines_to_add) - len(hunk_original_lines)
 
-    return '\\n'.join(new_lines)
+    return '\n'.join(new_lines)
 
 
 def run(args, flags, user_context, **kwargs):

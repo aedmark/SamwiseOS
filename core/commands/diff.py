@@ -44,7 +44,7 @@ def run(args, flags, user_context, **kwargs):
             lineterm=''
         )
 
-    return "\\n".join(list(diff))
+    return "\n".join(list(diff))
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -62,5 +62,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the diff command."""
     return "Usage: diff [-u] <file1> <file2>"

@@ -49,11 +49,11 @@ def run(args, flags, user_context, **kwargs):
 
     build_tree(start_node)
 
-    summary = f"\\n{dir_count} director{'y' if dir_count == 1 else 'ies'}"
+    summary = f"\n{dir_count} director{'y' if dir_count == 1 else 'ies'}"
     if not dirs_only: summary += f", {file_count} file{'s' if file_count != 1 else ''}"
     output.append(summary)
 
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """

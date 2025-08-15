@@ -62,7 +62,7 @@ def run(args, flags, user_context, **kwargs):
         return {"success": False, "error": f"planner: {error}"}
 
     if sub_command == 'list':
-        output = [f"\\n  Project Status: {data.get('projectName', project_name)}", f"  {'='*70}"]
+        output = [f"\n  Project Status: {data.get('projectName', project_name)}", f"  {'='*70}"]
         if not data.get('tasks'):
             output.append("  No tasks yet. Use 'planner add \"<task>\"' to add one.")
         else:
@@ -73,8 +73,8 @@ def run(args, flags, user_context, **kwargs):
                 status = task.get('status', 'open').upper().ljust(9)
                 assignee = (task.get('assignee') or 'none').ljust(13)
                 output.append(f"  {task_id} {status} {assignee} {task.get('description', '')}")
-        output.append(f"  {'='*70}\\n")
-        return "\\n".join(output)
+        output.append(f"  {'='*70}\n")
+        return "\n".join(output)
 
     elif sub_command == 'add':
         if len(args) != 3:

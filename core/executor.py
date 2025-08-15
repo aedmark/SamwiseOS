@@ -233,9 +233,28 @@ class CommandExecutor:
             return json.dumps({"success": False, "error": f"Execution Error: {str(e)}\n{tb_str}"})
 
     async def _execute_segment(self, segment, stdin_data):
+        # *** THIS IS THE FIX ***
+        # We now gather all relevant context from the executor's state
+        # and pass it to the command's run function via kwargs.
+        kwargs_for_run = {
+            "users": self.users,
+            "user_groups": self.user_groups,
+            "config": self.config,
+            "groups": self.groups,
+            "jobs": self.jobs,
+            "ai_manager": self.ai_manager,
+            "api_key": self.api_key,
+            "session_start_time": self.session_start_time,
+            "session_stack": self.session_stack,
+            "commands": self.commands
+        }
         result = await self.run_command_by_name(
-            command_name=segment['command'], args=segment['args'], flags=segment['flags'],
-            user_context=self.user_context, stdin_data=stdin_data, kwargs={}
+            command_name=segment['command'],
+            args=segment['args'],
+            flags=segment['flags'],
+            user_context=self.user_context,
+            stdin_data=stdin_data,
+            kwargs=kwargs_for_run  # Pass the context here
         )
         return result
 
@@ -256,31 +275,28 @@ class CommandExecutor:
             run_func = getattr(command_module, 'run', None)
             if not run_func:
                 return json.dumps({"success": False, "error": f"Command '{command_name}' is not runnable."})
+
+            # This is the logic that intelligently passes the right arguments to each command's run function.
+            # It now correctly includes our kwargs from _execute_segment.
+            possible_kwargs = {
+                "args": args, "flags": flags, "user_context": user_context, "stdin_data": stdin_data,
+                **kwargs
+            }
+            sig = inspect.signature(run_func)
+            params = sig.parameters
+            has_varkw = any(p.kind == p.VAR_KEYWORD for p in params.values())
+            kwargs_for_run = {k: v for k, v in possible_kwargs.items() if k in params} if not has_varkw else possible_kwargs
+
             if inspect.iscoroutinefunction(run_func):
-                result = await run_func(args=args, flags=flags, user_context=user_context, stdin_data=stdin_data, **kwargs)
-                if isinstance(result, dict):
-                    if 'success' not in result: result['success'] = True
-                    return json.dumps(result)
-                else:
-                    return json.dumps({"success": True, "output": str(result)})
+                result = await run_func(**kwargs_for_run)
             else:
-                possible_kwargs = {
-                    "args": args, "flags": flags, "user_context": user_context, "stdin_data": stdin_data,
-                    "users": self.users, "user_groups": self.user_groups, "config": self.config,
-                    "groups": self.groups, "jobs": self.jobs, "ai_manager": self.ai_manager,
-                    "api_key": self.api_key, "session_start_time": self.session_start_time,
-                    "session_stack": self.session_stack, "commands": self.commands, **kwargs
-                }
-                sig = inspect.signature(run_func)
-                params = sig.parameters
-                has_varkw = any(p.kind == p.VAR_KEYWORD for p in params.values())
-                kwargs_for_run = {k: v for k, v in possible_kwargs.items() if k in params} if not has_varkw else possible_kwargs
                 result = run_func(**kwargs_for_run)
-                if isinstance(result, dict):
-                    if 'success' not in result: result['success'] = True
-                    return json.dumps(result)
-                else:
-                    return json.dumps({"success": True, "output": str(result)})
+
+            if isinstance(result, dict):
+                if 'success' not in result: result['success'] = True
+                return json.dumps(result)
+            else:
+                return json.dumps({"success": True, "output": str(result)})
         except Exception as e:
             tb_str = traceback.format_exc()
             return json.dumps({"success": False, "error": f"Error executing '{command_name}': {repr(e)}\n{tb_str}"})

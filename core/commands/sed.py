@@ -43,7 +43,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         except re.error as e:
             return {"success": False, "error": f"sed: regex error: {e}"}
 
-    return "\\n".join(output_lines)
+    return "\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return """

@@ -53,7 +53,7 @@ def run(args, flags, user_context, stdin_data=None):
                 (not is_repeated and not is_unique):
             output_lines.append(f"{str(count).rjust(7)} {last_line}" if is_count else last_line)
 
-    return "\\n".join(output_lines)
+    return "\n".join(output_lines)
 
 def man(args, flags, user_context, stdin_data=None):
     return """
