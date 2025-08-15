@@ -134,14 +134,11 @@ class CommandExecutor {
                 let line = commandObj.command.trim();
                 let stdinForCommand = commandObj.password_pipe ? commandObj.password_pipe.join('\n') : null;
 
-                // We will now parse for input redirection within the script line itself.
                 const redirMatch = line.match(/< \s*(\S+)/);
                 if (redirMatch) {
                     const filePath = redirMatch[1];
-                    // Remove the redirection part from the command string
                     line = line.substring(0, redirMatch.index).trim();
 
-                    // Validate and read the file content
                     const validationResult = await FileSystemManager.validatePath(
                         filePath,
                         { expectedType: 'file', permissions: ['read'] }
@@ -202,7 +199,6 @@ class CommandExecutor {
         let commandToProcess = rawCommandText.trim();
         commandToProcess = this._expandBraces(commandToProcess);
 
-        // --- Command Substitution ---
         const commandSubstitutionRegex = /\$\(([^)]+)\)/g;
         let substitutionMatches = [...commandToProcess.matchAll(commandSubstitutionRegex)];
         if (substitutionMatches.length > 0) {
@@ -215,28 +211,24 @@ class CommandExecutor {
             commandToProcess = commandToProcess.replace(commandSubstitutionRegex, () => {
                 const result = subResults[i++];
                 if (!result.success) {
-                    // Propagate the error from the subcommand
                     throw new Error(result.error?.message || result.error || `Command substitution failed for '${substitutionMatches[i - 1][1]}'`);
                 }
                 return (result.data || '').trim().replace(/\n/g, ' ');
             });
         }
 
-        // --- Assignment Handling (must happen AFTER command substitution) ---
         const assignmentRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)$/;
         const assignmentMatch = commandToProcess.match(assignmentRegex);
         if (assignmentMatch) {
             const varName = assignmentMatch[1];
             let value = assignmentMatch[2];
-            // Handle quoted values
             if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
                 value = value.slice(1, -1);
             }
             await EnvironmentManager.set(varName, value);
-            return ""; // Assignment is the whole operation
+            return "";
         }
 
-        // --- Comment Stripping ---
         let inQuote = null; let commentIndex = -1;
         for (let i = 0; i < commandToProcess.length; i++) {
             const char = commandToProcess[i];
@@ -246,13 +238,12 @@ class CommandExecutor {
         if (commentIndex > -1) { commandToProcess = commandToProcess.substring(0, commentIndex).trim(); }
         if (!commandToProcess) { return ""; }
 
-        // --- Script & Environment Variable Substitution ( respecting quotes ) ---
         let finalCommand = "";
         let i = 0;
         while (i < commandToProcess.length) {
             const char = commandToProcess[i];
 
-            if (char === "'") { // Handle single-quoted strings, no expansion inside
+            if (char === "'") {
                 let endIndex = commandToProcess.indexOf("'", i + 1);
                 if (endIndex === -1) {
                     finalCommand += commandToProcess.substring(i);
@@ -260,13 +251,12 @@ class CommandExecutor {
                 }
                 finalCommand += commandToProcess.substring(i, endIndex + 1);
                 i = endIndex + 1;
-            } else if (char === "\\") { // Handle escaped characters
+            } else if (char === "\\") {
                 finalCommand += commandToProcess.substring(i, Math.min(i + 2, commandToProcess.length));
                 i += 2;
-            } else if (char === "$") { // Handle variable expansion
+            } else if (char === "$") {
                 const restOfString = commandToProcess.substring(i);
 
-                // Script args: $#, $@, $1, $2 etc.
                 const scriptArgMatch = restOfString.match(/^\$([@#]|\d+)/);
                 if (scriptingContext && scriptArgMatch) {
                     const argSpecifier = scriptArgMatch[1];
@@ -284,7 +274,6 @@ class CommandExecutor {
                     continue;
                 }
 
-                // Environment variables: $VAR or ${VAR}
                 const envVarRegex = /^\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/;
                 const envVarMatch = restOfString.match(envVarRegex);
                 if (envVarMatch) {
@@ -303,7 +292,6 @@ class CommandExecutor {
         }
         commandToProcess = finalCommand;
 
-        // --- Alias Resolution ---
         const aliasResult = await AliasManager.resolveAlias(commandToProcess);
         if (aliasResult.error) { throw new Error(aliasResult.error); }
         return aliasResult.newCommand;
@@ -423,19 +411,46 @@ class CommandExecutor {
     async _handleEffect(result, options) {
         const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager, NetworkManager, CommandExecutor } = this.dependencies;
         switch (result.effect) {
+            // This effect is triggered when the Python parser sees a '&'.
+            case 'background_job':
+                const newJobId = ++this.backgroundProcessIdCounter;
+                const abortController = new AbortController();
+                const jobUser = (await UserManager.getCurrentUser()).name;
+
+                this.activeJobs[newJobId] = {
+                    command: result.command_string,
+                    status: 'running',
+                    user: jobUser,
+                    startTime: new Date().toISOString(),
+                    abortController: abortController
+                };
+
+                // Non-blocking execution of the command
+                (async () => {
+                    const bgOptions = {
+                        ...options,
+                        isInteractive: false,
+                        suppressOutput: true,
+                        signal: abortController.signal
+                    };
+                    await this.processSingleCommand(result.command_string, bgOptions);
+                    // Once done, remove from active jobs
+                    if (this.activeJobs[newJobId]) {
+                        delete this.activeJobs[newJobId];
+                    }
+                })();
+
+                return ErrorHandler.createSuccess(`[${newJobId}] ${result.command_string}`);
             case 'run_js_native':
                 const { command, args, flags } = result.command_details;
                 const commandInstance = await this._ensureCommandLoaded(command);
                 if (commandInstance) {
-                    // Reconstruct the raw arguments array for the JS command's `execute` method,
-                    // which expects to parse flags itself.
                     const reconstructedArgs = [...args];
                     const flagDefs = commandInstance.definition.flagDefinitions || [];
                     for (const flagName in flags) {
                         const flagValue = flags[flagName];
                         const flagDef = flagDefs.find(def => def.name === flagName);
                         if (flagDef) {
-                            // Prefer short flag if available
                             const flagStr = flagDef.short ? `-${flagDef.short}` : (flagDef.long ? `--${flagDef.long}` : null);
                             if(flagStr) {
                                 if (flagDef.takesValue && flagValue !== true) {

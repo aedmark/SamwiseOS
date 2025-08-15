@@ -20,15 +20,16 @@ class CommandExecutor:
         self.user_context = {"name": "Guest"}
         self._flag_def_cache = {}
         self.ai_manager = None
-        # A set of commands that must be handled by the JavaScript layer.
-        self.js_native_commands = {
-            "upload", "play", "nc", "netstat",
-            "read_messages", "post_message", "run", "tail"
-        }
+        # This will be populated by the JS bridge during initialization.
+        self.js_native_commands = set()
 
 
     def set_ai_manager(self, ai_manager_instance):
         self.ai_manager = ai_manager_instance
+
+    # This function allows the JS bridge to tell Python about its native commands.
+    def set_js_native_commands(self, command_list):
+        self.js_native_commands = set(command_list)
 
     def _discover_commands(self):
         try:
@@ -103,11 +104,10 @@ class CommandExecutor:
         while i < len(parts_to_process):
             part = parts_to_process[i]
 
-            # New logic to handle flags with attached values like -F, or -n10
             is_attached_value_flag = False
             if part.startswith('-') and not part.startswith('--') and len(part) > 2:
                 short_flag = part[:2]
-                if short_flag in flag_map and flag_map[short_flag][1]: # Check if it's a known flag that takes a value
+                if short_flag in flag_map and flag_map[short_flag][1]:
                     canonical_name, _ = flag_map[short_flag]
                     flags[canonical_name] = part[2:]
                     i += 1
@@ -155,14 +155,14 @@ class CommandExecutor:
 
     def _parse_command_string(self, command_string):
         try:
-            command_string = re.sub(r'(&&|\|\||;|\|)', r' \1 ', command_string)
+            command_string = re.sub(r'(&&|\|\||;|\||&)', r' \1 ', command_string)
             parts = shlex.split(command_string)
         except ValueError as e:
             raise ValueError(f"Syntax error in command: {e}")
         if not parts: return []
         command_sequence, sub_commands, last_op_index = [], [], 0
         for i, part in enumerate(parts):
-            if part in ['&&', '||', ';']:
+            if part in ['&&', '||', ';', '&']:
                 sub_commands.append({'command_parts': parts[last_op_index:i], 'operator': part})
                 last_op_index = i + 1
         sub_commands.append({'command_parts': parts[last_op_index:], 'operator': None})
@@ -193,7 +193,9 @@ class CommandExecutor:
                     current_segment_parts.append(part)
             final_segment = self._parts_to_segment(current_segment_parts)
             if final_segment: segments.append(final_segment)
-            if segments: command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection})
+
+            is_background = sub_cmd['operator'] == '&'
+            if segments: command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection, 'is_background': is_background})
         return command_sequence
 
     async def _preprocess_command_string(self, command_string, js_context_json):
@@ -247,6 +249,10 @@ class CommandExecutor:
                         except FileNotFoundError: pass
                     self.fs_manager.write_file(file_path, content_to_write, self.user_context)
                     last_result_obj['output'] = ""
+                if pipeline['is_background']:
+                    last_result_obj['effect'] = 'background_job'
+                    last_result_obj['command_string'] = processed_command_string.strip().rstrip('&').strip()
+
             return json.dumps(last_result_obj)
         except Exception as e:
             tb_str = traceback.format_exc()
@@ -254,7 +260,7 @@ class CommandExecutor:
 
     async def _execute_segment(self, segment, stdin_data):
         command_name = segment['command']
-        # Check if the command is JS-native before proceeding.
+        # Restore the check for JS-native commands before trying to run a Python command.
         if command_name in self.js_native_commands:
             return json.dumps({
                 "success": True,
@@ -294,6 +300,7 @@ class CommandExecutor:
                 api_key=context.get("api_key"), session_start_time=context.get("session_start_time"),
                 session_stack=context.get("session_stack")
             )
+        # The JS-native check is now in _execute_segment, so this just checks for Python commands.
         if command_name not in self.commands:
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
         try:

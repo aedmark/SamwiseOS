@@ -1,85 +1,47 @@
 // scripts/config.js
 
-/**
- * The central command center for all OopisOS settings.
- * This class holds the master blueprint for the operating system's behavior,
- * including file paths, terminal aesthetics, user defaults, and API endpoints.
- * It's all about keeping things consistent across the board.
- * @class ConfigManager
- */
-
 class ConfigManager {
-    /**
-     * @constructor
-     */
     constructor() {
-        /**
-         * The dependency injection container.
-         * @type {object}
-         */
         this.dependencies = {};
         this._initializeDefaultConfig();
     }
 
-    /**
-     * Initializes the default configuration settings.
-     * This is the master list of all the cool things our OS can do and what they're called.
-     * @private
-     */
     _initializeDefaultConfig() {
         const defaultConfig = {
-            /**
-             * Settings for the IndexedDB database used for filesystem persistence.
-             * @type {object}
-             */
+
             DATABASE: {
                 NAME: "SamwiseOS",
                 VERSION: 3,
                 FS_STORE_NAME: "FileSystemsStore",
                 UNIFIED_FS_KEY: "SamwiseOS_SharedFS",
             },
-            /**
-             * Core operating system information.
-             * @type {object}
-             */
+
             OS: {
                 NAME: "SamwiseOS",
                 VERSION: "0.0.3",
                 DEFAULT_HOST_NAME: "SamwiseOS",
             },
-            /**
-             * User and authentication-related settings.
-             * @type {object}
-             */
+
             USER: {
                 DEFAULT_NAME: "Guest",
                 RESERVED_USERNAMES: ["guest", "root", "admin", "system"],
                 MIN_USERNAME_LENGTH: 3,
                 MAX_USERNAME_LENGTH: 20,
             },
-            /**
-             * Configuration for the `sudo` command.
-             * @type {object}
-             */
+
             SUDO: {
                 SUDOERS_PATH: "/etc/sudoers",
                 DEFAULT_TIMEOUT: 15,
                 AUDIT_LOG_PATH: "/var/log/sudo.log",
             },
-            /**
-             * Terminal-specific settings, like history size and the command prompt.
-             * @type {object}
-             */
+
             TERMINAL: {
                 MAX_HISTORY_SIZE: 50,
                 PROMPT_CHAR: ">",
                 PROMPT_SEPARATOR: ":",
                 PROMPT_AT: "@",
             },
-            /**
-             * Keys used for storing persistent data in the browser's local storage.
-             * @type {object}
-             */
+
             STORAGE_KEYS: {
                 ONBOARDING_COMPLETE: "oopisOsOnboardingComplete",
                 USER_CREDENTIALS: "oopisOsUserCredentials",
@@ -90,10 +52,7 @@ class ConfigManager {
                 GEMINI_API_KEY: "oopisGeminiApiKey",
                 USER_GROUPS: "oopisOsUserGroups",
             },
-            /**
-             * Filesystem-related constants, permissions, and limitations.
-             * @type {object}
-             */
+
             FILESYSTEM: {
                 ROOT_PATH: "/",
                 CURRENT_DIR_SYMBOL: ".",
@@ -113,10 +72,7 @@ class ConfigManager {
                 MAX_SCRIPT_STEPS: 10000,
                 MAX_SCRIPT_DEPTH: 100,
             },
-            /**
-             * A collection of standardized messages for the terminal.
-             * @type {object}
-             */
+
             MESSAGES: {
                 PERMISSION_DENIED_SUFFIX: ": You aren't allowed to do that.",
                 CONFIRMATION_PROMPT: "Type 'YES' (all caps) if you really wanna go through with this.",
@@ -171,10 +127,6 @@ class ConfigManager {
                 INVALID_PASSWORD: "Nope, sorry. Are you sure you typed it right?.",
                 EMPTY_PASSWORD_NOT_ALLOWED: "No free passes around here, kiddo. You can't use an empty password.",
             },
-            /**
-             * A manifest of internal errors.
-             * @type {object}
-             */
 
             INTERNAL_ERRORS: {
                 DB_NOT_INITIALIZED_FS_SAVE: "DB not initialized for FS save",
@@ -186,10 +138,6 @@ class ConfigManager {
                 SOURCE_NOT_FOUND_IN_PARENT_MIDDLE: "' not found in parent '",
                 SOURCE_NOT_FOUND_IN_PARENT_SUFFIX: "'",
             },
-            /**
-             * AI API configurations.
-             * @type {object}
-             */
 
             API: {
                 GEMINI_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
@@ -204,28 +152,20 @@ class ConfigManager {
                     },
                 },
             },
-            /**
-             * The manifest of all built-in commands.
-             * @type {string[]}
-             */
 
-            COMMANDS_MANIFEST: [
+            COMMANDS_MANIFEST: [],
+            JS_NATIVE_COMMANDS: [
+                "upload",
+                "play",
                 "nc",
                 "netstat",
-                "play",
-                "post_message",
                 "read_messages",
-                "tail",
-                "upload"
+                "post_message"
             ],
         };
 
         Object.assign(this, defaultConfig);
 
-        /**
-         * A freeze-dried list of all the cool CSS classes we use for styling.
-         * @type {object}
-         */
         this.CSS_CLASSES = Object.freeze({
             ERROR_MSG: "text-error",
             SUCCESS_MSG: "text-success",
@@ -239,20 +179,9 @@ class ConfigManager {
         });
     }
 
-    /**
-     * Sets the dependency injection container.
-     * @param {object} dependencies - The dependencies to be injected.
-     */
     setDependencies(dependencies) {
         this.dependencies = dependencies;
     }
-
-    /**
-     * Parses a string value into a boolean or number if possible.
-     * @private
-     * @param {string} valueStr - The string to parse.
-     * @returns {*} The parsed value or the original string.
-     */
 
     _parseConfigValue(valueStr) {
         if (typeof valueStr !== "string") return valueStr;
@@ -263,14 +192,6 @@ class ConfigManager {
         if (!isNaN(num) && valueStr.trim() !== "") return num;
         return valueStr;
     }
-
-    /**
-     * Sets a nested property on an object using a dot-notation path.
-     * @private
-     * @param {object} obj - The object to modify.
-     * @param {string} path - The dot-notation path to the property.
-     * @param {*} value - The value to set.
-     */
 
     _setNestedProperty(obj, path, value) {
         const parts = path.split(".");
@@ -284,16 +205,10 @@ class ConfigManager {
         current[parts.length - 1] = this._parseConfigValue(value);
     }
 
-    /**
-     * Loads new commands from a package manifest on the filesystem.
-     * It's how we add new commands to the master list!
-     * @returns {Promise<void>}
-     */
-
     async loadPackageManifest() {
         const { FileSystemManager } = this.dependencies;
         const manifestPath = '/etc/pkg_manifest.json';
-        const manifestNode = FileSystemManager.getNodeByPath(manifestPath);
+        const manifestNode = await FileSystemManager.getNodeByPath(manifestPath);
 
         if (manifestNode) {
             try {
