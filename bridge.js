@@ -43,6 +43,7 @@ const OopisOS_Kernel = {
                 '/core/groups.py': './core/groups.py',
                 '/core/users.py': './core/users.py',
                 '/core/sudo.py': './core/sudo.py',
+                '/core/audit.py': './core/audit.py',
                 '/core/ai_manager.py': './core/ai_manager.py',
                 '/core/time_utils.py': './core/time_utils.py',
                 '/core/commands/gemini.py': './core/commands/gemini.py',
