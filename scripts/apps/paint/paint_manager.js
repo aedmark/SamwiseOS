@@ -1,10 +1,3 @@
-/**
- * Paint Manager - Manages UI interaction and delegates all state
- * management to the Python kernel's PaintManager.
- * @class PaintManager
- * @extends App
- */
-
 window.PaintManager = class PaintManager extends App {
     constructor() {
         super();
@@ -21,7 +14,6 @@ window.PaintManager = class PaintManager extends App {
         this.isWindowed = options.isWindowed || false;
 
         const { filePath, fileContent } = options;
-        // [REFACTORED]
         const resultJson = OopisOS_Kernel.syscall("paint", "get_initial_state", [filePath, fileContent]);
         const result = JSON.parse(resultJson);
 
@@ -89,7 +81,6 @@ window.PaintManager = class PaintManager extends App {
             onColorSelect: (color) => { this.state.currentColor = color; },
             onBrushSizeChange: (size) => { this.state.brushSize = size; },
             onCharChange: (char) => { this.state.currentCharacter = char || " "; },
-            // [REFACTORED]
             onUndo: () => this._updateStateFromPython(JSON.parse(OopisOS_Kernel.syscall("paint", "undo"))),
             onRedo: () => this._updateStateFromPython(JSON.parse(OopisOS_Kernel.syscall("paint", "redo"))),
             onToggleGrid: () => {
@@ -112,8 +103,19 @@ window.PaintManager = class PaintManager extends App {
                 this.state.isDrawing = true;
                 this.state.startCoords = coords;
                 this.state.lastCoords = coords;
+
+                // For tools that draw continuously, we call the backend on mouse move.
+                // For single-click tools like 'fill', we can call it here.
                 if (this.state.currentTool === 'fill') {
-                    this._toolFill(coords);
+                    const result = JSON.parse(OopisOS_Kernel.syscall("paint", "draw_shape", [
+                        this.state.currentTool,
+                        coords,
+                        coords, // Start and end are the same for fill
+                        this.state.currentCharacter,
+                        this.state.currentColor,
+                        this.state.brushSize
+                    ]));
+                    this._updateStateFromPython(result);
                     this._pushUndoState();
                     this.state.isDrawing = false;
                 }
@@ -121,23 +123,51 @@ window.PaintManager = class PaintManager extends App {
             onCanvasMouseMove: (coords) => {
                 this.ui.updateStatusBar(this.state, coords);
                 if (!this.state.isDrawing) return;
+
                 const tool = this.state.currentTool;
-                if (tool === 'pencil' || tool === 'eraser') this._toolLine(this.state.lastCoords, coords, true);
-                else if (['line', 'rect', 'circle'].includes(tool)) this._previewShape(this.state.startCoords, coords);
+
+                // For continuous drawing tools like pencil and eraser
+                if (tool === 'pencil' || tool === 'eraser') {
+                    const result = JSON.parse(OopisOS_Kernel.syscall("paint", "draw_shape", [
+                        tool,
+                        this.state.lastCoords,
+                        coords,
+                        this.state.currentCharacter,
+                        this.state.currentColor,
+                        this.state.brushSize
+                    ]));
+                    this._updateStateFromPython(result);
+                } else if (['line', 'rect', 'circle'].includes(tool)) {
+                    // Previewing shapes is a UI-only concern, so we can keep that logic here for now.
+                    // This avoids spamming the backend with preview updates.
+                    this._previewShape(this.state.startCoords, coords);
+                }
+
                 this.state.lastCoords = coords;
             },
+
             onCanvasMouseUp: (coords) => {
                 if (!this.state.isDrawing) return;
                 this.state.isDrawing = false;
+
                 const tool = this.state.currentTool;
                 const endCoords = coords || this.state.lastCoords;
-                if (tool === 'fill') return;
-                if (['pencil', 'eraser'].includes(tool)) this._toolLine(this.state.lastCoords, endCoords, true);
-                else if (tool === 'line') this._toolLine(this.state.startCoords, endCoords);
-                else if (tool === 'rect') this._toolRect(this.state.startCoords, endCoords);
-                else if (tool === 'circle') this._toolCircle(this.state.startCoords, endCoords);
+
+                // Only call the backend for tools that draw on mouse up
+                if (['line', 'rect', 'circle', 'pencil', 'eraser'].includes(tool)) {
+                    const result = JSON.parse(OopisOS_Kernel.syscall("paint", "draw_shape", [
+                        tool,
+                        this.state.startCoords,
+                        endCoords,
+                        this.state.currentCharacter,
+                        this.state.currentColor,
+                        this.state.brushSize
+                    ]));
+                    this._updateStateFromPython(result);
+                    this._pushUndoState();
+                }
+
                 this.ui.clearPreview();
-                if (tool !== 'select') this._pushUndoState();
             },
         };
     }
@@ -145,138 +175,5 @@ window.PaintManager = class PaintManager extends App {
     _pushUndoState() {
         const result = JSON.parse(OopisOS_Kernel.syscall("paint", "push_undo_state", [JSON.stringify(this.state.canvasData)]));
         this._updateStateFromPython(result);
-    }
-
-    _draw(cellsToUpdate, isPreview = false) {
-        if (isPreview) {
-            this.ui.updatePreviewCanvas(cellsToUpdate);
-        } else {
-            cellsToUpdate.forEach(cell => {
-                if (this.state.canvasData[cell.y] && this.state.canvasData[cell.y][cell.x]) {
-                    this.state.canvasData[cell.y][cell.x] = { char: cell.char, color: cell.color };
-                }
-            });
-            this.ui.updateCanvas(cellsToUpdate);
-        }
-    }
-
-    _previewShape(start, end) {
-        if (!start || !end) return;
-        const tool = this.state.currentTool;
-        let cells = [];
-        if (tool === 'line') {
-            cells = this._getLineCells(start, end);
-        } else if (tool === 'rect') {
-            cells = this._getRectCells(start, end);
-        } else if (tool === 'circle') {
-            cells = this._getCircleCells(start, end);
-        }
-        this._draw(cells, true);
-    }
-
-    _toolLine(start, end, isPencil = false) {
-        const cells = this._getLineCells(start, end, isPencil);
-        this._draw(cells);
-    }
-
-    _toolRect(start, end) {
-        const cells = this._getRectCells(start, end);
-        this._draw(cells);
-    }
-
-    _toolCircle(start, end) {
-        const cells = this._getCircleCells(start, end);
-        this._draw(cells);
-    }
-
-    _toolFill(startCoords) {
-        const { width, height } = this.state.canvasDimensions;
-        const { x, y } = startCoords;
-        if (x < 0 || x >= width || y < 0 || y >= height) return;
-        const targetChar = this.state.canvasData[y][x].char;
-        const targetColor = this.state.canvasData[y][x].color;
-        const fillChar = this.state.currentCharacter;
-        const fillColor = this.state.currentColor;
-        if (targetChar === fillChar && targetColor === fillColor) return;
-        const stack = [[x, y]];
-        const visited = new Set([`${x},${y}`]);
-        while (stack.length > 0) {
-            const [cx, cy] = stack.pop();
-            if (this.state.canvasData[cy][cx].char === targetChar && this.state.canvasData[cy][cx].color === targetColor) {
-                this.state.canvasData[cy][cx] = { char: fillChar, color: fillColor };
-                const neighbors = [[cx, cy - 1], [cx, cy + 1], [cx - 1, cy], [cx + 1, cy]];
-                for (const [nx, ny] of neighbors) {
-                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && !visited.has(`${nx},${ny}`)) {
-                        stack.push([nx, ny]);
-                        visited.add(`${nx},${ny}`);
-                    }
-                }
-            }
-        }
-        this.ui.renderInitialCanvas(this.state.canvasData, this.state.canvasDimensions);
-    }
-
-    _getLineCells(start, end, isPencil = false) {
-        const cells = [];
-        let { x: x1, y: y1 } = start;
-        let { x: x2, y: y2 } = end;
-        const char = this.state.currentTool === 'eraser' ? ' ' : this.state.currentCharacter;
-        const color = this.state.currentTool === 'eraser' ? '#000000' : this.state.currentColor;
-        const dx = Math.abs(x2 - x1);
-        const dy = Math.abs(y2 - y1);
-        const sx = (x1 < x2) ? 1 : -1;
-        const sy = (y1 < y2) ? 1 : -1;
-        let err = dx - dy;
-        while (true) {
-            cells.push({ x: x1, y: y1, char, color });
-            if ((x1 === x2) && (y1 === y2)) break;
-            let e2 = 2 * err;
-            if (e2 > -dy) { err -= dy; x1 += sx; }
-            if (e2 < dx) { err += dx; y1 += sy; }
-        }
-        return cells;
-    }
-
-    _getRectCells(start, end) {
-        const cells = [];
-        const { char, color } = { char: this.state.currentCharacter, color: this.state.currentColor };
-        const x1 = Math.min(start.x, end.x);
-        const x2 = Math.max(start.x, end.x);
-        const y1 = Math.min(start.y, end.y);
-        const y2 = Math.max(start.y, end.y);
-        for (let x = x1; x <= x2; x++) {
-            cells.push({ x, y: y1, char, color });
-            cells.push({ x, y: y2, char, color });
-        }
-        for (let y = y1 + 1; y < y2; y++) {
-            cells.push({ x: x1, y, char, color });
-            cells.push({ x: x2, y, char, color });
-        }
-        return cells;
-    }
-
-    _getCircleCells(start, end) {
-        const cells = [];
-        const { char, color } = { char: this.state.currentCharacter, color: this.state.currentColor };
-        const centerX = Math.round((start.x + end.x) / 2);
-        const centerY = Math.round((start.y + end.y) / 2);
-        const rx = Math.abs(centerX - start.x);
-        const ry = Math.abs(centerY - start.y);
-        let x = 0, y = ry;
-        let d1 = (ry * ry) - (rx * rx * ry) + (0.25 * rx * rx);
-        let dx = 2 * ry * ry * x;
-        let dy = 2 * rx * rx * y;
-        while (dx < dy) {
-            cells.push({ x: centerX + x, y: centerY + y, char, color }, { x: centerX - x, y: centerY + y, char, color }, { x: centerX + x, y: centerY - y, char, color }, { x: centerX - x, y: centerY - y, char, color });
-            if (d1 < 0) { x++; dx += (2 * ry * ry); d1 += dx + (ry * ry); }
-            else { x++; y--; dx += (2 * ry * ry); dy -= (2 * rx * rx); d1 += dx - dy + (ry * ry); }
-        }
-        let d2 = ((ry * ry) * ((x + 0.5) * (x + 0.5))) + ((rx * rx) * ((y - 1) * (y - 1))) - (rx * rx * ry * ry);
-        while (y >= 0) {
-            cells.push({ x: centerX + x, y: centerY + y, char, color }, { x: centerX - x, y: centerY + y, char, color }, { x: centerX + x, y: centerY - y, char, color }, { x: centerX - x, y: centerY - y, char, color });
-            if (d2 > 0) { y--; dy -= (2 * rx * rx); d2 += (rx * rx) - dy; }
-            else { y--; x++; dx += (2 * ry * ry); dy -= (2 * rx * rx); d2 += dx - dy + (rx * rx); }
-        }
-        return cells;
     }
 };
