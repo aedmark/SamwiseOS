@@ -453,6 +453,7 @@ window.onload = async () => {
 
     // --- Post-Onboarding Initialization ---
     try {
+        const fsJsonFromStorage = storageManager.loadItem(configManager.DATABASE.UNIFIED_FS_KEY, "File System");
         if (fsJsonFromStorage) {
             await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(fsJsonFromStorage)]);
             await fsManager.setFsData(fsJsonFromStorage);
@@ -461,7 +462,7 @@ window.onload = async () => {
             await fsManager.initialize(configManager.USER.DEFAULT_NAME);
             const initialFsData = await fsManager.getFsData();
             await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(initialFsData)]);
-            await storageHAL.save(initialFsData);
+            storageManager.saveItem(configManager.DATABASE.UNIFIED_FS_KEY, initialFsData, "File System");
         }
 
         await userManager.initializeDefaultUsers();
