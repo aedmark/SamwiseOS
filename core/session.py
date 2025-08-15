@@ -7,6 +7,17 @@ class EnvironmentManager:
     def __init__(self):
         self.env_stack = [{}]
 
+    def initialize_defaults(self, user_context):
+        """Initializes the default environment variables for a user."""
+        username = user_context.get('name', 'Guest')
+        self.env_stack = [{
+            "USER": username,
+            "HOME": f"/home/{username}",
+            "HOST": "SamwiseOS",
+            "PATH": "/bin:/usr/bin",
+            "PS1": "\\u@\\h:\\w\\$ "
+        }]
+
     def _get_active_env(self):
         return self.env_stack[-1]
 
@@ -58,7 +69,6 @@ class HistoryManager:
         return True
 
     def set_history(self, new_history):
-        # The object from JS might be a PyProxy, so we convert it to a Python list
         self.command_history = list(new_history)
         if len(self.command_history) > self.max_history_size:
             self.command_history = self.command_history[-self.max_history_size:]
@@ -68,6 +78,20 @@ class AliasManager:
     """Manages command aliases."""
     def __init__(self):
         self.aliases = {}
+
+    def initialize_defaults(self):
+        """Initializes default command aliases."""
+        self.aliases = {
+            'll': 'ls -la',
+            'la': 'ls -a',
+            '..': 'cd ..',
+            '...': 'cd ../..',
+            'h': 'history',
+            'c': 'clear',
+            'q': 'exit',
+            'e': 'edit',
+            'ex': 'explore'
+        }
 
     def set_alias(self, name, value):
         self.aliases[name] = value
@@ -112,6 +136,14 @@ class SessionManager:
     def clear(self, username):
         self.user_session_stack = [username]
         return self.user_session_stack
+
+    def get_session_state_for_saving(self):
+        """Gathers all session data into a single dictionary for saving."""
+        return json.dumps({
+            "commandHistory": history_manager.get_full_history(),
+            "environmentVariables": env_manager.get_all(),
+            "aliases": alias_manager.get_all_aliases()
+        })
 
     def load_session_state(self, state_json):
         """
