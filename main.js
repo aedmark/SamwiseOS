@@ -139,6 +139,66 @@ async function handleEffect(result, options) {
             })();
             await OutputManager.appendToOutput(`[${newJobId}] ${result.command_string}`);
             break;
+        case 'login':
+        case 'su': { // 'su' and 'login' effects are functionally identical
+            const loginResult = await UserManager.loginUser(result.username, result.password);
+            if (!loginResult.success) {
+                await OutputManager.appendToOutput(loginResult.error.message || loginResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            }
+            break;
+        }
+
+        case 'logout': {
+            const poppedUser = await SessionManager.popUserFromStack();
+            if (poppedUser) {
+                const newCurrentUser = await SessionManager.getCurrentUserFromStack();
+                await OutputManager.appendToOutput(`Logged out of ${poppedUser}. Current user is now ${newCurrentUser}.`);
+                await SessionManager.loadAutomaticState(newCurrentUser);
+            } else {
+                await OutputManager.appendToOutput("Not logged in to any additional user sessions.", { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+            }
+            break;
+        }
+
+        case 'passwd': {
+            const newPassword = await new Promise((resolve) => {
+                ModalManager.request({
+                    context: 'terminal', type: 'input',
+                    messageLines: [`Enter new password for ${result.username}:`],
+                    obscured: true, onConfirm: (pwd) => resolve(pwd), onCancel: () => resolve(null)
+                });
+            });
+            if (newPassword === null) {
+                await OutputManager.appendToOutput("Password change cancelled.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                break;
+            }
+            const confirmPassword = await new Promise((resolve) => {
+                ModalManager.request({
+                    context: 'terminal', type: 'input',
+                    messageLines: [`Confirm new password for ${result.username}:`],
+                    obscured: true, onConfirm: (pwd) => resolve(pwd), onCancel: () => resolve(null)
+                });
+            });
+            if (confirmPassword === null) {
+                await OutputManager.appendToOutput("Password change cancelled.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                break;
+            }
+            if (newPassword !== confirmPassword) {
+                await OutputManager.appendToOutput(Config.MESSAGES.PASSWORD_MISMATCH, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                break;
+            }
+
+            const changeResultJson = await OopisOS_Kernel.syscall("users", "change_password", [result.username, newPassword]);
+            const changeResult = JSON.parse(changeResultJson);
+
+            if (changeResult.success) {
+                await UserManager.syncUsersFromKernel();
+                await OutputManager.appendToOutput(`Password for ${result.username} changed successfully.`);
+            } else {
+                await OutputManager.appendToOutput(`Error: ${changeResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            }
+            break;
+        }
 
         case 'signal_job':
             const signalResult = sendSignalToJob(result.job_id, result.signal);

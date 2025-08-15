@@ -153,6 +153,7 @@ class ConfigManager {
                     },
                 },
             },
+            COMMANDS_MANIFEST: [],
         };
 
         Object.assign(this, defaultConfig);
