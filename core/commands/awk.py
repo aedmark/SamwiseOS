@@ -123,7 +123,10 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                     }
 
                     parts_to_print_str = print_match.group(1)
+                    # This regex is the key fix: It finds either a double-quoted string
+                    # or any sequence of non-space characters.
                     print_parts = re.findall(r'"[^"]*"|\S+', parts_to_print_str)
+
 
                     output_line_parts = []
                     for part in print_parts:
@@ -136,11 +139,14 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                                 if 0 <= field_index < len(field_values):
                                     output_line_parts.append(field_values[field_index])
                             except ValueError:
+                                # This handles cases where a non-numeric value follows '$'
                                 output_line_parts.append(part)
                         elif part in special_vars:
                             output_line_parts.append(special_vars[part])
                         else:
+                            # This handles things like ":" that are not in quotes
                             output_line_parts.append(part)
+
 
                     output_lines.append(" ".join(output_line_parts))
 
