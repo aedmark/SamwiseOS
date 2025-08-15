@@ -1,4 +1,5 @@
 # gem/core/commands/gemini.py
+import asyncio
 
 def define_flags():
     """Declares the flags that the gemini command accepts."""
@@ -8,7 +9,7 @@ def define_flags():
         {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
     ]
 
-def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
+async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     """
     Engages in a context-aware conversation with a configured AI model.
     """
@@ -30,7 +31,7 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
 
     user_prompt = " ".join(args)
 
-    result = ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'gemini'), flags.get('model'), {"apiKey": api_key})
+    result = await ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'gemini'), flags.get('model'), {"apiKey": api_key})
 
     if result["success"]:
         # The data from agentic search is already formatted Markdown

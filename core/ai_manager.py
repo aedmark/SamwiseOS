@@ -2,6 +2,7 @@
 import json
 import urllib.request
 import re
+import shlex
 
 class AIManager:
     """
@@ -41,22 +42,24 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
         ]
 
 
-    def _get_terminal_context(self):
-        pwd_result = json.loads(self.command_executor.execute("pwd"))
-        ls_result = json.loads(self.command_executor.execute("ls -la"))
+    async def _get_terminal_context(self):
+        pwd_result_json = await self.command_executor.execute("pwd", json.dumps({"user_context": self.command_executor.user_context}))
+        ls_result_json = await self.command_executor.execute("ls -la", json.dumps({"user_context": self.command_executor.user_context}))
+        pwd_result = json.loads(pwd_result_json)
+        ls_result = json.loads(ls_result_json)
+
 
         pwd_output = pwd_result.get("output", "(unknown)")
         ls_output = ls_result.get("output", "(empty)")
 
         return f"## OopisOS Session Context ##\nCurrent Directory:\n{pwd_output}\n\nDirectory Listing:\n{ls_output}"
 
-    def perform_agentic_search(self, prompt, history, provider, model, options):
-        # ...
-        # Step 1: Get Terminal Context
-        planner_context = self._get_terminal_context()
+    async def perform_agentic_search(self, prompt, history, provider, model, options):
+        planner_context = await self._get_terminal_context()
         planner_prompt = f'User Prompt: "{prompt}"\n\n{planner_context}'
 
-        # Step 2: Call Planner LLM
+        planner_conversation = history + [{"role": "user", "parts": [{"text": planner_prompt}]}]
+
         planner_result = self._call_llm_api(provider, model, planner_conversation, options.get("apiKey"), self.PLANNER_SYSTEM_PROMPT)
 
         if not planner_result["success"]:
@@ -64,29 +67,31 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         plan_text = planner_result.get("answer", "").strip()
 
-        commands_to_execute = [line.strip() for line in plan_text.splitlines() if re.match(r'^\d+\.\s*', line.strip())]
-        if not commands_to_execute:
+        commands_to_execute_raw = [line.strip() for line in plan_text.splitlines() if re.match(r'^\d+\.\s*', line.strip())]
+
+        if not commands_to_execute_raw:
             return {"success": True, "data": plan_text}
 
-        # Step 3: Execute the plan
         executed_commands_output = ""
-        for command_line in commands_to_execute:
+        for command_line in commands_to_execute_raw:
             command_str = re.sub(r'^\d+\.\s*', '', command_line)
-            command_name = command_str.split(" ")[0]
+            command_parts = shlex.split(command_str)
+            command_name = command_parts[0] if command_parts else ""
 
             if command_name not in self.COMMAND_WHITELIST:
                 error_msg = f"Execution HALTED: AI attempted to run a non-whitelisted command: '{command_name}'."
                 return {"success": False, "error": error_msg}
 
-            exec_result_json = self.command_executor.execute(command_str)
+            js_context = {"user_context": self.command_executor.user_context, "current_path": self.command_executor.fs_manager.current_path}
+            exec_result_json = await self.command_executor.execute(command_str, json.dumps(js_context))
             exec_result = json.loads(exec_result_json)
 
             output = exec_result.get("output", "") if exec_result.get("success") else f"Error: {exec_result.get('error')}"
             executed_commands_output += f"--- Output of '{command_str}' ---\n{output}\n\n"
 
-        # Step 4: Call Synthesizer LLM
         synthesizer_prompt = f'Original user question: "{prompt}"\n\nContext from file system:\n{executed_commands_output}'
         synthesizer_result = self._call_llm_api(provider, model, [{"role": "user", "parts": [{"text": synthesizer_prompt}]}], options.get("apiKey"), self.SYNTHESIZER_SYSTEM_PROMPT)
+
         if not synthesizer_result["success"]:
             return {"success": False, "error": f"Synthesizer stage failed: {synthesizer_result.get('error')}"}
 

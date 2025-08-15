@@ -53,13 +53,11 @@ async def syscall_handler(request_json):
         manager = MODULE_DISPATCHER[module_name]
         target_func = getattr(manager, function_name)
 
-        # THE CRUCIAL FIX: Check if the function is a coroutine and await it!
         if inspect.iscoroutinefunction(target_func):
             result = await target_func(*args, **kwargs)
         else:
             result = target_func(*args, **kwargs)
 
-        # This part handles both regular results and the PyodideTask/Promise from async functions
         if inspect.isawaitable(result):
             result = await result
 
