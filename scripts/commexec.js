@@ -216,7 +216,7 @@ class CommandExecutor {
                 const result = subResults[i++];
                 if (!result.success) {
                     // Propagate the error from the subcommand
-                    throw new Error(result.error?.message || result.error || `Command substitution failed for '${substitutionMatches[i-1][1]}'`);
+                    throw new Error(result.error?.message || result.error || `Command substitution failed for '${substitutionMatches[i - 1][1]}'`);
                 }
                 return (result.data || '').trim().replace(/\n/g, ' ');
             });
@@ -403,11 +403,9 @@ class CommandExecutor {
                     stdinContentForPipeline = validationResult.data.node.content;
                 }
 
-                // **THE FIX IS HERE!**
-                // Handle redirection-only commands, like `> new_file.txt`.
                 if (pipeline.segments.length === 0 && pipeline.redirection) {
                     const { file, type } = pipeline.redirection;
-                    const contentToWrite = ""; // Redirection without a command creates an empty file.
+                    const contentToWrite = "";
                     const user = await UserManager.getCurrentUser();
                     const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
                     const context = { currentUser: user.name, primaryGroup: primaryGroup };
@@ -419,9 +417,9 @@ class CommandExecutor {
                     } else {
                         finalResult = ErrorHandler.createError(writeResult.error);
                     }
-                    continue; // Move to the next item in the sequence
+                    continue;
                 }
-                // **END OF FIX**
+
 
 
                 if (pipeline.isBackground) {

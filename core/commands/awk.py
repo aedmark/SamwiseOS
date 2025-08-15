@@ -44,32 +44,66 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     output_lines = []
 
-    action_match = re.match(r'{\s*print\s*(\$(\d+)|(\$0))\s*}', program)
-    regex_match = re.match(r'/(.*)/', program)
+    # This is a more flexible parser for simple '/regex/ { action }' or just '{ action }'
+    pattern_part = None
+    action_part = None
 
-    for line in lines:
-        fields = line.split(delimiter) if delimiter else line.split()
-        fields.insert(0, line)
-
-        if action_match:
-            field_index_str = action_match.group(2)
-            if field_index_str:
-                field_index = int(field_index_str)
-                if 0 < field_index < len(fields):
-                    output_lines.append(fields[field_index])
-            else: # $0
-                output_lines.append(fields[0])
-        elif regex_match:
-            pattern = regex_match.group(1)
-            try:
-                if re.search(pattern, line):
-                    output_lines.append(line)
-            except re.error:
-                return {"success": False, "error": f"awk: invalid regex: {pattern}"}
+    # Case 1: Just an action block '{...}'
+    action_match_simple = re.match(r'^\s*{(.*)}\s*$', program)
+    if action_match_simple:
+        action_part = action_match_simple.group(1).strip()
+    else:
+        # Case 2: A regex and an action '/.../ {...}'
+        regex_action_match = re.match(r'^\s*/(.*?)/\s*{(.*)}\s*$', program)
+        if regex_action_match:
+            pattern_part = regex_action_match.group(1)
+            action_part = regex_action_match.group(2).strip()
         else:
-            return {"success": False, "error": f"awk: syntax error in program: {program}"}
+            # Case 3: Just a regex '/.../'
+            regex_only_match = re.match(r'^\s*/(.*?)/\s*$', program)
+            if regex_only_match:
+                pattern_part = regex_only_match.group(1)
+                action_part = 'print $0' # Default action for a regex match
+            else:
+                return {"success": False, "error": f"awk: syntax error in program: {program}"}
+
+    # --- EXECUTION LOGIC ---
+    for line_num, line in enumerate(lines):
+        # Apply pattern if it exists
+        if pattern_part:
+            try:
+                if not re.search(pattern_part, line):
+                    continue # Skip to next line if pattern doesn't match
+            except re.error as e:
+                return {"success": False, "error": f"awk: invalid regex: {pattern_part}"}
+
+        # If we get here, either there was no pattern or the pattern matched.
+        # Now, execute the action.
+        if action_part:
+            # Simple action parser: handles 'print $N'
+            print_match = re.match(r'print\s+(\$(\d+)|(\$0))', action_part)
+            if print_match:
+                fields = line.split(delimiter) if delimiter else line.split()
+                # $0 is the whole line. We need to handle this before splitting for other fields.
+
+                # Correctly handle fields. $0 is the whole line.
+                field_values = [line] + fields
+
+                field_specifier = print_match.group(1)
+                if field_specifier == '$0':
+                    output_lines.append(field_values[0])
+                else:
+                    field_index = int(print_match.group(2))
+                    if 0 < field_index < len(field_values):
+                        output_lines.append(field_values[field_index])
+            else:
+                # For this specific bug, we only need to handle the print case.
+                # A more complex awk would require a full parser.
+                # If the action isn't a simple print, we can treat it as an error for now.
+                return {"success": False, "error": f"awk: unsupported action in program: {action_part}"}
 
     return "\n".join(output_lines)
+
 
 def man(args, flags, user_context, **kwargs):
     return """
