@@ -14,13 +14,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         return {"success": False, "error": "awk: missing program"}
 
     program = args[0]
+    file_path = args[1] if len(args) > 1 else None
 
     # This makes the command robust enough to handle shell-like inputs.
     if (program.startswith("'") and program.endswith("'")) or \
             (program.startswith('"') and program.endswith('"')):
         program = program[1:-1]
-
-    file_path = args[1] if len(args) > 1 else None
 
     delimiter = flags.get('field-separator')
 
@@ -80,26 +79,35 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         # If we get here, either there was no pattern or the pattern matched.
         # Now, execute the action.
         if action_part:
-            # Simple action parser: handles 'print $N'
-            print_match = re.match(r'print\s+(\$(\d+)|(\$0))', action_part)
+            # Simple action parser: handles 'print $N' and 'print "..." $N ...'
+            print_match = re.match(r'print\s+(.*)', action_part)
             if print_match:
-                fields = line.split(delimiter) if delimiter else line.split()
-                # $0 is the whole line. We need to handle this before splitting for other fields.
 
-                # Correctly handle fields. $0 is the whole line.
+                fields = line.split(delimiter) if delimiter else line.split()
                 field_values = [line] + fields
 
-                field_specifier = print_match.group(1)
-                if field_specifier == '$0':
-                    output_lines.append(field_values[0])
-                else:
-                    field_index = int(print_match.group(2))
-                    if 0 < field_index < len(field_values):
-                        output_lines.append(field_values[field_index])
+                parts_to_print_str = print_match.group(1)
+
+                # Tokenize the print statement by spaces, but respect quotes
+                print_parts = re.findall(r'"[^"]*"|\S+', parts_to_print_str)
+
+                output_line_parts = []
+                for part in print_parts:
+                    if part.startswith('"') and part.endswith('"'):
+                        output_line_parts.append(part[1:-1])
+                    elif part.startswith('$'):
+                        try:
+                            field_index = int(part[1:])
+                            if 0 <= field_index < len(field_values):
+                                output_line_parts.append(field_values[field_index])
+                        except ValueError:
+                            output_line_parts.append(part) # Not a valid field, print as is
+                    else:
+                        output_line_parts.append(part)
+
+                output_lines.append(" ".join(output_line_parts))
+
             else:
-                # For this specific bug, we only need to handle the print case.
-                # A more complex awk would require a full parser.
-                # If the action isn't a simple print, we can treat it as an error for now.
                 return {"success": False, "error": f"awk: unsupported action in program: {action_part}"}
 
     return "\n".join(output_lines)
