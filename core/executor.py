@@ -20,6 +20,12 @@ class CommandExecutor:
         self.user_context = {"name": "Guest"}
         self._flag_def_cache = {}
         self.ai_manager = None
+        # A set of commands that must be handled by the JavaScript layer.
+        self.js_native_commands = {
+            "upload", "play", "nc", "netstat",
+            "read_messages", "post_message", "run", "tail"
+        }
+
 
     def set_ai_manager(self, ai_manager_instance):
         self.ai_manager = ai_manager_instance
@@ -247,6 +253,15 @@ class CommandExecutor:
             return json.dumps({"success": False, "error": f"Execution Error: {str(e)}\n{tb_str}"})
 
     async def _execute_segment(self, segment, stdin_data):
+        command_name = segment['command']
+        # Check if the command is JS-native before proceeding.
+        if command_name in self.js_native_commands:
+            return json.dumps({
+                "success": True,
+                "effect": "run_js_native",
+                "command_details": segment
+            })
+
         kwargs_for_run = {
             "users": self.users,
             "user_groups": self.user_groups,

@@ -349,7 +349,7 @@ class CommandExecutor {
 
     async processSingleCommand(rawCommandText, options = {}) {
         const { isInteractive = true, scriptingContext = null, suppressOutput = false, stdinContent = null } = options;
-        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Lexer, Parser, FileSystemManager, UserManager } = this.dependencies;
+        const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, FileSystemManager, UserManager } = this.dependencies;
 
         if (this.isInDreamatorium && rawCommandText.trim() === 'exit') {
             if (typeof this.dreamatoriumExitHandler === 'function') { await this.dreamatoriumExitHandler(); }
@@ -382,7 +382,6 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess("");
             }
 
-            // [MODIFIED] JS Parsing is removed. We pass the command directly to Python.
             const kernelContextJson = await this.createKernelContext();
             const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
             const result = JSON.parse(jsonResult);
@@ -396,25 +395,7 @@ class CommandExecutor {
                     finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
                 }
             } else {
-                // [MODIFIED] Logic to handle JS-native commands remains.
-                // This allows hybrid commands like 'tail -f' to still function.
-                if (result.error && result.error.includes("command not found")) {
-                    const lexer = new Lexer(commandToExecute, this.dependencies);
-                    const tokens = lexer.tokenize();
-                    const parser = new Parser(tokens, this.dependencies);
-                    const commandSequence = parser.parse();
-                    const commandName = commandSequence[0]?.pipeline?.segments[0]?.command;
-
-                    const commandInstance = await this._ensureCommandLoaded(commandName);
-                    if (commandInstance) {
-                        const rawArgs = commandSequence[0].pipeline.segments.flatMap(seg => seg.args);
-                        finalResult = await commandInstance.execute(rawArgs, {...options, stdinContent: stdinContent }, this.dependencies);
-                    } else {
-                        finalResult = ErrorHandler.createError({ message: result.error });
-                    }
-                } else {
-                    finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
-                }
+                finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
             }
         } catch (e) {
             finalResult = ErrorHandler.createError(e);
@@ -442,6 +423,32 @@ class CommandExecutor {
     async _handleEffect(result, options) {
         const { FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager, UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils, GroupManager, NetworkManager, CommandExecutor } = this.dependencies;
         switch (result.effect) {
+            case 'run_js_native':
+                const { command, args, flags } = result.command_details;
+                const commandInstance = await this._ensureCommandLoaded(command);
+                if (commandInstance) {
+                    // Reconstruct the raw arguments array for the JS command's `execute` method,
+                    // which expects to parse flags itself.
+                    const reconstructedArgs = [...args];
+                    const flagDefs = commandInstance.definition.flagDefinitions || [];
+                    for (const flagName in flags) {
+                        const flagValue = flags[flagName];
+                        const flagDef = flagDefs.find(def => def.name === flagName);
+                        if (flagDef) {
+                            // Prefer short flag if available
+                            const flagStr = flagDef.short ? `-${flagDef.short}` : (flagDef.long ? `--${flagDef.long}` : null);
+                            if(flagStr) {
+                                if (flagDef.takesValue && flagValue !== true) {
+                                    reconstructedArgs.push(flagStr, flagValue);
+                                } else if (flagValue === true) {
+                                    reconstructedArgs.push(flagStr);
+                                }
+                            }
+                        }
+                    }
+                    return await commandInstance.execute(reconstructedArgs, options, this.dependencies);
+                }
+                return ErrorHandler.createError(`JS-native command '${command}' not found.`);
             case 'delay':
                 await new Promise(resolve => setTimeout(resolve, result.milliseconds));
                 break;

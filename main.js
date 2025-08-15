@@ -230,8 +230,6 @@ window.onload = async () => {
         TabCompletionManager: tabCompletionManager,
         Utils: Utils,
         ErrorHandler: ErrorHandler,
-        Lexer: Lexer,
-        Parser: Parser,
         CommandRegistry: commandRegistry,
         TimestampParser: TimestampParser,
         DiffUtils: DiffUtils,
