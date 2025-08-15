@@ -41,7 +41,7 @@ window.OnboardingManager = class OnboardingManager extends App {
     }
 
     _createCallbacks() {
-        const { UserManager, Utils, ErrorHandler, StorageManager, Config } = this.dependencies;
+        const { UserManager, Utils, ErrorHandler, StorageManager, Config, GroupManager } = this.dependencies;
         return {
             onNextStep: async (data) => {
                 this.state.error = null; // Clear previous errors
@@ -87,11 +87,16 @@ window.OnboardingManager = class OnboardingManager extends App {
                 this.ui.showSpinner();
                 const result = await UserManager.performFirstTimeSetup(this.state.userData);
 
-                if (result.success) {
+                if (result.success && result.data) {
+                    // Save the NEW, updated user and group data from Python
+                    StorageManager.saveItem(Config.STORAGE_KEYS.USER_CREDENTIALS, result.data.users, "User Credentials");
+                    StorageManager.saveItem(Config.STORAGE_KEYS.USER_GROUPS, result.data.groups, "User Groups");
+
                     StorageManager.saveItem(Config.STORAGE_KEYS.ONBOARDING_COMPLETE, true, "Onboarding Status");
                     StorageManager.saveItem(Config.STORAGE_KEYS.LAST_CREATED_USER, this.state.userData.username, "Last Created User");
+
                     this.ui.update({ ...this.state, step: 'complete' });
-                    // The reboot effect will be triggered by the command.
+
                     setTimeout(() => {
                         window.location.reload();
                     }, 3000);

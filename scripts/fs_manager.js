@@ -136,10 +136,10 @@ class FileSystemManager {
 
     async getFsData() {
         if (OopisOS_Kernel && OopisOS_Kernel.isReady) {
-            const resultJson = await OopisOS_Kernel.syscall("filesystem", "save_state_to_json");
+            const resultJson = await OopisOS_Kernel.syscall("filesystem", "get_fs_data");
             const result = JSON.parse(resultJson);
             if (result.success) {
-                return JSON.parse(result.data);
+                return result.data;
             }
             console.error("Failed to get FS data from kernel:", result.error);
             return this.fsData;

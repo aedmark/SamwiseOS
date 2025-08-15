@@ -50,6 +50,7 @@ class UserManager {
         }
 
         let finalPassword = password;
+        const wasInteractive = password === null; // Track if we need to prompt
         const hasPasswordResult = JSON.parse(await OopisOS_Kernel.syscall("users", "has_password", [username]));
 
         if (!hasPasswordResult.success) {
@@ -81,11 +82,13 @@ class UserManager {
             await TerminalUI.updatePrompt(); // <-- ADDED: Ensure prompt updates immediately
             return ErrorHandler.createSuccess();
         } else {
-            // Provide a more specific error if login failed due to a missing password attempt
-            if (needsPassword && (password === null || password === undefined)) {
-                return ErrorHandler.createError('Password required.');
+            // If the verification failed, it's either an invalid password or a required one wasn't provided.
+            if (wasInteractive || password !== null) {
+                // If we prompted interactively OR a password was provided on the command line and failed, it's invalid.
+                return ErrorHandler.createError(Config.MESSAGES.INVALID_PASSWORD);
             }
-            return ErrorHandler.createError(Config.MESSAGES.INVALID_PASSWORD);
+            // Otherwise, it was a non-interactive attempt (like a script) that requires a password.
+            return ErrorHandler.createError('Password required.');
         }
     }
 

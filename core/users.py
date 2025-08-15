@@ -111,9 +111,8 @@ class UserManager:
             return password_attempt is None or password_attempt == ""
 
         # Case 2: User has a password, but none was provided in the attempt.
-        if password_attempt is None:
-            # This happens when a script calls `su <user_with_password>` without providing the password.
-            # It's an automatic failure.
+        # This now explicitly checks for an empty string as well.
+        if password_attempt is None or password_attempt == "":
             return False
 
         # Case 3: Root must have a password after onboarding. This is a redundant
@@ -233,7 +232,13 @@ class UserManager:
             # 9. Persist changes to the filesystem
             fs_manager._save_state()
 
-            return {"success": True}
+            return {
+                "success": True,
+                "data": {
+                    "users": self.get_all_users(),
+                    "groups": group_manager.get_all_groups()
+                }
+            }
         except Exception as e:
             # Rollback to original state on any failure
             self.users = original_users

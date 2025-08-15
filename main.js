@@ -449,6 +449,7 @@ window.onload = async () => {
     // Instantiate all manager classes
     const configManager = new ConfigManager();
     const storageManager = new StorageManager();
+    const storageHAL = new StorageHAL();
     const groupManager = new GroupManager();
     const fsManager = new FileSystemManager(configManager);
     const sessionManager = new SessionManager();
@@ -478,6 +479,7 @@ window.onload = async () => {
         ErrorHandler: ErrorHandler, AIManager: aiManager, NetworkManager: networkManager,
         UIComponents: uiComponents, domElements: domElements, SoundManager: soundManager,
         EnvironmentManager: environmentManager, // Add it to dependencies
+        StorageHAL: storageHAL,
         // App classes
         TextAdventureModal: window.TextAdventureModal, Adventure_create: window.Adventure_create,
         BasicUI: window.BasicUI, ChidiUI: window.ChidiUI, EditorUI: window.EditorUI,
@@ -506,6 +508,7 @@ window.onload = async () => {
     appLayerManager.initialize(domElements);
     outputManager.initializeConsoleOverrides();
 
+    await storageHAL.init();
     await OopisOS_Kernel.initialize(dependencies);
 
     const onboardingComplete = storageManager.loadItem(configManager.STORAGE_KEYS.ONBOARDING_COMPLETE, "Onboarding Status", false);
@@ -516,7 +519,7 @@ window.onload = async () => {
 
     // --- Post-Onboarding Initialization ---
     try {
-        const fsJsonFromStorage = storageManager.loadItem(configManager.DATABASE.UNIFIED_FS_KEY, "File System");
+        const fsJsonFromStorage = await storageHAL.load();
         if (fsJsonFromStorage) {
             await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(fsJsonFromStorage)]);
             await fsManager.setFsData(fsJsonFromStorage);
@@ -525,7 +528,7 @@ window.onload = async () => {
             await fsManager.initialize(configManager.USER.DEFAULT_NAME);
             const initialFsData = await fsManager.getFsData();
             await OopisOS_Kernel.syscall("filesystem", "load_state_from_json", [JSON.stringify(initialFsData)]);
-            storageManager.saveItem(configManager.DATABASE.UNIFIED_FS_KEY, initialFsData, "File System");
+            await storageHAL.save(initialFsData); // Save the initial state
         }
 
         await userManager.initializeDefaultUsers();
