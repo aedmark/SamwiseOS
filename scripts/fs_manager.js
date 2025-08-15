@@ -1,33 +1,8 @@
 // scripts/fs_manager.js
 
-/**
- * @fileoverview This file has been refactored as part of the "Samwise" project.
- * It is now a high-level API client for the Python filesystem kernel.
- * All core filesystem logic and state management are now handled by `core/filesystem.py`.
- * All future development of core FS logic should be done in the Python files.
- * @class FileSystemManager
- * @classdesc An API client for the OopisOS Python Filesystem Kernel.
- */
-
-/**
- * @typedef {object} FileSystemNode
- * @property {string} type - 'file', 'directory', or 'symlink'.
- * @property {string} owner - The name of the user who owns the node.
- * @property {string} group - The name of the group that owns the node.
- * @property {number} mode - The octal permission mode (e.g., 0o755).
- * @property {string} mtime - The last modification timestamp in ISO format.
- * @property {object} [children] - An object containing child nodes (for directories).
- * @property {string} [content] - The file content (for files).
- * @property {string} [target] - The path the symlink points to (for symbolic links).
- */
 class FileSystemManager {
-    /**
-     * @constructor
-     * @param {object} config - The global configuration object.
-     */
     constructor(config) {
         this.config = config;
-        /** @deprecated The in-memory fsData is deprecated. State is managed by the Python kernel. */
         this.fsData = {};
         this.currentPath = this.config.FILESYSTEM.ROOT_PATH;
         this.dependencies = {};
@@ -48,10 +23,6 @@ class FileSystemManager {
         return { name: user.name, group: primaryGroup };
     }
 
-    /**
-     * Initializes a default filesystem structure in-memory for the first boot sequence.
-     * This structure is then sent to the Python kernel to become the initial state.
-     */
     async initialize(guestUsername) {
         // This function is now only for initial, first-boot setup.
         const nowISO = new Date().toISOString();
@@ -116,7 +87,6 @@ class FileSystemManager {
     }
 
     async load() {
-        // This method's role is reduced. The authoritative load happens in main.js.
         return this.dependencies.ErrorHandler.createSuccess();
     }
 

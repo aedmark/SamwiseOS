@@ -74,6 +74,13 @@ async function executePythonCommand(rawCommandText, options = {}) {
     return result || { success: true, output: "" };
 }
 
+// --- Command Execution Wrapper ---
+const CommandExecutor = {
+    processSingleCommand: executePythonCommand,
+    getActiveJobs: () => activeJobs,
+};
+
+
 // --- Kernel Context Creation ---
 async function createKernelContext() {
     const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager, AliasManager, HistoryManager } = dependencies;
@@ -495,6 +502,7 @@ window.onload = async () => {
         UIComponents: uiComponents, domElements: domElements, SoundManager: soundManager,
         EnvironmentManager: environmentManager, // Add it to dependencies
         StorageHAL: storageHAL,
+        CommandExecutor: CommandExecutor,
         // App classes
         TextAdventureModal: window.TextAdventureModal, Adventure_create: window.Adventure_create,
         BasicUI: window.BasicUI, ChidiUI: window.ChidiUI, EditorUI: window.EditorUI,

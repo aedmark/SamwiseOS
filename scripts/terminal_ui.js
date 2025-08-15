@@ -376,21 +376,31 @@ class TabCompletionManager {
         const { currentWordPrefix, isCompletingCommand, commandName } = context;
         let suggestions = [];
 
-        const { CommandExecutor, Config, StorageManager, FileSystemManager } = this.dependencies;
+        const { Config, StorageManager, FileSystemManager } = this.dependencies;
 
         if (isCompletingCommand) {
             suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
                 cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
             ).sort();
         } else {
-            const commandDefinition = await CommandExecutor._ensureCommandLoaded(commandName);
-            if (!commandDefinition) return [];
+            // NEW LOGIC: Infer completion type from command name
+            const pathCommands = ['ls', 'cd', 'cat', 'rm', 'mkdir', 'touch', 'edit', 'explore', 'mv', 'cp', 'chmod', 'chgrp', 'ln', 'tree', 'less', 'more', 'paint', 'basic', 'run', 'diff', 'comm', 'zip', 'unzip', 'ocrypt', 'patch', 'head', 'tail', 'sed', 'cut', 'find', 'chidi', 'remix', 'storyboard', 'log', 'adventure', 'rename', 'rmdir', 'csplit', 'binder', 'export'];
+            const userCommands = ['su', 'chown', 'usermod', 'removeuser', 'groups', 'passwd', 'login'];
+            const commandCompletingCommands = ['help', 'man', 'alias', 'unalias'];
+            // Group completion is not supported yet, so commands like `chgrp` and `usermod -aG` will fall back to path completion.
 
-            if (commandDefinition.definition.completionType === "commands") {
+            let completionType = 'paths'; // Default to paths
+            if (userCommands.includes(commandName)) {
+                completionType = 'users';
+            } else if (commandCompletingCommands.includes(commandName)) {
+                completionType = 'commands';
+            }
+
+            if (completionType === "commands") {
                 suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
                     cmd.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
                 ).sort();
-            } else if (commandDefinition.definition.completionType === "users") {
+            } else if (completionType === "users") {
                 const users = StorageManager.loadItem(
                     Config.STORAGE_KEYS.USER_CREDENTIALS,
                     "User list",
@@ -404,10 +414,8 @@ class TabCompletionManager {
                         name.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
                     )
                     .sort();
-            } else if (
-                commandDefinition.definition.completionType === "paths" ||
-                commandDefinition.definition.pathValidation
-            ) {
+            } else if (completionType === "paths") {
+                // The rest of the original path completion logic stays the same
                 const lastSlashIndex = currentWordPrefix.lastIndexOf(
                     Config.FILESYSTEM.PATH_SEPARATOR
                 );
