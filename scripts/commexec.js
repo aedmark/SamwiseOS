@@ -382,91 +382,38 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess("");
             }
 
-            const lexer = new Lexer(commandToExecute, this.dependencies);
-            const tokens = lexer.tokenize();
-            const parser = new Parser(tokens, this.dependencies);
-            const commandSequence = parser.parse();
+            // [MODIFIED] JS Parsing is removed. We pass the command directly to Python.
+            const kernelContextJson = await this.createKernelContext();
+            const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
+            const result = JSON.parse(jsonResult);
 
-            for (const item of commandSequence) {
-                const { pipeline } = item;
-                let stdinContentForPipeline = stdinContent;
-
-                if (pipeline.inputRedirectFile) {
-                    const validationResult = await FileSystemManager.validatePath(
-                        pipeline.inputRedirectFile,
-                        { expectedType: 'file', permissions: ['read'] }
-                    );
-                    if (!validationResult.success) {
-                        finalResult = ErrorHandler.createError({ message: `cat: ${pipeline.inputRedirectFile}: ${validationResult.error}` });
-                        break;
-                    }
-                    stdinContentForPipeline = validationResult.data.node.content;
+            if (result.success) {
+                if (result.effect) {
+                    const effectResult = await this._handleEffect(result, options);
+                    if (effectResult) { finalResult = effectResult; }
                 }
+                if (!finalResult) {
+                    finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+                }
+            } else {
+                // [MODIFIED] Logic to handle JS-native commands remains.
+                // This allows hybrid commands like 'tail -f' to still function.
+                if (result.error && result.error.includes("command not found")) {
+                    const lexer = new Lexer(commandToExecute, this.dependencies);
+                    const tokens = lexer.tokenize();
+                    const parser = new Parser(tokens, this.dependencies);
+                    const commandSequence = parser.parse();
+                    const commandName = commandSequence[0]?.pipeline?.segments[0]?.command;
 
-                if (pipeline.segments.length === 0 && pipeline.redirection) {
-                    const { file, type } = pipeline.redirection;
-                    const contentToWrite = "";
-                    const user = await UserManager.getCurrentUser();
-                    const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
-                    const context = { currentUser: user.name, primaryGroup: primaryGroup };
-
-                    const writeResult = await FileSystemManager.createOrUpdateFile(file, contentToWrite, context);
-                    if (writeResult.success) {
-                        await FileSystemManager.save();
-                        finalResult = ErrorHandler.createSuccess("");
+                    const commandInstance = await this._ensureCommandLoaded(commandName);
+                    if (commandInstance) {
+                        const rawArgs = commandSequence[0].pipeline.segments.flatMap(seg => seg.args);
+                        finalResult = await commandInstance.execute(rawArgs, {...options, stdinContent: stdinContent }, this.dependencies);
                     } else {
-                        finalResult = ErrorHandler.createError(writeResult.error);
-                    }
-                    continue;
-                }
-
-
-
-                if (pipeline.isBackground) {
-                    this.backgroundProcessIdCounter++;
-                    const jobId = this.backgroundProcessIdCounter;
-                    const abortController = new AbortController();
-                    const currentUser = await this.dependencies.UserManager.getCurrentUser();
-                    this.activeJobs[jobId] = {
-                        command: commandToExecute.replace('&', '').trim(),
-                        status: 'running',
-                        abortController: abortController,
-                        user: currentUser.name,
-                    };
-                    this.processSingleCommand(commandToExecute.replace('&', '').trim(), { ...options, isBackground: false, suppressOutput: true, signal: abortController.signal, stdinContent: stdinContentForPipeline })
-                        .finally(() => {
-                            delete this.activeJobs[jobId];
-                        });
-                    finalResult = ErrorHandler.createSuccess(`[${jobId}] Backgrounded.`);
-                    break;
-                }
-
-                const kernelContextJson = await this.createKernelContext();
-                const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContentForPipeline);
-                const result = JSON.parse(jsonResult);
-
-
-                if (result.success) {
-                    if (result.effect) {
-                        const effectResult = await this._handleEffect(result, options);
-                        if (effectResult) { finalResult = effectResult; }
-                    }
-                    if (!finalResult) {
-                        finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+                        finalResult = ErrorHandler.createError({ message: result.error });
                     }
                 } else {
-                    if (result.error && result.error.endsWith("command not found")) {
-                        const commandName = pipeline.segments[0].command;
-                        const commandInstance = await this._ensureCommandLoaded(commandName);
-                        if (commandInstance) {
-                            const rawArgs = pipeline.segments.flatMap(seg => [seg.command, ...seg.args]).slice(1);
-                            finalResult = await commandInstance.execute(rawArgs, {...options, stdinContent: stdinContentForPipeline }, this.dependencies);
-                        } else {
-                            finalResult = ErrorHandler.createError({ message: result.error });
-                        }
-                    } else {
-                        finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
-                    }
+                    finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
                 }
             }
         } catch (e) {
