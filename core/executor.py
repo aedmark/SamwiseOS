@@ -6,6 +6,7 @@ from importlib import import_module
 from filesystem import fs_manager
 from users import user_manager
 from groups import group_manager
+from session import alias_manager, env_manager
 import inspect
 import os
 import re
@@ -153,6 +154,70 @@ class CommandExecutor:
                 i += 1
         return {'command': command_name, 'args': args, 'flags': flags}
 
+    def _expand_braces(self, segment):
+        brace_match = re.search(r'\{([^}]+)\}', segment)
+        if not brace_match:
+            return [segment]
+
+        prefix = segment[:brace_match.start()]
+        suffix = segment[brace_match.end():]
+        content = brace_match.group(1)
+
+        if ',' in content:
+            parts = content.split(',')
+            return [f"{prefix}{part}{suffix}" for part in parts]
+        elif '..' in content:
+            range_parts = content.split('..')
+            if len(range_parts) == 2:
+                try:
+                    start, end = int(range_parts[0]), int(range_parts[1])
+                    step = 1 if start <= end else -1
+                    return [f"{prefix}{i}{suffix}" for i in range(start, end + step, step)]
+                except ValueError: # Alphanumeric range
+                    start_char, end_char = range_parts[0], range_parts[1]
+                    if len(start_char) == 1 and len(end_char) == 1:
+                        start_ord, end_ord = ord(start_char), ord(end_char)
+                        step = 1 if start_ord <= end_ord else -1
+                        return [f"{prefix}{chr(i)}{suffix}" for i in range(start_ord, end_ord + step, step)]
+        return [segment]
+
+    async def _preprocess_command_string(self, command_string, js_context_json):
+        # Brace Expansion
+        expanded_parts = []
+        for part in shlex.split(command_string):
+            expanded_parts.extend(self._expand_braces(part))
+        command_string = ' '.join(expanded_parts)
+
+        # Alias Resolution
+        parts = command_string.split()
+        if parts:
+            command_name = parts[0]
+            alias_value = alias_manager.get_alias(command_name)
+            if alias_value:
+                remaining_args = ' '.join(parts[1:])
+                command_string = f"{alias_value} {remaining_args}".strip()
+
+        # Environment Variable Expansion
+        def replace_var(match):
+            var_name = match.group(1) or match.group(2)
+            return env_manager.get(var_name) or ""
+        command_string = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace_var, command_string)
+
+        # Command Substitution
+        pattern = re.compile(r'\$\((.*?)\)', re.DOTALL)
+        match = pattern.search(command_string)
+        while match:
+            sub_command = match.group(1)
+            sub_result_json = await self.execute(sub_command, js_context_json)
+            sub_result = json.loads(sub_result_json)
+            if sub_result.get("success"):
+                output = sub_result.get("output", "").strip().replace('\n', ' ')
+                command_string = command_string[:match.start()] + output + command_string[match.end():]
+            else:
+                raise ValueError(f"Command substitution failed: {sub_result.get('error')}")
+            match = pattern.search(command_string)
+        return command_string
+
     def _parse_command_string(self, command_string):
         try:
             command_string = re.sub(r'(&&|\|\||;|\||&)', r' \1 ', command_string)
@@ -197,21 +262,6 @@ class CommandExecutor:
             is_background = sub_cmd['operator'] == '&'
             if segments: command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection, 'is_background': is_background})
         return command_sequence
-
-    async def _preprocess_command_string(self, command_string, js_context_json):
-        pattern = re.compile(r'\$\((.*?)\)', re.DOTALL)
-        match = pattern.search(command_string)
-        while match:
-            sub_command = match.group(1)
-            sub_result_json = await self.execute(sub_command, js_context_json)
-            sub_result = json.loads(sub_result_json)
-            if sub_result.get("success"):
-                output = sub_result.get("output", "").strip().replace('\n', ' ')
-                command_string = command_string[:match.start()] + output + command_string[match.end():]
-            else:
-                raise ValueError(f"Command substitution failed: {sub_result.get('error')}")
-            match = pattern.search(command_string)
-        return command_string
 
     async def execute(self, command_string, js_context_json, stdin_data=None):
         try:
@@ -260,7 +310,13 @@ class CommandExecutor:
 
     async def _execute_segment(self, segment, stdin_data):
         command_name = segment['command']
-        # The JS layer now handles JS-native commands, so this check is no longer needed.
+        if command_name in self.js_native_commands:
+            return json.dumps({
+                "success": True, # Indicate success to Python
+                "effect": "run_js_native",
+                "command_details": segment
+            })
+
         kwargs_for_run = {
             "users": self.users,
             "user_groups": self.user_groups,
@@ -295,6 +351,13 @@ class CommandExecutor:
             )
 
         if command_name not in self.commands:
+            # Fallback to check JS commands if not found in Python
+            if command_name in self.js_native_commands:
+                return json.dumps({
+                    "success": True,
+                    "effect": "run_js_native",
+                    "command_details": {'command': command_name, 'args': args, 'flags': flags}
+                })
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
         try:
             command_module = import_module(f"commands.{command_name}")
