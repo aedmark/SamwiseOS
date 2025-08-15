@@ -37,7 +37,7 @@ def run(args, flags, user_context, **kwargs):
         password_lines_needed = 0
         if stripped_line.startswith("useradd"):
             password_lines_needed = 2
-        elif stripped_line.startswith("sudo"):
+        elif stripped_line.startswith("sudo") or stripped_line.startswith("login") or stripped_line.startswith("su"):
             password_lines_needed = 1
 
         if password_lines_needed > 0:

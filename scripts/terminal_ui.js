@@ -1,63 +1,22 @@
 // scripts/terminal_ui.js
 
-/**
- * @class TerminalUI
- * @classdesc Manages the user interface of the terminal, including the input line,
- * command prompt, and caret positioning. It acts as the primary interface for user interaction
- * with the command line.
- */
 class TerminalUI {
-    /**
-     * Creates an instance of TerminalUI.
-     */
     constructor() {
-        /**
-         * A flag to indicate if the user is currently navigating through command history.
-         * @type {boolean}
-         */
         this.isNavigatingHistory = false;
-        /**
-         * A flag for handling obscured input, like passwords.
-         * @type {boolean}
-         * @private
-         */
         this._isObscuredInputMode = false;
-        /**
-         * A cache of key DOM elements for the terminal.
-         * @type {object.<string, HTMLElement>}
-         */
         this.elements = {};
-        /**
-         * Stores the actual string value during obscured input mode.
-         * @type {string}
-         */
         this.originalInputForObscure = "";
-        /**
-         * The dependency injection container.
-         * @type {object}
-         */
         this.dependencies = {};
     }
 
-    /**
-     * Initializes the TerminalUI with references to essential DOM elements.
-     * @param {object} dom - An object containing references to the terminal's DOM elements.
-     */
     initialize(dom) {
         this.elements = dom;
     }
 
-    /**
-     * Sets the dependency injection container.
-     * @param {object} injectedDependencies - The dependencies to be injected.
-     */
     setDependencies(injectedDependencies) {
         this.dependencies = injectedDependencies;
     }
 
-    /**
-     * Updates the command prompt display based on the current user, path, and PS1 environment variable.
-     */
     async updatePrompt() {
         const { UserManager, FileSystemManager, EnvironmentManager, Config } = this.dependencies;
         const user = (await UserManager.getCurrentUser()) || {
@@ -94,17 +53,10 @@ class TerminalUI {
         }
     }
 
-    /**
-     * Gets the current text content of the command prompt.
-     * @returns {string} The prompt text.
-     */
     getPromptText() {
         return this.elements.promptContainer ? this.elements.promptContainer.textContent : "";
     }
 
-    /**
-     * Sets focus to the editable input field.
-     */
     focusInput() {
         if (
             this.elements.editableInputDiv &&
@@ -116,18 +68,11 @@ class TerminalUI {
         }
     }
 
-    /**
-     * Clears the content of the input field.
-     */
     clearInput() {
         if (this.elements.editableInputDiv) this.elements.editableInputDiv.textContent = "";
         this.originalInputForObscure = "";
     }
 
-    /**
-     * Gets the current value of the input field, accounting for obscured mode.
-     * @returns {string} The current input value.
-     */
     getCurrentInputValue() {
         return this._isObscuredInputMode
             ? this.originalInputForObscure
@@ -136,11 +81,6 @@ class TerminalUI {
                 : "";
     }
 
-    /**
-     * Sets the value of the input field.
-     * @param {string} value - The new value for the input.
-     * @param {boolean} [setAtEnd=true] - Whether to move the caret to the end of the input.
-     */
     setCurrentInputValue(value, setAtEnd = true) {
         if (this.elements.editableInputDiv) {
             if (this._isObscuredInputMode) {
@@ -152,10 +92,7 @@ class TerminalUI {
             if (setAtEnd) this.setCaretToEnd(this.elements.editableInputDiv);
         }
     }
-    /**
-     * Updates the internal value and visual display for obscured (password) input.
-     * @param {string} key - The key that was pressed ('Backspace', 'Delete', or a character).
-     */
+
     updateInputForObscure(key) {
         const selection = this.getSelection();
         let { start, end } = selection;
@@ -195,10 +132,6 @@ class TerminalUI {
         this.setCaretPosition(this.elements.editableInputDiv, start);
     }
 
-    /**
-     * Moves the caret to the end of the specified content-editable element.
-     * @param {HTMLElement} element - The element to move the caret in.
-     */
     setCaretToEnd(element) {
         if (
             !element ||
@@ -217,11 +150,6 @@ class TerminalUI {
         element.focus();
     }
 
-    /**
-     * Sets the caret position within a content-editable element.
-     * @param {HTMLElement} element - The element to set the caret in.
-     * @param {number} position - The character offset to place the caret at.
-     */
     setCaretPosition(element, position) {
         if (
             !element ||
@@ -266,11 +194,6 @@ class TerminalUI {
         element.focus();
     }
 
-    /**
-     * Sets the state of the input field (editable/disabled and obscured/visible).
-     * @param {boolean} isEditable - Whether the input should be editable.
-     * @param {boolean} [obscured=false] - Whether the input should be obscured (for passwords).
-     */
     setInputState(isEditable, obscured = false) {
         if (this.elements.editableInputDiv) {
             this.elements.editableInputDiv.contentEditable = isEditable ? "true" : "false";
@@ -284,34 +207,18 @@ class TerminalUI {
         }
     }
 
-    /**
-     * Checks if the input is currently in obscured mode.
-     * @returns {boolean} True if input is obscured.
-     */
     isObscured() {
         return this._isObscuredInputMode;
     }
 
-    /**
-     * Sets the flag indicating whether the user is navigating command history.
-     * @param {boolean} status - The new status.
-     */
     setIsNavigatingHistory(status) {
         this.isNavigatingHistory = status;
     }
 
-    /**
-     * Gets the flag indicating whether the user is navigating command history.
-     * @returns {boolean} The current status.
-     */
     getIsNavigatingHistory() {
         return this.isNavigatingHistory;
     }
 
-    /**
-     * Gets the start and end positions of the current text selection in the input field.
-     * @returns {{start: number, end: number}} An object with the start and end offsets.
-     */
     getSelection() {
         const sel = window.getSelection();
         let start, end;
@@ -335,9 +242,6 @@ class TerminalUI {
         return { start, end };
     }
 
-    /**
-     * Shows the terminal input line.
-     */
     showInputLine() {
         if (this.elements.inputLineContainerDiv) {
             this.elements.inputLineContainerDiv.classList.remove(
@@ -346,9 +250,6 @@ class TerminalUI {
         }
     }
 
-    /**
-     * Hides the terminal input line.
-     */
     hideInputLine() {
         if (this.elements.inputLineContainerDiv) {
             this.elements.inputLineContainerDiv.classList.add(
@@ -357,18 +258,11 @@ class TerminalUI {
         }
     }
 
-    /**
-     * Scrolls the terminal output to the bottom.
-     */
     scrollOutputToEnd() {
         if (this.elements.outputDiv) {
             this.elements.outputDiv.scrollTop = this.elements.outputDiv.scrollHeight;
         }
     }
-    /**
-     * Handles pasting text into the input field, supporting both normal and obscured modes.
-     * @param {string} pastedText - The text to be pasted.
-     */
     handlePaste(pastedText) {
         if (this.isObscured()) {
             const selection = this.getSelection();
@@ -396,59 +290,24 @@ class TerminalUI {
     }
 }
 
-/**
- * @class TabCompletionManager
- * @classdesc Manages the logic for tab-completion of commands, paths, and other arguments.
- */
 class TabCompletionManager {
-    /**
-     * Creates an instance of TabCompletionManager.
-     */
     constructor() {
-        /**
-         * A cache of suggestions for the current completion cycle.
-         * @type {string[]}
-         */
         this.suggestionsCache = [];
-        /**
-         * The current index in the suggestions cache for cycling through options.
-         * @type {number}
-         */
         this.cycleIndex = -1;
-        /**
-         * The last input string for which completion was attempted.
-         * @type {string|null}
-         */
         this.lastCompletionInput = null;
-        /**
-         * The dependency injection container.
-         * @type {object}
-         */
         this.dependencies = {};
     }
 
-    /**
-     * Sets the dependency injection container.
-     * @param {object} injectedDependencies - The dependencies to be injected.
-     */
     setDependencies(injectedDependencies) {
         this.dependencies = injectedDependencies;
     }
 
-    /**
-     * Resets the completion cycle state.
-     */
     resetCycle() {
         this.suggestionsCache = [];
         this.cycleIndex = -1;
         this.lastCompletionInput = null;
     }
 
-    /**
-     * Finds the longest common prefix among an array of strings.
-     * @param {string[]} strs - The array of strings.
-     * @returns {string} The longest common prefix.
-     */
     findLongestCommonPrefix(strs) {
         if (!strs || strs.length === 0) return "";
         if (strs.length === 1) return strs[0];
@@ -462,13 +321,6 @@ class TabCompletionManager {
         return prefix;
     }
 
-    /**
-     * Analyzes the input string and cursor position to determine the context for completion.
-     * @private
-     * @param {string} fullInput - The full input string from the terminal.
-     * @param {number} cursorPos - The current position of the caret.
-     * @returns {object} An object describing the completion context.
-     */
     _getCompletionContext(fullInput, cursorPos) {
         const tokens = fullInput.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
         const commandName = tokens.length > 0 ? tokens[0].replace(/["']/g, "") : "";
@@ -520,12 +372,6 @@ class TabCompletionManager {
         };
     }
 
-    /**
-     * Fetches completion suggestions based on the current context.
-     * @private
-     * @param {object} context - The completion context from _getCompletionContext.
-     * @returns {Promise<string[]>} A promise that resolves to an array of suggestion strings.
-     */
     async _getSuggestionsFromProvider(context) {
         const { currentWordPrefix, isCompletingCommand, commandName } = context;
         let suggestions = [];
@@ -598,13 +444,6 @@ class TabCompletionManager {
         return suggestions;
     }
 
-
-    /**
-     * Handles the Tab key press to perform auto-completion.
-     * @param {string} fullInput - The full current input string.
-     * @param {number} cursorPos - The current cursor position.
-     * @returns {Promise<object>} A promise resolving to an object with the text to insert and new cursor position.
-     */
     async handleTab(fullInput, cursorPos) {
         const { FileSystemManager, OutputManager, TerminalUI } = this.dependencies;
 
@@ -723,71 +562,28 @@ class TabCompletionManager {
     }
 }
 
-/**
- * @class AppLayerManager
- * @classdesc Manages the display and lifecycle of full-screen applications
- * that overlay the main terminal interface.
- */
 class AppLayerManager {
-    /**
-     * Creates an instance of AppLayerManager.
-     */
     constructor() {
-        /**
-         * A cached reference to the application layer DOM element.
-         * @type {HTMLElement|null}
-         */
         this.cachedAppLayer = null;
-        /**
-         * The currently active application instance.
-         * @type {App|null}
-         */
         this.activeApp = null;
-        /**
-         * The dependency injection container.
-         * @type {object}
-         */
         this.dependencies = {};
-        /**
-         * A bound reference to the global keydown handler for easy removal.
-         * @type {Function}
-         * @private
-         */
         this._boundHandleGlobalKeyDown = this._handleGlobalKeyDown.bind(this);
     }
 
-    /**
-     * Initializes the AppLayerManager with a reference to the app layer DOM element.
-     * @param {object} dom - An object containing references to core DOM elements.
-     */
     initialize(dom) {
         this.cachedAppLayer = dom.appLayer;
     }
 
-    /**
-     * Sets the dependency injection container.
-     * @param {object} injectedDependencies - The dependencies to be injected.
-     */
     setDependencies(injectedDependencies) {
         this.dependencies = injectedDependencies;
     }
 
-    /**
-     * Handles global keydown events and forwards them to the active application.
-     * @private
-     * @param {KeyboardEvent} event - The keyboard event.
-     */
     _handleGlobalKeyDown(event) {
         if (this.activeApp && typeof this.activeApp.handleKeyDown === "function") {
             this.activeApp.handleKeyDown(event);
         }
     }
 
-    /**
-     * Shows a full-screen application, hiding the terminal input.
-     * @param {App} appInstance - An instance of a class that extends the base App.
-     * @param {object} [options={}] - Options to pass to the application's `enter` method.
-     */
     show(appInstance, options = {}) {
         const { TerminalUI, OutputManager } = this.dependencies;
         if (!(appInstance instanceof App)) {
@@ -819,10 +615,6 @@ class AppLayerManager {
         }
     }
 
-    /**
-     * Hides the currently active application and restores the terminal input.
-     * @param {App} appInstance - The application instance that is requesting to be hidden.
-     */
     hide(appInstance) {
         const { TerminalUI, OutputManager } = this.dependencies;
         if (this.activeApp !== appInstance) {
@@ -846,10 +638,6 @@ class AppLayerManager {
         TerminalUI.focusInput();
     }
 
-    /**
-     * Checks if an application is currently active.
-     * @returns {boolean} True if an app is active, false otherwise.
-     */
     isActive() {
         return !!this.activeApp;
     }

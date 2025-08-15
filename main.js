@@ -379,12 +379,27 @@ function initializeTerminalEventListeners(domElements, dependencies) {
 
     document.addEventListener("keydown", async (e) => {
         if (ModalManager.isAwaiting()) {
+            if (TerminalUI.isObscured()) {
+                e.preventDefault();
+                if (e.key === "Enter") {
+                    await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
+                } else if (e.key === "Escape") {
+                    await ModalManager.handleTerminalInput(null);
+                } else if (e.key === "Backspace" || e.key === "Delete" || (e.key.length === 1 && !e.ctrlKey && !e.metaKey)) {
+                    TerminalUI.updateInputForObscure(e.key);
+                }
+                return;
+            }
             if (e.key === "Enter") {
                 e.preventDefault();
                 await ModalManager.handleTerminalInput(TerminalUI.getCurrentInputValue());
+            } else if (e.key === "Escape") {
+                e.preventDefault();
+                await ModalManager.handleTerminalInput(null);
             }
             return;
         }
+
 
         if (AppLayerManager.isActive()) {
             const activeApp = AppLayerManager.activeApp;

@@ -4,18 +4,9 @@ def run(args, flags, user_context, stdin_data=None):
     if not 1 <= len(args) <= 2:
         return {"success": False, "error": "Usage: login <username> [password]"}
 
-    # This logic is adapted from su.py for clarity and robustness.
-    username = None
-    password = None
-
-    if args:
-        username = args[0]
-        if len(args) > 1:
-            password = args[1]
-
-    # This should never happen due to the guard clause, but it's safe.
-    if not username:
-        return {"success": False, "error": "Usage: login <username> [password]"}
+    username = args[0]
+    # Prioritize password from args, then from stdin (for scripts)
+    password = args[1] if len(args) > 1 else (stdin_data.strip().split('\\n')[0] if stdin_data else None)
 
     return {
         "effect": "login",
