@@ -1,8 +1,8 @@
-# gem/core/commands/touch.py
+# gemini/core/commands/touch.py
 
 from filesystem import fs_manager
-from datetime import datetime, timedelta
-import re
+from datetime import datetime
+from time_utils import time_utils # <-- IMPORT our new utility!
 
 def define_flags():
     """Declares the flags that the touch command accepts."""
@@ -11,56 +11,18 @@ def define_flags():
         {'name': 'stamp', 'short': 't', 'takes_value': True},
     ]
 
-def _parse_date_string(date_str):
-    """Parses a flexible date string like '1 day ago'."""
-    try:
-        match = re.match(r'(\d+)\s+(day|hour|minute)s?\s+ago', date_str)
-        if match:
-            amount, unit = int(match.group(1)), match.group(2)
-            if unit == 'day': return datetime.utcnow() - timedelta(days=amount)
-            if unit == 'hour': return datetime.utcnow() - timedelta(hours=amount)
-            if unit == 'minute': return datetime.utcnow() - timedelta(minutes=amount)
-        # Fallback for ISO 8601 format dates
-        return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-    except Exception:
-        return None
-
-def _parse_stamp(stamp_str):
-    """Parses a [[CC]YY]MMDDhhmm[.ss] timestamp."""
-    try:
-        main_part, seconds_str = (stamp_str.split('.') + ['0'])[:2]
-        seconds = int(seconds_str)
-
-        if len(main_part) == 12: # CCYYMMDDhhmm
-            year, month, day, hour, minute = int(main_part[0:4]), int(main_part[4:6]), int(main_part[6:8]), int(main_part[8:10]), int(main_part[10:12])
-        elif len(main_part) == 10: # YYMMDDhhmm
-            yy = int(main_part[0:2])
-            year = (1900 if yy >= 69 else 2000) + yy
-            month, day, hour, minute = int(main_part[2:4]), int(main_part[4:6]), int(main_part[6:8]), int(main_part[8:10])
-        else:
-            return None
-
-        return datetime(year, month, day, hour, minute, seconds)
-    except Exception:
-        return None
+# The old _parse_date_string and _parse_stamp functions have been REMOVED!
 
 def run(args, flags, user_context, **kwargs):
     if not args:
         return {"success": False, "error": "touch: missing file operand"}
 
-    mtime_dt = None
-    if flags.get('date'):
-        mtime_dt = _parse_date_string(flags['date'])
-        if not mtime_dt:
-            return {"success": False, "error": f"touch: invalid date format: {flags['date']}"}
-    elif flags.get('stamp'):
-        mtime_dt = _parse_stamp(flags['stamp'])
-        if not mtime_dt:
-            return {"success": False, "error": f"touch: invalid date format: {flags['stamp']}"}
-    else:
-        mtime_dt = datetime.utcnow()
+    # Use our new, centralized utility to handle timestamp logic!
+    timestamp_result = time_utils.resolve_timestamp_from_flags(flags, command_name="touch")
+    if timestamp_result["error"]:
+        return {"success": False, "error": timestamp_result["error"]}
 
-    mtime_iso = mtime_dt.isoformat() + "Z"
+    mtime_iso = timestamp_result["timestamp_iso"]
 
     for path in args:
         try:

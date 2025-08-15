@@ -14,6 +14,7 @@ from apps.adventure import adventure_manager
 from apps import top as top_app
 from apps import log as log_app
 from apps import basic as basic_app
+from audit import audit_manager
 import json
 import traceback
 import inspect
@@ -29,7 +30,7 @@ MODULE_DISPATCHER = {
     "env": env_manager, "history": history_manager, "alias": alias_manager,
     "groups": group_manager, "users": user_manager, "sudo": sudo_manager, "ai": ai_manager,
     "explorer": explorer_manager, "editor": editor_manager, "paint": paint_manager,
-    "adventure": adventure_manager, "top": top_app, "log": log_app, "basic": basic_app,
+    "adventure": adventure_manager, "top": top_app, "log": log_app, "basic": basic_app, "audit": audit_manager
 }
 
 def initialize_kernel(save_function):

@@ -1,15 +1,9 @@
 // main.js
 
-/**
- * @file This is the main entry point for the SamwiseOS application. It handles the
- * initialization of all core managers, sets up dependency injection, and attaches
- * the primary event listeners for the terminal interface once the window has loaded.
- */
-
 // This global variable will be our session's birth certificate!
 window.sessionStartTime = new Date();
 
-// --- NEW: Job Management Globals ---
+// --- Job Management Globals ---
 let backgroundProcessIdCounter = 0;
 const activeJobs = {};
 
@@ -29,7 +23,7 @@ function startOnboardingProcess(dependencies) {
     }
 }
 
-// --- NEW: Asynchronous Python Command Execution ---
+// --- Asynchronous Python Command Execution ---
 async function executePythonCommand(rawCommandText, options = {}) {
     const { isInteractive = true, scriptingContext = null, stdinContent = null } = options;
     const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler } = dependencies;
@@ -80,7 +74,7 @@ async function executePythonCommand(rawCommandText, options = {}) {
     return result || { success: true, output: "" };
 }
 
-// --- NEW: Kernel Context Creation ---
+// --- Kernel Context Creation ---
 async function createKernelContext() {
     const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager, AliasManager, HistoryManager } = dependencies;
     const user = await UserManager.getCurrentUser();
@@ -114,7 +108,7 @@ async function createKernelContext() {
     });
 }
 
-// --- NEW: Effect Handler ---
+// --- Effect Handler ---
 async function handleEffect(result, options) {
     const {
         FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager,
@@ -247,7 +241,6 @@ async function handleEffect(result, options) {
             MessageBusManager.postMessage(result.job_id, result.message);
             break;
 
-        // ... and other existing effects
         case 'play_sound':
             if (!SoundManager.isInitialized) { await SoundManager.initialize(); }
             SoundManager.playNote(result.notes, result.duration);
@@ -272,7 +265,7 @@ async function handleEffect(result, options) {
     }
 }
 
-// --- NEW: Job Signal Handler ---
+// --- Job Signal Handler ---
 function sendSignalToJob(jobId, signal) {
     const job = activeJobs[jobId];
     if (!job) return { success: false, error: `Job ${jobId} not found.` };
@@ -338,7 +331,7 @@ function initializeTerminalEventListeners(domElements, dependencies) {
                 e.preventDefault();
                 if (!SoundManager.isInitialized) await SoundManager.initialize();
                 TabCompletionManager.resetCycle();
-                // --- MODIFIED: Call the new Python executor function ---
+                // --- Call the new Python executor function ---
                 await executePythonCommand(TerminalUI.getCurrentInputValue(), { isInteractive: true });
                 break;
             case "ArrowUp":

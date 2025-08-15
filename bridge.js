@@ -44,6 +44,7 @@ const OopisOS_Kernel = {
                 '/core/users.py': './core/users.py',
                 '/core/sudo.py': './core/sudo.py',
                 '/core/ai_manager.py': './core/ai_manager.py',
+                '/core/time_utils.py': './core/time_utils.py',
                 '/core/commands/gemini.py': './core/commands/gemini.py',
                 '/core/commands/chidi.py': './core/commands/chidi.py',
                 '/core/commands/remix.py': './core/commands/remix.py',
