@@ -186,7 +186,7 @@ class CommandExecutor {
                     return result.join(' ');
                 } else if (start.length === 1 && end.length === 1) {
                     const startCode = start.charCodeAt(0); const endCode = end.charCodeAt(0); const result = []; const step = startCode <= endCode ? 1 : -1;
-                    for (let i = startCode; step > 0 ? i <= endCode : i >= endCode; i += step) { result.push(`${prefix}${String.fromCharCode(i)}${suffix}`); }
+                    for (let i = startCode; step > 0 ? i <= endCode : i >= endCode; i += step) { result.push(`${prefix}${String.fromCharCode(i)}$suffix}`); }
                     return result.join(' ');
                 }
             } else if (content.includes(',')) { return content.split(',').map(part => `${prefix}${part}${suffix}`).join(' '); }
@@ -198,50 +198,44 @@ class CommandExecutor {
     }
 
     async _preprocessCommandString(rawCommandText, scriptingContext = null, options = {}) {
-        const { EnvironmentManager, AliasManager, ErrorHandler } = this.dependencies;
+        const { EnvironmentManager, AliasManager } = this.dependencies;
         let commandToProcess = rawCommandText.trim();
         commandToProcess = this._expandBraces(commandToProcess);
 
-        // --- CORRECTED LOGIC ORDER ---
-        // Step 1: Handle direct assignment from command substitution first.
-        const assignmentSubstitutionRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=\$\(([^)]+)\)$/;
-        const assignmentMatch = commandToProcess.match(assignmentSubstitutionRegex);
-
-        if (assignmentMatch) {
-            const varName = assignmentMatch[1];
-            const subCommand = assignmentMatch[2];
-            // Recursively process the command inside the substitution, passing the current context
-            const result = await this.processSingleCommand(subCommand, { isInteractive: false, suppressOutput: true, ...options });
-            if (!result.success) {
-                // If the subcommand fails, we should throw to halt script execution.
-                throw new Error(result.error?.message || result.error || `Command substitution failed for '${subCommand}'`);
-            }
-            const output = (result.output || '').trim().replace(/\n/g, ' ');
-            await EnvironmentManager.set(varName, output);
-            return ""; // Return an empty string, as the assignment is the entire operation.
-        }
-
-        // Step 2: Handle all other general command substitutions.
+        // --- Command Substitution ---
         const commandSubstitutionRegex = /\$\(([^)]+)\)/g;
-        let commandSubstitutions = [];
-        let match;
-        // Important: Reset regex index before using it in a loop
-        commandSubstitutionRegex.lastIndex = 0;
-        while ((match = commandSubstitutionRegex.exec(commandToProcess)) !== null) {
-            commandSubstitutions.push(this.processSingleCommand(match[1], { isInteractive: false, suppressOutput: true, ...options }));
-        }
+        let substitutionMatches = [...commandToProcess.matchAll(commandSubstitutionRegex)];
+        if (substitutionMatches.length > 0) {
+            const subCommandPromises = substitutionMatches.map(match =>
+                this.processSingleCommand(match[1], { isInteractive: false, suppressOutput: true, ...options })
+            );
+            const subResults = await Promise.all(subCommandPromises);
 
-        if (commandSubstitutions.length > 0) {
-            const subResults = await Promise.all(commandSubstitutions);
-            // We need a replacer function to handle multiple substitutions correctly
             let i = 0;
             commandToProcess = commandToProcess.replace(commandSubstitutionRegex, () => {
                 const result = subResults[i++];
-                return result.success ? (result.output || '').trim().replace(/\n/g, ' ') : '';
+                if (!result.success) {
+                    // Propagate the error from the subcommand
+                    throw new Error(result.error?.message || result.error || `Command substitution failed for '${substitutionMatches[i-1][1]}'`);
+                }
+                return (result.output || '').trim().replace(/\n/g, ' ');
             });
         }
 
-        // Step 3: Continue with the rest of the preprocessing as before.
+        // --- Assignment Handling (must happen AFTER command substitution) ---
+        const assignmentRegex = /^([a-zA-Z_][a-zA-Z0-9_]*)=(.+)$/;
+        const assignmentMatch = commandToProcess.match(assignmentRegex);
+        if (assignmentMatch) {
+            const varName = assignmentMatch[1];
+            let value = assignmentMatch[2];
+            // Handle quoted values
+            if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+                value = value.slice(1, -1);
+            }
+            await EnvironmentManager.set(varName, value);
+            return ""; // Assignment is the whole operation
+        }
+
         // --- Comment Stripping ---
         let inQuote = null; let commentIndex = -1;
         for (let i = 0; i < commandToProcess.length; i++) {
@@ -252,26 +246,62 @@ class CommandExecutor {
         if (commentIndex > -1) { commandToProcess = commandToProcess.substring(0, commentIndex).trim(); }
         if (!commandToProcess) { return ""; }
 
-        // --- Script Argument Substitution ---
-        if (scriptingContext && scriptingContext.args) {
-            const scriptArgs = scriptingContext.args;
-            commandToProcess = commandToProcess.replace(/\$@/g, scriptArgs.join(" "));
-            commandToProcess = commandToProcess.replace(/\$#/g, scriptArgs.length);
-            scriptArgs.forEach((arg, i) => { const regex = new RegExp(`\\$${i + 1}`, "g"); commandToProcess = commandToProcess.replace(regex, arg); });
-        }
+        // --- Script & Environment Variable Substitution ( respecting quotes ) ---
+        let finalCommand = "";
+        let i = 0;
+        while (i < commandToProcess.length) {
+            const char = commandToProcess[i];
 
-        // --- Environment Variable Substitution ---
-        const varRegex = /\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/g;
-        let varMatches = [...commandToProcess.matchAll(varRegex)];
-        if (varMatches.length > 0) {
-            const varNames = varMatches.map(m => m[1] || m[2]);
-            const varValues = await Promise.all(varNames.map(name => EnvironmentManager.get(name)));
-            const valueMap = Object.fromEntries(varNames.map((name, i) => [name, varValues[i]]));
-            commandToProcess = commandToProcess.replace(varRegex, (match, var1, var2) => {
-                const varName = var1 || var2;
-                return valueMap[varName] || "";
-            });
+            if (char === "'") { // Handle single-quoted strings, no expansion inside
+                let endIndex = commandToProcess.indexOf("'", i + 1);
+                if (endIndex === -1) {
+                    finalCommand += commandToProcess.substring(i);
+                    break;
+                }
+                finalCommand += commandToProcess.substring(i, endIndex + 1);
+                i = endIndex + 1;
+            } else if (char === "\\") { // Handle escaped characters
+                finalCommand += commandToProcess.substring(i, Math.min(i + 2, commandToProcess.length));
+                i += 2;
+            } else if (char === "$") { // Handle variable expansion
+                const restOfString = commandToProcess.substring(i);
+
+                // Script args: $#, $@, $1, $2 etc.
+                const scriptArgMatch = restOfString.match(/^\$([@#]|\d+)/);
+                if (scriptingContext && scriptArgMatch) {
+                    const argSpecifier = scriptArgMatch[1];
+                    if (argSpecifier === '#') {
+                        finalCommand += scriptingContext.args.length;
+                    } else if (argSpecifier === '@') {
+                        finalCommand += scriptingContext.args.join(" ");
+                    } else {
+                        const argIndex = parseInt(argSpecifier, 10) - 1;
+                        if (argIndex >= 0 && argIndex < scriptingContext.args.length) {
+                            finalCommand += scriptingContext.args[argIndex];
+                        }
+                    }
+                    i += scriptArgMatch[0].length;
+                    continue;
+                }
+
+                // Environment variables: $VAR or ${VAR}
+                const envVarRegex = /^\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)}/;
+                const envVarMatch = restOfString.match(envVarRegex);
+                if (envVarMatch) {
+                    const varName = envVarMatch[1] || envVarMatch[2];
+                    const value = await EnvironmentManager.get(varName);
+                    finalCommand += value || "";
+                    i += envVarMatch[0].length;
+                } else {
+                    finalCommand += "$";
+                    i++;
+                }
+            } else {
+                finalCommand += char;
+                i++;
+            }
         }
+        commandToProcess = finalCommand;
 
         // --- Alias Resolution ---
         const aliasResult = await AliasManager.resolveAlias(commandToProcess);
@@ -524,7 +554,7 @@ class CommandExecutor {
                     if (confirmed) {
                         if (result.on_confirm) {
                             const confirmResult = await this._handleEffect(result.on_confirm, options);
-                            resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || ""));
+                            resolve(confirmResult || ErrorHandler.createSuccess(result.on_confirm.output || "Confirmed."));
                         } else if (result.on_confirm_command) {
                             const cmdResult = await this.dependencies.CommandExecutor.processSingleCommand(result.on_confirm_command, { ...options, stdinContent: options.stdinContent, isInteractive: false });
                             resolve(cmdResult);

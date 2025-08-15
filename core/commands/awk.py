@@ -14,6 +14,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         return {"success": False, "error": "awk: missing program"}
 
     program = args[0]
+
+    # This makes the command robust enough to handle shell-like inputs.
+    if (program.startswith("'") and program.endswith("'")) or \
+            (program.startswith('"') and program.endswith('"')):
+        program = program[1:-1]
+
     file_path = args[1] if len(args) > 1 else None
 
     delimiter = flags.get('field-separator')
