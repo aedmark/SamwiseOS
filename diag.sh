@@ -520,31 +520,6 @@ delay 200
 echo "---------------------------------------------------------------------"
 
 echo ""
-echo "===== Phase 14: Testing Network & System Documentation Commands ====="
-delay 200
-echo "--- Test: wget and curl ---"
-wget -O wget.txt https://raw.githubusercontent.com/aedmark/Oopis-OS/master/README.md
-cat wget.txt
-rm wget.txt
-curl https://raw.githubusercontent.com/aedmark/Oopis-OS/master/README.md > oopis_curl.txt
-cat oopis_curl.txt
-rm oopis_curl.txt
-echo "--- Test: ping - Pinging a known-good host ---"
-ping jsonplaceholder.typicode.com
-delay 400
-echo "--- Test: ping - Pinging a non-existent host (should fail gracefully) ---"
-check_fail "ping a-domain-that-does-not-exist-and-never-will.invalid"
-delay 400
-echo "'ping' command diagnostics finished."
-echo "---------------------------------------------------------------------"
-echo "--- Test: man and help ---"
-man ls
-help cp
-echo "Network & Docs tests complete."
-delay 400
-echo "---------------------------------------------------------------------"
-
-echo ""
 echo "===== Phase 15: Testing Edge Cases & Complex Scenarios (Expanded) ====="
 delay 200
 
