@@ -366,6 +366,14 @@ function initializeTerminalEventListeners(domElements, dependencies) {
 
     domElements.terminalDiv.addEventListener("click", (e) => {
         if (AppLayerManager.isActive()) return;
+
+        // If text has been selected, don't steal focus.
+        // This allows the user to copy text from the output.
+        const selection = window.getSelection();
+        if (selection && selection.toString().length > 0) {
+            return;
+        }
+
         if (!e.target.closest("button, a")) TerminalUI.focusInput();
     });
 

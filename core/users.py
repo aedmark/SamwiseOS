@@ -107,9 +107,8 @@ class UserManager:
 
         # Case 1: User has no password set (e.g., Guest).
         if not password_data:
-            # Any attempt (even `None` from a script, or "" from a prompt) is valid
-            # because there's nothing to check against.
-            return True
+            # If no password is set, only an empty or null attempt is valid.
+            return password_attempt is None or password_attempt == ""
 
         # Case 2: User has a password, but none was provided in the attempt.
         if password_attempt is None:

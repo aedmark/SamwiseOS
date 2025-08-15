@@ -125,7 +125,7 @@ class ConfigManager {
                 PASSWORD_PROMPT: "What's the password?",
                 PASSWORD_CONFIRM_PROMPT: "Can you repeat that?",
                 PASSWORD_MISMATCH: "You're mixed up, kid. The passwords don't match.",
-                INVALID_PASSWORD: "Nope, sorry. Are you sure you typed it right?.",
+                INVALID_PASSWORD: "Nope, sorry. Are you sure you typed it right?",
                 EMPTY_PASSWORD_NOT_ALLOWED: "No free passes around here, kiddo. You can't use an empty password.",
             },
 

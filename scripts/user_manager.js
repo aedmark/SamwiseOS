@@ -57,6 +57,7 @@ class UserManager {
         }
         const needsPassword = hasPasswordResult.data;
 
+        // Only prompt for a password if one is needed AND one wasn't provided.
         if (needsPassword && password === null) {
             finalPassword = await new Promise((resolve) => {
                 ModalManager.request({
@@ -73,11 +74,17 @@ class UserManager {
         if (verifyResult.success && verifyResult.data) {
             await SessionManager.pushUserToStack(username);
             const sessionStatus = await SessionManager.loadAutomaticState(username);
+            // Welcome the user only if a new session state was created for them.
             if (sessionStatus.newStateCreated) {
                 await OutputManager.appendToOutput(`${Config.MESSAGES.WELCOME_PREFIX} ${username}${Config.MESSAGES.WELCOME_SUFFIX}`);
             }
+            await TerminalUI.updatePrompt(); // <-- ADDED: Ensure prompt updates immediately
             return ErrorHandler.createSuccess();
         } else {
+            // Provide a more specific error if login failed due to a missing password attempt
+            if (needsPassword && (password === null || password === undefined)) {
+                return ErrorHandler.createError('Password required.');
+            }
             return ErrorHandler.createError(Config.MESSAGES.INVALID_PASSWORD);
         }
     }
