@@ -96,6 +96,20 @@ class CommandExecutor:
         i = 1
         while i < len(parts_to_process):
             part = parts_to_process[i]
+
+            # New logic to handle flags with attached values like -F, or -n10
+            is_attached_value_flag = False
+            if part.startswith('-') and not part.startswith('--') and len(part) > 2:
+                short_flag = part[:2]
+                if short_flag in flag_map and flag_map[short_flag][1]: # Check if it's a known flag that takes a value
+                    canonical_name, _ = flag_map[short_flag]
+                    flags[canonical_name] = part[2:]
+                    i += 1
+                    is_attached_value_flag = True
+                    continue
+
+            if is_attached_value_flag: continue
+
             if part.startswith('--') and '=' in part:
                 flag_name, flag_value = part.split('=', 1)
                 if flag_name in flag_map and flag_map[flag_name][1]:
@@ -233,9 +247,6 @@ class CommandExecutor:
             return json.dumps({"success": False, "error": f"Execution Error: {str(e)}\n{tb_str}"})
 
     async def _execute_segment(self, segment, stdin_data):
-        # *** THIS IS THE FIX ***
-        # We now gather all relevant context from the executor's state
-        # and pass it to the command's run function via kwargs.
         kwargs_for_run = {
             "users": self.users,
             "user_groups": self.user_groups,
@@ -254,7 +265,7 @@ class CommandExecutor:
             flags=segment['flags'],
             user_context=self.user_context,
             stdin_data=stdin_data,
-            kwargs=kwargs_for_run  # Pass the context here
+            kwargs=kwargs_for_run
         )
         return result
 
@@ -275,9 +286,6 @@ class CommandExecutor:
             run_func = getattr(command_module, 'run', None)
             if not run_func:
                 return json.dumps({"success": False, "error": f"Command '{command_name}' is not runnable."})
-
-            # This is the logic that intelligently passes the right arguments to each command's run function.
-            # It now correctly includes our kwargs from _execute_segment.
             possible_kwargs = {
                 "args": args, "flags": flags, "user_context": user_context, "stdin_data": stdin_data,
                 **kwargs
