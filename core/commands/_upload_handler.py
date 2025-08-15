@@ -1,8 +1,9 @@
 # gem/core/commands/_upload_handler.py
 
+import json
 from filesystem import fs_manager
 
-def run(args, flags, user_context, **kwargs):
+def run(args, flags, user_context, stdin_data=None, **kwargs):
     """
     INTERNAL. Handles the file upload process after files have been gathered.
     This command expects to be called by the JS upload command.
@@ -10,7 +11,7 @@ def run(args, flags, user_context, **kwargs):
     if args:
         return {"success": False, "error": "_upload_handler: command takes no arguments"}
 
-    files_to_upload = kwargs.get('files')
+    files_to_upload = json.loads(stdin_data) if stdin_data else None
 
     if not files_to_upload:
         # This should never be called directly by a user.
