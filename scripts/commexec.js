@@ -370,24 +370,48 @@ class CommandExecutor {
                 return ErrorHandler.createSuccess("");
             }
 
-            const kernelContextJson = await this.createKernelContext();
-            const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
-            const result = JSON.parse(jsonResult);
+            const parts = commandToExecute.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
+            const commandName = parts[0] || '';
+            const rawArgs = parts.slice(1);
 
-            if (result.success) {
-                if (result.effect) {
-                    const effectResult = await this._handleEffect(result, options);
-                    if (effectResult) { finalResult = effectResult; }
+            let isJsCommand = Config.JS_NATIVE_COMMANDS.includes(commandName);
+            let fallThroughToPython = false;
+
+            if (isJsCommand) {
+                const commandInstance = await this._ensureCommandLoaded(commandName);
+                if (commandInstance) {
+                    const jsResult = await commandInstance.execute(rawArgs, options, this.dependencies);
+                    if (jsResult && !jsResult.success && jsResult.error && jsResult.error.message && jsResult.error.message.includes("passing to Python kernel")) {
+                        fallThroughToPython = true;
+                    } else {
+                        finalResult = jsResult;
+                    }
+                } else {
+                    finalResult = ErrorHandler.createError(`${commandName}: js command not found`);
                 }
-                if (!finalResult) {
-                    finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+            }
+
+            if (!isJsCommand || fallThroughToPython) {
+                const kernelContextJson = await this.createKernelContext();
+                const jsonResult = await OopisOS_Kernel.execute_command(commandToExecute, kernelContextJson, stdinContent);
+                const result = JSON.parse(jsonResult);
+
+                if (result.success) {
+                    if (result.effect) {
+                        const effectResult = await this._handleEffect(result, options);
+                        if (effectResult) { finalResult = effectResult; }
+                    }
+                    if (!finalResult) {
+                        finalResult = ErrorHandler.createSuccess(result.output, { suppressNewline: result.suppress_newline });
+                    }
+                } else {
+                    finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
                 }
-            } else {
-                finalResult = ErrorHandler.createError({ message: result.error || "An unknown Python error occurred." });
             }
         } catch (e) {
             finalResult = ErrorHandler.createError(e);
         }
+
 
         if (!suppressOutput) {
             if (finalResult && finalResult.success) {

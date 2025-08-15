@@ -260,14 +260,7 @@ class CommandExecutor:
 
     async def _execute_segment(self, segment, stdin_data):
         command_name = segment['command']
-        # Restore the check for JS-native commands before trying to run a Python command.
-        if command_name in self.js_native_commands:
-            return json.dumps({
-                "success": True,
-                "effect": "run_js_native",
-                "command_details": segment
-            })
-
+        # The JS layer now handles JS-native commands, so this check is no longer needed.
         kwargs_for_run = {
             "users": self.users,
             "user_groups": self.user_groups,
@@ -300,7 +293,7 @@ class CommandExecutor:
                 api_key=context.get("api_key"), session_start_time=context.get("session_start_time"),
                 session_stack=context.get("session_stack")
             )
-        # The JS-native check is now in _execute_segment, so this just checks for Python commands.
+
         if command_name not in self.commands:
             return json.dumps({"success": False, "error": f"{command_name}: command not found"})
         try:
