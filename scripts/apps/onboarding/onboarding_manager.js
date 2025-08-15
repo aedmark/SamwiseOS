@@ -89,6 +89,7 @@ window.OnboardingManager = class OnboardingManager extends App {
 
                 if (result.success) {
                     StorageManager.saveItem(Config.STORAGE_KEYS.ONBOARDING_COMPLETE, true, "Onboarding Status");
+                    StorageManager.saveItem(Config.STORAGE_KEYS.LAST_CREATED_USER, this.state.userData.username, "Last Created User");
                     this.ui.update({ ...this.state, step: 'complete' });
                     // The reboot effect will be triggered by the command.
                     setTimeout(() => {

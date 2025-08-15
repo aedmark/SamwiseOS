@@ -465,11 +465,23 @@ window.onload = async () => {
         await aliasManager.initialize();
         await sessionManager.initializeStack();
 
-        const sessionStatus = await sessionManager.loadAutomaticState(configManager.USER.DEFAULT_NAME);
+        // Check if we just created a user during onboarding.
+        let initialUser = storageManager.loadItem(configManager.STORAGE_KEYS.LAST_CREATED_USER, "Last Created User", configManager.USER.DEFAULT_NAME);
+
+        // If we found a newly created user, we need to add them to the session stack.
+        if (initialUser !== configManager.USER.DEFAULT_NAME) {
+            await sessionManager.pushUserToStack(initialUser);
+        }
+
+        const sessionStatus = await sessionManager.loadAutomaticState(initialUser);
+
+        // Clean up the temporary user key so we don't use it again.
+        if (initialUser !== configManager.USER.DEFAULT_NAME) {
+            storageManager.removeItem(configManager.STORAGE_KEYS.LAST_CREATED_USER);
+        }
 
         // Initialize environment if it's a new session state
         if (sessionStatus.newStateCreated) {
-            await environmentManager.initialize();
         }
 
         outputManager.clearOutput();

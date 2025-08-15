@@ -51,6 +51,7 @@ class ConfigManager {
                 ALIAS_DEFINITIONS: "oopisOsAliasDefinitions",
                 GEMINI_API_KEY: "oopisGeminiApiKey",
                 USER_GROUPS: "oopisOsUserGroups",
+                LAST_CREATED_USER: "oopisOsLastCreatedUser",
             },
 
             FILESYSTEM: {
@@ -152,9 +153,6 @@ class ConfigManager {
                     },
                 },
             },
-
-            COMMANDS_MANIFEST: [],
-            JS_NATIVE_COMMANDS: [],
         };
 
         Object.assign(this, defaultConfig);

@@ -57,22 +57,6 @@ class Utils {
         return { width: rect.width, height: rect.height };
     }
 
-    static async calculateSHA256(text) {
-        if (typeof text !== "string") {
-            return null;
-        }
-        try {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(text);
-            const hashBuffer = await window.crypto.subtle.digest("SHA-256", data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-        } catch (error) {
-            console.error("Password hashing failed:", error);
-            return null;
-        }
-    }
-
     static formatConsoleArgs(args) {
         return Array.from(args)
             .map((arg) =>
