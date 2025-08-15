@@ -65,8 +65,8 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     # Let's try to handle BEGIN and END blocks.
     # This is a simplified parser. A real awk parser is a state machine.
-    begin_match = re.search(r'BEGIN\s*{(.*?)}', program)
-    end_match = re.search(r'END\s*{(.*?)}', program)
+    begin_match = re.search(r'BEGIN\s*{(.*?)}', program, re.DOTALL)
+    end_match = re.search(r'END\s*{(.*?)}', program, re.DOTALL)
     main_program = program
     if begin_match:
         main_program = main_program.replace(begin_match.group(0), '')
@@ -79,23 +79,29 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if begin_match:
         begin_action = begin_match.group(1).strip()
         # We only support a simple print statement in BEGIN/END for now
-        print_match = re.match(r'print\s+(.*)', begin_action)
+        print_match = re.match(r'print\s+(.*)', begin_action, re.DOTALL)
         if print_match:
-            output_lines.append(print_match.group(1).strip('"\''))
+            # We need to handle quotes here as well
+            to_print = print_match.group(1).strip()
+            if (to_print.startswith('"') and to_print.endswith('"')) or \
+                    (to_print.startswith("'") and to_print.endswith("'")):
+                output_lines.append(to_print[1:-1])
+            else:
+                output_lines.append(to_print)
 
 
     # Process the main program logic for each line
     if main_program:
-        action_match_simple = re.match(r'^\s*{(.*)}\s*$', main_program)
+        action_match_simple = re.match(r'^\s*{(.*)}\s*$', main_program, re.DOTALL)
         if action_match_simple:
             action_part = action_match_simple.group(1).strip()
         else:
-            regex_action_match = re.match(r'^\s*/(.*?)/\s*{(.*)}\s*$', main_program)
+            regex_action_match = re.match(r'^\s*/(.*?)/\s*{(.*)}\s*$', main_program, re.DOTALL)
             if regex_action_match:
                 pattern_part = regex_action_match.group(1)
                 action_part = regex_action_match.group(2).strip()
             else:
-                regex_only_match = re.match(r'^\s*/(.*?)/\s*$', main_program)
+                regex_only_match = re.match(r'^\s*/(.*?)/\s*$', main_program, re.DOTALL)
                 if regex_only_match:
                     pattern_part = regex_only_match.group(1)
                     action_part = 'print $0'
@@ -112,7 +118,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                     return {"success": False, "error": f"awk: invalid regex: {pattern_part}"}
 
             if action_part:
-                print_match = re.match(r'print\s+(.*)', action_part)
+                print_match = re.match(r'print\s+(.*)', action_part, re.DOTALL)
                 if print_match:
                     fields = line.split(delimiter) if delimiter else line.split()
                     field_values = [line] + fields
@@ -123,14 +129,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                     }
 
                     parts_to_print_str = print_match.group(1)
-                    # This regex is the key fix: It finds either a double-quoted string
-                    # or any sequence of non-space characters.
-                    print_parts = re.findall(r'"[^"]*"|\S+', parts_to_print_str)
+                    # This regex splits by comma, but ignores commas inside quotes
+                    print_parts = [p.strip() for p in re.split(r',(?=(?:[^"]*"[^"]*")*[^"]*$)', parts_to_print_str)]
 
 
                     output_line_parts = []
                     for part in print_parts:
-                        part = part.rstrip(',') # remove trailing commas
                         if part.startswith('"') and part.endswith('"'):
                             output_line_parts.append(part[1:-1])
                         elif part.startswith('$'):
@@ -139,12 +143,10 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                                 if 0 <= field_index < len(field_values):
                                     output_line_parts.append(field_values[field_index])
                             except ValueError:
-                                # This handles cases where a non-numeric value follows '$'
-                                output_line_parts.append(part)
+                                output_line_parts.append(part) # Keep it as is if not a valid number, e.g. '$a'
                         elif part in special_vars:
                             output_line_parts.append(special_vars[part])
                         else:
-                            # This handles things like ":" that are not in quotes
                             output_line_parts.append(part)
 
 
@@ -156,9 +158,14 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     # Execute END block if it exists
     if end_match:
         end_action = end_match.group(1).strip()
-        print_match = re.match(r'print\s+(.*)', end_action)
+        print_match = re.match(r'print\s+(.*)', end_action, re.DOTALL)
         if print_match:
-            output_lines.append(print_match.group(1).strip('"\''))
+            to_print = print_match.group(1).strip()
+            if (to_print.startswith('"') and to_print.endswith('"')) or \
+                    (to_print.startswith("'") and to_print.endswith("'")):
+                output_lines.append(to_print[1:-1])
+            else:
+                output_lines.append(to_print)
 
 
     return "\n".join(output_lines)
