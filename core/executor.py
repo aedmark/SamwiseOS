@@ -1,7 +1,7 @@
-# gemini/core/executor.py
+# gem/core/executor.py
 
 import shlex
-import json
+import jsons
 from importlib import import_module
 from filesystem import fs_manager
 from users import user_manager
@@ -303,7 +303,8 @@ class CommandExecutor:
             if final_segment: segments.append(final_segment)
 
             is_background = sub_cmd['operator'] == '&'
-            if segments: command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection, 'is_background': is_background})
+            if segments or redirection:
+                command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection, 'is_background': is_background})
         return command_sequence
 
     async def execute(self, command_string, js_context_json, stdin_data=None):
