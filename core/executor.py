@@ -166,16 +166,10 @@ class CommandExecutor:
         if not brace_match:
             return [segment]
 
-        content = brace_match.group(1)
-        # Only perform expansion if the content looks like a list or range.
-        # This prevents accidental expansion of awk scripts or xargs placeholders.
-        if ',' not in content and '..' not in content:
-            return [segment]
-
         prefix = segment[:brace_match.start()]
         suffix = segment[brace_match.end():]
+        content = brace_match.group(1)
 
-        # The rest of the logic is correct for actual expansions.
         if ',' in content:
             parts = content.split(',')
             return [f"{prefix}{part}{suffix}" for part in parts]
@@ -192,19 +186,15 @@ class CommandExecutor:
                         start_ord, end_ord = ord(start_char), ord(end_char)
                         step = 1 if start_ord <= end_ord else -1
                         return [f"{prefix}{chr(i)}{suffix}" for i in range(start_ord, end_ord + step, step)]
-
-        # This should not be reached if the logic above is correct, but as a fallback:
         return [segment]
 
     async def _preprocess_command_string(self, command_string, js_context_json):
         # Brace Expansion
         if '{' in command_string and '}' in command_string:
-            # Use shlex to respect quotes during brace expansion
             expanded_parts = []
             for part in shlex.split(command_string):
                 expanded_parts.extend(self._expand_braces(part))
-            command_string = ' '.join(shlex.quote(p) for p in expanded_parts)
-
+            command_string = ' '.join(expanded_parts)
 
         # Alias Resolution
         parts = shlex.split(command_string)
@@ -220,19 +210,15 @@ class CommandExecutor:
             var_name = match.group(1) or match.group(2)
             return env_manager.get(var_name) or ""
 
-        # Use shlex to split into parts, expand variables in unquoted parts, then rejoin.
-        # This prevents expansion inside single quotes.
-        lex = shlex.shlex(command_string, posix=True)
-        lex.whitespace_split = True
-        lex.commenters = ''
-        expanded_parts = []
-        for token in lex:
-            if not (token.startswith("'") and token.endswith("'")):
-                expanded_token = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace_var, token)
-                expanded_parts.append(expanded_token)
+        parts = command_string.split("'")
+        result_parts = []
+        for i, part in enumerate(parts):
+            if i % 2 == 0:
+                expanded_part = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace_var, part)
+                result_parts.append(expanded_part)
             else:
-                expanded_parts.append(token)
-        command_string = ' '.join(expanded_parts)
+                result_parts.append(part)
+        command_string = "'".join(result_parts)
 
         # Command Substitution
         pattern = re.compile(r'\$\((.*?)\)', re.DOTALL)
@@ -242,8 +228,8 @@ class CommandExecutor:
             sub_result_json = await self.execute(sub_command, js_context_json)
             sub_result = json.loads(sub_result_json)
             if sub_result.get("success"):
-                output = sub_result.get("output", "").strip().replace('\n', ' ')
-                command_string = command_string[:match.start()] + shlex.quote(output) + command_string[match.end():]
+                output = sub_result.get("output", "").strip().replace('\\n', ' ')
+                command_string = command_string[:match.start()] + output + command_string[match.end():]
             else:
                 raise ValueError(f"Command substitution failed: {sub_result.get('error')}")
             match = pattern.search(command_string)
