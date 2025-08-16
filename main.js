@@ -125,6 +125,35 @@ async function handleEffect(result, options) {
     } = dependencies;
 
     switch (result.effect) {
+        case 'execute_script':
+        case 'execute_commands':
+            const commandsToRun = result.lines || result.commands;
+            const scriptArgs = result.args || [];
+            for (const item of commandsToRun) {
+                let commandText;
+                let passwordPipe = null;
+
+                if (typeof item === 'string') {
+                    commandText = item;
+                } else {
+                    commandText = item.command;
+                    passwordPipe = item.password_pipe;
+                }
+
+
+                for (let i = 0; i < scriptArgs.length; i++) {
+                    commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
+                }
+
+                const execOptions = {
+                    isInteractive: false,
+                    scriptingContext: options.scriptingContext,
+                    stdinContent: passwordPipe ? passwordPipe.join('\n') : null
+                };
+                await CommandExecutor.processSingleCommand(commandText, execOptions);
+            }
+            break;
+
         case 'background_job':
             const newJobId = ++backgroundProcessIdCounter;
             const abortController = new AbortController();
