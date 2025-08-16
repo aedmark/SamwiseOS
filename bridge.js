@@ -177,7 +177,8 @@ const OopisOS_Kernel = {
             }
 
             this.kernel = this.pyodide.pyimport("kernel");
-            this.kernel.initialize_kernel();
+            // Pass the save function to the Python kernel, binding `this` context.
+            this.kernel.initialize_kernel(this.saveFileSystemToDB.bind(this));
 
             const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             Config.COMMANDS_MANIFEST.push(...pythonCommands);
@@ -198,4 +199,14 @@ const OopisOS_Kernel = {
     async execute_command(commandString, jsContextJson, stdinContent = null) {
         return await this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
+
+    async saveFileSystemToDB(fsJsonString) {
+        const { StorageHAL } = OopisOS_Kernel.dependencies;
+        try {
+            const fsData = JSON.parse(fsJsonString);
+            await StorageHAL.save(fsData);
+        } catch (e) {
+            console.error("JS Bridge: Failed to save filesystem state via kernel callback.", e);
+        }
+    }
 };
