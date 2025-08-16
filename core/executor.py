@@ -1,7 +1,7 @@
 # gem/core/executor.py
 
 import shlex
-import jsons
+import json
 from importlib import import_module
 from filesystem import fs_manager
 from users import user_manager
