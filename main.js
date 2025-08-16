@@ -121,10 +121,16 @@ async function handleEffect(result, options) {
         FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager,
         UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils,
         GroupManager, NetworkManager, MessageBusManager, ModalManager, StorageManager,
-        AuditManager
+        AuditManager, StorageHAL
     } = dependencies;
 
     switch (result.effect) {
+        case 'full_reset':
+            await OutputManager.appendToOutput("Performing factory reset... The system will reboot.", { typeClass: Config.CSS_CLASSES.WARNING_MSG });
+            await StorageHAL.clear(); // Clears IndexedDB
+            localStorage.clear(); // Clears all local storage for this origin
+            setTimeout(() => window.location.reload(), 2000); // Give user time to read message
+            break;
         case 'confirm':
             ModalManager.request({
                 context: 'terminal',
@@ -162,7 +168,7 @@ async function handleEffect(result, options) {
                 const execOptions = {
                     isInteractive: false,
                     scriptingContext: options.scriptingContext,
-                    stdinContent: passwordPipe ? passwordPipe.join('\\n') : null
+                    stdinContent: passwordPipe ? passwordPipe.join('\n') : null
                 };
                 const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
                 if (!commandResult.success) {
@@ -196,7 +202,7 @@ async function handleEffect(result, options) {
                 break;
             }
             const command = `useradd ${result.username}`;
-            const stdin = `${newPassword}\\n${confirmPassword}`;
+            const stdin = `${newPassword}\n${confirmPassword}`;
             await CommandExecutor.processSingleCommand(command, { isInteractive: false, stdinContent: stdin });
             break;
         }
@@ -395,14 +401,14 @@ async function handleEffect(result, options) {
             break;
 
         case 'netstat_display':
-            const output = [`Your Instance ID: ${NetworkManager.getInstanceId()}`, "\\nDiscovered Remote Instances:"];
+            const output = [`Your Instance ID: ${NetworkManager.getInstanceId()}`, "\nDiscovered Remote Instances:"];
             const instances = NetworkManager.getRemoteInstances();
             if (instances.length === 0) output.push("  (None)");
             else instances.forEach(id => {
                 const peer = NetworkManager.getPeers().get(id);
                 output.push(`  - ${id} (Status: ${peer ? peer.connectionState : 'Disconnected'})`);
             });
-            await OutputManager.appendToOutput(output.join('\\n'));
+            await OutputManager.appendToOutput(output.join('\n'));
             break;
 
         case 'read_messages':
@@ -576,7 +582,7 @@ function initializeTerminalEventListeners(domElements, dependencies) {
 
     domElements.editableInputDiv.addEventListener("paste", (e) => {
         e.preventDefault();
-        const text = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/\\r?\\n|\\r/g, " ");
+        const text = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/\r?\n|\r/g, " ");
         TerminalUI.handlePaste(text);
     });
 }
