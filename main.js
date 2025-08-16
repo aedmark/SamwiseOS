@@ -1,4 +1,4 @@
-// main.js
+// gemini/main.js
 
 // This global variable will be our session's birth certificate!
 window.sessionStartTime = new Date();

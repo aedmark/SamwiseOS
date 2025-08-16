@@ -1,4 +1,4 @@
-// bridge.js
+// gemini/bridge.js
 
 const OopisOS_Kernel = {
     isReady: false,
@@ -177,7 +177,7 @@ const OopisOS_Kernel = {
             }
 
             this.kernel = this.pyodide.pyimport("kernel");
-            this.kernel.initialize_kernel(this.saveFileSystem.bind(this));
+            this.kernel.initialize_kernel();
 
             const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             Config.COMMANDS_MANIFEST.push(...pythonCommands);
@@ -198,18 +198,4 @@ const OopisOS_Kernel = {
     async execute_command(commandString, jsContextJson, stdinContent = null) {
         return await this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
-
-    async saveFileSystem(fsJsonString) {
-        const { StorageManager, Config } = OopisOS_Kernel.dependencies;
-        try {
-            if (!StorageManager || !Config) {
-                console.error("JS Bridge: StorageManager or Config not available in dependencies for saveFileSystem.");
-                return;
-            }
-            const fsData = JSON.parse(fsJsonString);
-            StorageManager.saveItem(Config.DATABASE.UNIFIED_FS_KEY, fsData, "File System");
-        } catch (e) {
-            console.error("JS Bridge: Failed to save filesystem state.", e);
-        }
-    }
 };
