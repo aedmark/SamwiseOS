@@ -189,11 +189,38 @@ class CommandExecutor:
         return [segment]
 
     async def _preprocess_command_string(self, command_string, js_context_json):
-        # Brace Expansion
+        # Brace Expansion (quote-aware)
         if '{' in command_string and '}' in command_string:
+            def _split_preserving_quotes(s):
+                tokens, buf = [], []
+                in_single, in_double = False, False
+                i = 0
+                while i < len(s):
+                    ch = s[i]
+                    if ch == "'" and not in_double:
+                        in_single = not in_single
+                        buf.append(ch)
+                    elif ch == '"' and not in_single:
+                        in_double = not in_double
+                        buf.append(ch)
+                    elif ch.isspace() and not in_single and not in_double:
+                        if buf:
+                            tokens.append(''.join(buf))
+                            buf = []
+                    else:
+                        buf.append(ch)
+                    i += 1
+                if buf:
+                    tokens.append(''.join(buf))
+                return tokens
             expanded_parts = []
-            for part in shlex.split(command_string):
-                expanded_parts.extend(self._expand_braces(part))
+            for part in _split_preserving_quotes(command_string):
+                is_quoted = (len(part) >= 2 and ((part[0] == part[-1] == "'") or (part[0] == part[-1] == '"')))
+                if is_quoted:
+                    # Do not expand braces inside quoted strings
+                    expanded_parts.append(part)
+                else:
+                    expanded_parts.extend(self._expand_braces(part))
             command_string = ' '.join(expanded_parts)
 
         # Alias Resolution
