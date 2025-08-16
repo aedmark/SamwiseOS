@@ -125,6 +125,23 @@ async function handleEffect(result, options) {
     } = dependencies;
 
     switch (result.effect) {
+        case 'confirm':
+            ModalManager.request({
+                context: 'terminal',
+                type: 'confirm',
+                messageLines: result.message,
+                onConfirm: async () => {
+                    if (result.on_confirm_command) {
+                        await CommandExecutor.processSingleCommand(result.on_confirm_command, { isInteractive: false });
+                    } else if (result.on_confirm) {
+                        await handleEffect(result.on_confirm, options);
+                    }
+                },
+                onCancel: () => {
+                    OutputManager.appendToOutput('Operation cancelled.', { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                }
+            });
+            break;
         case 'execute_script':
         case 'execute_commands':
             const commandsToRun = result.lines || result.commands;
@@ -145,7 +162,7 @@ async function handleEffect(result, options) {
                 const execOptions = {
                     isInteractive: false,
                     scriptingContext: options.scriptingContext,
-                    stdinContent: passwordPipe ? passwordPipe.join('\n') : null
+                    stdinContent: passwordPipe ? passwordPipe.join('\\n') : null
                 };
                 const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
                 if (!commandResult.success) {
@@ -179,7 +196,7 @@ async function handleEffect(result, options) {
                 break;
             }
             const command = `useradd ${result.username}`;
-            const stdin = `${newPassword}\n${confirmPassword}`;
+            const stdin = `${newPassword}\\n${confirmPassword}`;
             await CommandExecutor.processSingleCommand(command, { isInteractive: false, stdinContent: stdin });
             break;
         }
@@ -378,14 +395,14 @@ async function handleEffect(result, options) {
             break;
 
         case 'netstat_display':
-            const output = [`Your Instance ID: ${NetworkManager.getInstanceId()}`, "\nDiscovered Remote Instances:"];
+            const output = [`Your Instance ID: ${NetworkManager.getInstanceId()}`, "\\nDiscovered Remote Instances:"];
             const instances = NetworkManager.getRemoteInstances();
             if (instances.length === 0) output.push("  (None)");
             else instances.forEach(id => {
                 const peer = NetworkManager.getPeers().get(id);
                 output.push(`  - ${id} (Status: ${peer ? peer.connectionState : 'Disconnected'})`);
             });
-            await OutputManager.appendToOutput(output.join('\n'));
+            await OutputManager.appendToOutput(output.join('\\n'));
             break;
 
         case 'read_messages':
@@ -559,7 +576,7 @@ function initializeTerminalEventListeners(domElements, dependencies) {
 
     domElements.editableInputDiv.addEventListener("paste", (e) => {
         e.preventDefault();
-        const text = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/\r?\n|\r/g, " ");
+        const text = (e.clipboardData || window.clipboardData).getData("text/plain").replace(/\\r?\\n|\\r/g, " ");
         TerminalUI.handlePaste(text);
     });
 }
