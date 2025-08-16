@@ -332,7 +332,6 @@ grep -i "FOX" text_file.txt
 grep -c "quick" text_file.txt
 grep -v "cat" text_file.txt
 echo "--- Test: xargs and pipe awareness ---"
-logout
 su diagUser testpass
 cd /home/diagUser/diag_workspace
 rm -f file1.tmp file2.tmp file3.tmp
@@ -1048,13 +1047,13 @@ rm -r -f "./a directory with spaces and.. special'chars!"
 check_fail "ls './a directory with spaces and.. special'chars!'"
 echo "Obnoxious filename tests complete."
 delay 200
-
+logout
+delay 200
 echo "--- Test: File ownership vs. permissions paradox ---"
 delay 200
 touch paradox.txt
 chown paradoxuser paradox.txt
 chmod 000 paradox.txt
-logout
 su paradoxuser testpass
 check_fail "cat /paradox.txt"
 echo "Permission paradox test complete."

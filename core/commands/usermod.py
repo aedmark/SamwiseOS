@@ -11,7 +11,14 @@ def define_flags():
     ]
 
 def run(args, flags, user_context, **kwargs):
-    if user_context.get('name') != 'root':
+    # Determine the current user from the session stack if available; fallback to user_context
+    session_stack = kwargs.get('session_stack') if 'session_stack' in kwargs else None
+    if session_stack and isinstance(session_stack, (list, tuple)) and len(session_stack) > 0:
+        current_user = session_stack[-1]
+    else:
+        current_user = user_context.get('name')
+
+    if current_user != 'root':
         return {"success": False, "error": "usermod: only root can modify users."}
 
     group_to_add = flags.get('append-groups')
