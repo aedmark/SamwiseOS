@@ -50,8 +50,14 @@ async function executePythonCommand(rawCommandText, options = {}) {
         const pyResult = JSON.parse(jsonResult);
 
         if (pyResult.success) {
-            if (pyResult.effect) {
-                // Handle side effects (like changing directory, launching apps, etc.)
+            if (Array.isArray(pyResult.effects)) {
+                // Multiple effects returned (e.g., from semicolon-separated commands). Run sequentially.
+                for (const eff of pyResult.effects) {
+                    await handleEffect(eff, options);
+                }
+                result = { success: true };
+            } else if (pyResult.effect) {
+                // Single effect
                 result = await handleEffect(pyResult, options);
             } else if (pyResult.output) {
                 // Handle direct output

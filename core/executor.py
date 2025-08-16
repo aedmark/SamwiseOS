@@ -263,49 +263,70 @@ class CommandExecutor:
         return command_string
 
     def _parse_command_string(self, command_string):
-        try:
-            parts = shlex.split(command_string)
-        except ValueError as e:
-            raise ValueError(f"Syntax error in command: {e}")
-        if not parts: return []
-        command_sequence, sub_commands, last_op_index = [], [], 0
-        for i, part in enumerate(parts):
-            if part in ['&&', '||', ';', '&']:
-                sub_commands.append({'command_parts': parts[last_op_index:i], 'operator': part})
-                last_op_index = i + 1
-        sub_commands.append({'command_parts': parts[last_op_index:], 'operator': None})
-        for sub_cmd in sub_commands:
-            command_parts = sub_cmd['command_parts']
-            if not command_parts:
-                if sub_cmd['operator']: raise ValueError(f"Syntax error: missing command before '{sub_cmd['operator']}'")
-                continue
-            redirection, i = None, 0
-            while i < len(command_parts):
-                part = command_parts[i]
-                if part in ['>', '>>', '<']:
-                    if i + 1 >= len(command_parts): raise ValueError(f"Syntax error: no file for redirection operator '{part}'.")
-                    filename = command_parts[i+1]
-                    if part != '<': redirection = {'type': 'append' if part == '>>' else 'overwrite', 'file': filename}
-                    command_parts.pop(i)
-                    command_parts.pop(i)
-                    continue
-                i += 1
-            segments, current_segment_parts = [], []
-            for part in command_parts:
-                if part == '|':
-                    segment = self._parts_to_segment(current_segment_parts)
-                    if not segment: raise ValueError("Syntax error: invalid null command.")
-                    segments.append(segment)
-                    current_segment_parts = []
-                else:
-                    current_segment_parts.append(part)
-            final_segment = self._parts_to_segment(current_segment_parts)
-            if final_segment: segments.append(final_segment)
+        # Use a negative lookbehind `(?<!\\)` to avoid splitting on escaped semicolons (`\;`),
+        # while still respecting quoted strings. This is the key fix.
+        commands_raw = re.split(r'''(?<!\\);(?=(?:[^'"]|'[^']*'|"[^"]*")*$)''', command_string)
+        # After splitting, un-escape the semicolons that were intentionally kept.
+        commands = [cmd.replace('\\;', ';') for cmd in commands_raw]
 
-            is_background = sub_cmd['operator'] == '&'
-            if segments or redirection:
-                command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection, 'is_background': is_background})
+        command_sequence = []
+        for command in commands:
+            command = command.strip()
+            if not command:
+                continue
+
+            try:
+                parts = shlex.split(command)
+            except ValueError as e:
+                raise ValueError(f"Syntax error in command: '{command}' -> {e}")
+
+            if not parts:
+                continue
+
+            sub_commands, last_op_index = [], 0
+            for i, part in enumerate(parts):
+                if part in ['&&', '||', '&']: # Removed ';' from here
+                    sub_commands.append({'command_parts': parts[last_op_index:i], 'operator': part})
+                    last_op_index = i + 1
+            sub_commands.append({'command_parts': parts[last_op_index:], 'operator': None})
+
+            for sub_cmd in sub_commands:
+                command_parts = sub_cmd['command_parts']
+                if not command_parts:
+                    if sub_cmd['operator']: raise ValueError(f"Syntax error: missing command before '{sub_cmd['operator']}'")
+                    continue
+
+                redirection, i = None, 0
+                while i < len(command_parts):
+                    part = command_parts[i]
+                    if part in ['>', '>>', '<']:
+                        if i + 1 >= len(command_parts): raise ValueError(f"Syntax error: no file for redirection operator '{part}'.")
+                        filename = command_parts[i+1]
+                        if part != '<': redirection = {'type': 'append' if part == '>>' else 'overwrite', 'file': filename}
+                        command_parts.pop(i)
+                        command_parts.pop(i)
+                        continue
+                    i += 1
+
+                segments, current_segment_parts = [], []
+                for part in command_parts:
+                    if part == '|':
+                        segment = self._parts_to_segment(current_segment_parts)
+                        if not segment: raise ValueError("Syntax error: invalid null command.")
+                        segments.append(segment)
+                        current_segment_parts = []
+                    else:
+                        current_segment_parts.append(part)
+
+                final_segment = self._parts_to_segment(current_segment_parts)
+                if final_segment: segments.append(final_segment)
+
+                is_background = sub_cmd['operator'] == '&'
+                if segments or redirection:
+                    command_sequence.append({'segments': segments, 'operator': sub_cmd['operator'], 'redirection': redirection, 'is_background': is_background})
+
         return command_sequence
+
 
     async def execute(self, command_string, js_context_json, stdin_data=None):
         try:
@@ -332,19 +353,29 @@ class CommandExecutor:
                     name, value = tok.split('=', 1)
                     env_manager.set(name, value)
                 return json.dumps({"success": True, "output": ""})
+
             command_sequence = self._parse_command_string(processed_command_string)
+
             if not command_sequence: return json.dumps({"success": True, "output": ""})
+
             last_result_obj = {"success": True, "output": ""}
+            collected_effects = []
+
             for pipeline in command_sequence:
-                if pipeline['operator'] == '&&' and not last_result_obj.get("success"): continue
-                if pipeline['operator'] == '||' and last_result_obj.get("success"): continue
+                if pipeline.get('operator') == '&&' and not last_result_obj.get("success"): continue
+                if pipeline.get('operator') == '||' and last_result_obj.get("success"): continue
+
                 pipeline_input = stdin_data
                 for i, segment in enumerate(pipeline['segments']):
                     result_or_promise = await self._execute_segment(segment, pipeline_input)
                     result_json = result_or_promise
                     last_result_obj = json.loads(result_json)
+                    # Collect effects so semicolon-separated commands can trigger multiple side-effects
+                    if isinstance(last_result_obj, dict) and last_result_obj.get('effect'):
+                        collected_effects.append(last_result_obj)
                     if not last_result_obj.get("success"): break
                     pipeline_input = last_result_obj.get("output")
+
                 if last_result_obj.get("success") and pipeline['redirection']:
                     file_path = pipeline['redirection']['file']
                     content_to_write = last_result_obj.get("output", "")
@@ -355,9 +386,20 @@ class CommandExecutor:
                         except FileNotFoundError: pass
                     self.fs_manager.write_file(file_path, content_to_write, self.user_context)
                     last_result_obj['output'] = ""
+
                 if pipeline['is_background']:
                     last_result_obj['effect'] = 'background_job'
-                    last_result_obj['command_string'] = processed_command_string.strip().rstrip('&').strip()
+                    first_segment = pipeline['segments'][0]
+                    command_parts = [first_segment['command']] + first_segment['args']
+                    last_result_obj['command_string'] = " ".join(shlex.quote(p) for p in command_parts)
+                    # Treat background job as an effect too
+                    collected_effects.append(last_result_obj)
+
+            # If we collected multiple effects, return them together while preserving other fields
+            if collected_effects:
+                response_obj = {k: v for k, v in last_result_obj.items() if k != 'effect'}
+                response_obj['effects'] = collected_effects
+                return json.dumps(response_obj)
 
             return json.dumps(last_result_obj)
         except Exception as e:

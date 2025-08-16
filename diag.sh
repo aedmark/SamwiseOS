@@ -1399,14 +1399,14 @@ delay 200
 delay 400
 echo "---------------------------------------------------------------------"
 echo ""
-echo "      ===== OopisOS Core Test Suite v5.1 Complete ======="
+echo "      ===== SamwiseOS Core Test Suite v0.0.3 Complete ======="
 echo " "
 delay 500
 echo "  ======================================================"
 delay 150
 echo "  ==                                                  =="
 delay 150
-echo "  ==           OopisOS Core Diagnostics               =="
+echo "  ==           SamwiseOS Core Diagnostics               =="
 delay 150
 echo "  ==            ALL SYSTEMS OPERATIONAL               =="
 delay 150
