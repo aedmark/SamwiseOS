@@ -726,6 +726,7 @@ function initializeTerminalEventListeners(domElements, dependencies) {
 // Global dependencies object, will be populated on window.onload
 const dependencies = {};
 
+// Make the onload function async to use await
 window.onload = async () => {
     const domElements = {
         terminalBezel: document.getElementById("terminal-bezel"),
@@ -802,6 +803,8 @@ window.onload = async () => {
     outputManager.initializeConsoleOverrides();
 
     await storageHAL.init();
+
+    // Await the kernel initialization
     await OopisOS_Kernel.initialize(dependencies);
 
     const onboardingComplete = storageManager.loadItem(configManager.STORAGE_KEYS.ONBOARDING_COMPLETE, "Onboarding Status", false);
