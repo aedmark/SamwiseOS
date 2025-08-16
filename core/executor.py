@@ -255,8 +255,23 @@ class CommandExecutor:
             sub_result_json = await self.execute(sub_command, js_context_json)
             sub_result = json.loads(sub_result_json)
             if sub_result.get("success"):
-                output = sub_result.get("output", "").strip().replace('\\n', ' ')
-                command_string = command_string[:match.start()] + output + command_string[match.end():]
+                # Shell-like behavior: strip trailing newlines; replace embedded newlines with spaces
+                output = str(sub_result.get("output", ""))
+                # Normalize Windows CRLF and Unix LF
+                output = output.replace('\r\n', '\n').replace('\r', '\n')
+                # Remove trailing newlines
+                output = output.rstrip('\n')
+                # Replace remaining newlines with spaces
+                output = output.replace('\n', ' ')
+                # If substitution occurs immediately after '=', treat as a single assignment value by quoting
+                before_idx = match.start() - 1
+                if before_idx >= 0 and command_string[before_idx] == '=':
+                    # Escape any double quotes in the output
+                    safe_output = output.replace('"', '\\"')
+                    replacement = f'"{safe_output}"'
+                else:
+                    replacement = output
+                command_string = command_string[:match.start()] + replacement + command_string[match.end():]
             else:
                 raise ValueError(f"Command substitution failed: {sub_result.get('error')}")
             match = pattern.search(command_string)

@@ -454,6 +454,16 @@ async function handleEffect(result, options) {
             }
             break;
 
+        case 'page_output':
+            // Non-interactive scripts shouldn't hang on the pager.
+            // We just pass the content through as standard output.
+            if (options.scriptingContext && options.scriptingContext.isScripting) {
+                await OutputManager.appendToOutput(result.content);
+            } else {
+                await PagerManager.enter(result.content, { mode: result.mode });
+            }
+            break;
+
         // Add cases for all the former JS-native commands here...
         case 'trigger_upload_flow':
             return new Promise(async (resolve) => {
