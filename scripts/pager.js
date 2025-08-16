@@ -65,7 +65,7 @@ class PagerUI {
     }
 }
 
-window.PagerManager = class PagerManager extends App {
+window.PagerManager = class PagerManager extends (window.App || class {}) {
     constructor() {
         super();
 

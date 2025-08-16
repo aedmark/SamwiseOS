@@ -459,17 +459,19 @@ async function handleEffect(result, options) {
             // We just pass the content through as standard output.
             if (options.scriptingContext && options.scriptingContext.isScripting) {
                 await OutputManager.appendToOutput(result.content);
-            } else {
+            } else if (dependencies.PagerManager && typeof dependencies.PagerManager === 'function') {
                 const pagerApp = new dependencies.PagerManager();
                 AppLayerManager.show(pagerApp, {
                     dependencies,
                     content: result.content,
                     mode: result.mode
                 });
+            } else {
+                // Fallback: If PagerManager is unavailable, do not throw; just print.
+                await OutputManager.appendToOutput(result.content);
             }
             break;
 
-        // Add cases for all the former JS-native commands here...
         case 'trigger_upload_flow':
             return new Promise(async (resolve) => {
                 const input = Utils.createElement("input", { type: "file", multiple: true });
