@@ -705,15 +705,15 @@ delay 200
 
 echo "--- Test: Starting a long-running background job ---"
 delay 30000 &
-delay 500
 echo "--- Running pipeline diagnostics ---"
+delay 200
 echo "--- 1. Output of 'ps' ---"
 ps > ps_output.tmp
 cat ps_output.tmp
 echo "--- 2. Output of 'ps | grep delay' ---"
-cat ps_output.tmp | grep "delay" > grep_output.tmp
+cat ps_output.tmp | grep "delay 30000" > grep_output.tmp
 cat grep_output.tmp
-echo "--- 3. Output of 'ps | grep delay | awk' ---"
+echo "--- 3. Output of 'ps | grep delay 30000 | awk' ---"
 cat grep_output.tmp | awk '{print $1}' > awk_output.tmp
 cat awk_output.tmp
 echo "--- End of pipeline diagnostics ---"
