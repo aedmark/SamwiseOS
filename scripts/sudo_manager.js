@@ -1,12 +1,5 @@
 // gem/scripts/sudo_manager.js
 
-/**
- * @class SudoManager
- * @classdesc An API client for the OopisOS Python Sudo Manager kernel.
- * All core logic for parsing /etc/sudoers and checking permissions is now handled by `core/sudo.py`.
- * This JS class manages sudo session timestamps.
- */
-
 class SudoManager {
     constructor() {
         this.userSudoTimestamps = {};

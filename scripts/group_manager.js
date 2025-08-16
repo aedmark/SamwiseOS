@@ -1,10 +1,5 @@
 // gem/scripts/group_manager.js
 
-/**
- * @class GroupManager
- * @classdesc An API client for the OopisOS Python Group Manager kernel.
- * All core logic and state for group management are now handled by `core/groups.py`.
- */
 class GroupManager {
     constructor() {
         this.dependencies = {};
@@ -41,11 +36,6 @@ class GroupManager {
         );
     }
 
-    /**
-     * Takes an updated group state object from a Python effect, syncs it with
-     * the Python kernel's state (just to be safe), and saves it to localStorage.
-     * @param {object} groupsData The complete groups object from the Python kernel.
-     */
     async syncAndSave(groupsData) {
         const { StorageManager, Config } = this.dependencies;
         StorageManager.saveItem(Config.STORAGE_KEYS.USER_GROUPS, groupsData, "User Groups");

@@ -1,14 +1,7 @@
 // scripts/error_handler.js
 
 class ErrorHandler {
-    /**
-     * Creates a standardized error object, ensuring a consistent structure.
-     * This function intelligently handles different types of input to produce
-     * a predictable error format.
-     * @param {any} errorInfo - The error information, which can be a string,
-     * an object with a message, or a native Error object.
-     * @returns {{success: false, error: {message: string, suggestion: string|null}}}
-     */
+
     static createError(errorInfo) {
         let message = 'An unknown error occurred.';
         let suggestion = null;

@@ -102,7 +102,6 @@ window.EditorManager = class EditorManager extends App {
 
                 if (saveResult.success) {
                     await FileSystemManager.save();
-                    // [MODIFIED] Await the syscall
                     const pyResult = JSON.parse(await OopisOS_Kernel.syscall("editor", "update_on_save", [savePath, currentContent]));
                     this.state.originalContent = currentContent;
                     this._updateStateFromPython(pyResult);
@@ -144,8 +143,8 @@ window.EditorManager = class EditorManager extends App {
     }
 
     _updateButtonStates() {
-        this.elements.undoBtn.disabled = !this.state.canUndo;
-        this.elements.redoBtn.disabled = !this.state.canRedo;
+        this.ui.elements.undoBtn.disabled = !this.state.canUndo;
+        this.ui.elements.redoBtn.disabled = !this.state.canRedo;
     }
     _getFileMode(filePath) {
         const { Utils } = this.dependencies;

@@ -1,40 +1,14 @@
 // scripts/ui_components.js
 
-/**
- * @class UIComponents
- * @classdesc A factory class for creating standardized, reusable UI components
- * such as windows, buttons, and application shells. This ensures a consistent
- * look and feel across all applications in OopisOS.
- */
 class UIComponents {
-  /**
-   * Creates an instance of UIComponents.
-   */
   constructor() {
-    /**
-     * The dependency injection container.
-     * @type {object}
-     */
     this.dependencies = {};
   }
 
-  /**
-   * Sets the dependency injection container.
-   * @param {object} dependencies - The dependencies to be injected, typically including `Utils`.
-   */
   setDependencies(dependencies) {
     this.dependencies = dependencies;
   }
 
-  /**
-   * Creates a draggable window component for the desktop environment.
-   * @param {string} title - The text to display in the window's title bar.
-   * @param {HTMLElement} contentElement - The main content element to place inside the window.
-   * @param {object} [callbacks={}] - Callbacks for window events.
-   * @param {Function} [callbacks.onFocus] - Called when the window is focused (e.g., clicked).
-   * @param {Function} [callbacks.onClose] - Called when the close button is clicked.
-   * @returns {HTMLElement} The complete, draggable window element.
-   */
   createWindowComponent(title, contentElement, callbacks = {}) {
     const { onFocus, onClose } = callbacks;
     const { Utils } = this.dependencies;
@@ -70,13 +44,6 @@ class UIComponents {
     return windowDiv;
   }
 
-  /**
-   * Creates a standard application shell for full-screen modal apps.
-   * @param {string} title - The title of the application.
-   * @param {Function} onExit - The callback function to execute when the exit button is clicked.
-   * @param {object} [options={}] - Additional options (currently unused).
-   * @returns {{container: HTMLElement, header: HTMLElement, main: HTMLElement, footer: HTMLElement}} An object containing the main container and its sections.
-   */
   createAppWindow(title, onExit, options = {}) {
     const { Utils } = this.dependencies;
 
@@ -103,17 +70,6 @@ class UIComponents {
     return { container, header, main, footer };
   }
 
-  /**
-   * Creates a standardized button element.
-   * @param {object} [options={}] - Configuration options for the button.
-   * @param {string} [options.text] - The text content of the button.
-   * @param {Function} [options.onClick] - The click event handler.
-   * @param {string[]} [options.classes=[]] - An array of additional CSS classes.
-   * @param {string|null} [options.id=null] - The ID for the button element.
-   * @param {string|null} [options.title=null] - The tooltip text for the button.
-   * @param {string|null} [options.icon=null] - An icon character to display on the button.
-   * @returns {HTMLButtonElement} The created button element.
-   */
   createButton(options = {}) {
     const { Utils } = this.dependencies;
     const { text, onClick, classes = [], id = null, title = null, icon = null } = options;

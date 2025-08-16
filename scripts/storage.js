@@ -2,10 +2,6 @@
 
 class StorageManager {
     constructor() {
-        /**
-         * The dependency injection container.
-         * @type {object}
-         */
         this.dependencies = {};
     }
 
