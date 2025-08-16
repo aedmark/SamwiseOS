@@ -1261,8 +1261,9 @@ delay 400
 
 echo ""
 echo "--- Phase Omega: Final Cleanup ---"
-cd /
 logout
+delay 200
+cd /
 delay 300
 removeuser -f diagUser
 removeuser -f sudouser

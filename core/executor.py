@@ -385,7 +385,12 @@ class CommandExecutor:
                 if pipeline.get('operator') == '&&' and not last_result_obj.get("success"): continue
                 if pipeline.get('operator') == '||' and last_result_obj.get("success"): continue
 
-                if pipeline.get('is_background'):
+                # If a command has both redirection AND is backgrounded, we treat it as a
+                # synchronous file-writing operation, NOT a true background job.
+                # This ensures the file exists before the next command in a script runs.
+                is_synchronous_background_write = pipeline.get('is_background') and pipeline.get('redirection')
+                if pipeline.get('is_background') and not is_synchronous_background_write:
+                    # This block now ONLY handles TRUE background jobs (no redirection).
                     first_segment = pipeline['segments'][0] if pipeline.get('segments') else None
                     if not first_segment:
                         last_result_obj = {"success": False, "error": "Syntax error: invalid null command for background job."}
@@ -400,6 +405,7 @@ class CommandExecutor:
                     last_result_obj = {"success": True}
                     continue
 
+                # Everything else (including our synchronous_background_write) is executed here.
                 pipeline_input = stdin_data
                 for i, segment in enumerate(pipeline['segments']):
                     result_or_promise = await self._execute_segment(segment, pipeline_input)

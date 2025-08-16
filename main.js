@@ -316,7 +316,6 @@ async function handleEffect(result, options) {
             break;
         }
 
-
         case 'background_job':
             const newJobId = ++backgroundProcessIdCounter;
             const abortController = new AbortController();
@@ -328,8 +327,7 @@ async function handleEffect(result, options) {
             };
             MessageBusManager.registerJob(newJobId);
 
-            // We now AWAIT the execution.
-            await (async () => {
+            (async () => {
                 const bgOptions = { ...options, isInteractive: false, suppressOutput: true, signal: abortController.signal };
                 await executePythonCommand(result.command_string, bgOptions);
                 if (activeJobs[newJobId]) {
@@ -341,6 +339,7 @@ async function handleEffect(result, options) {
             break;
 
         case 'login':
+
         case 'su': { // 'su' and 'login' effects are functionally identical
             const loginResult = await UserManager.loginUser(result.username, result.password);
             if (!loginResult.success) {

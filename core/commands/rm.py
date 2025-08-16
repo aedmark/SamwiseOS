@@ -17,7 +17,7 @@ def run(args, flags, user_context, **kwargs):
     """
     Removes files or directories with interactive and force options.
     """
-    stdin_data = kwargs.get('stdin_data') # Extract stdin_data from kwargs
+    stdin_data = kwargs.get('stdin_data')
     if not args:
         return {"success": False, "error": "rm: missing operand"}
 
@@ -25,8 +25,6 @@ def run(args, flags, user_context, **kwargs):
     is_force = flags.get('force', False)
     is_interactive = flags.get('interactive', False)
     confirmed_path = flags.get("confirmed")
-
-    # Check for pre-approved confirmation from stdin
     is_pre_confirmed = stdin_data and stdin_data.strip().upper() == 'YES'
 
     output_messages = []
@@ -44,6 +42,8 @@ def run(args, flags, user_context, **kwargs):
             output_messages.append(f"rm: cannot remove '{path}': Is a directory")
             continue
 
+        # Non-interactive scripts will not have `is_interactive` set, so this block will be skipped.
+        # The `is_force` flag will correctly bypass this and proceed to deletion.
         if is_interactive and not is_force and not is_pre_confirmed and abs_path != confirmed_path:
             prompt_type = "directory" if node.get('type') == 'directory' else "regular file"
             return {
@@ -53,7 +53,6 @@ def run(args, flags, user_context, **kwargs):
             }
 
         try:
-            # For rm, recursive is always true in the backend call to handle both files and non-empty dirs (with -r).
             fs_manager.remove(abs_path, recursive=True)
         except Exception as e:
             if not is_force:
