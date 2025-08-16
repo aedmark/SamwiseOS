@@ -1,4 +1,4 @@
-# gemini/core/commands/awk.py
+# /core/commands/awk.py
 
 import re
 import shlex
