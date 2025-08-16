@@ -206,8 +206,41 @@ async function handleEffect(result, options) {
                 }
             });
             break;
-        case 'execute_script':
-        case 'execute_commands':
+        case 'execute_script': {
+            const commandsToRun = result.lines || result.commands;
+            const scriptArgs = result.args || [];
+            const envMgr = dependencies.EnvironmentManager;
+            await envMgr.push();
+            try {
+                for (const item of commandsToRun) {
+                    let commandText;
+                    let passwordPipe = null;
+
+                    if (typeof item === 'string') {
+                        commandText = item;
+                    } else {
+                        commandText = item.command;
+                        passwordPipe = item.password_pipe;
+                    }
+                    for (let i = 0; i < scriptArgs.length; i++) {
+                        commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
+                    }
+                    const execOptions = {
+                        isInteractive: false,
+                        scriptingContext: options.scriptingContext,
+                        stdinContent: passwordPipe ? passwordPipe.join('\n') : null
+                    };
+                    const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
+                    if (!commandResult.success) {
+                        break;
+                    }
+                }
+            } finally {
+                await envMgr.pop();
+            }
+            break;
+        }
+        case 'execute_commands': {
             const commandsToRun = result.lines || result.commands;
             const scriptArgs = result.args || [];
             for (const item of commandsToRun) {
@@ -231,8 +264,10 @@ async function handleEffect(result, options) {
                 const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
                 if (!commandResult.success) {
                     break;
-                }}
+                }
+            }
             break;
+        }
 
         case 'useradd': {
             const newPassword = await new Promise((resolve) => {
@@ -517,6 +552,41 @@ async function handleEffect(result, options) {
                 await GroupManager.syncAndSave(result.groups);
             }
             break;
+
+        case 'dump_screen_text': {
+            try {
+                const textSource = document.getElementById('output');
+                const innerText = textSource ? textSource.innerText : '';
+                const destPathArg = result.path || 'screen.txt';
+                const absPath = FileSystemManager.getAbsolutePath(destPathArg, FileSystemManager.getCurrentPath());
+                const currentUser = await UserManager.getCurrentUser();
+                const primaryGroup = await UserManager.getPrimaryGroupForUser(currentUser.name);
+                const writeRes = await FileSystemManager.createOrUpdateFile(absPath, innerText, { currentUser: currentUser.name, primaryGroup });
+                if (!writeRes.success) {
+                    await OutputManager.appendToOutput(writeRes.error || 'Failed to write screen text.', { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                }
+            } catch (e) {
+                await OutputManager.appendToOutput(`printscreen error: ${e.message}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            }
+            break;
+        }
+
+        case 'capture_screenshot_png': {
+            try {
+                const target = document.getElementById('terminal') || document.body;
+                const canvas = await html2canvas(target);
+                const dataUrl = canvas.toDataURL('image/png');
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = result.filename || 'SamwiseOS_Screenshot.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (e) {
+                await OutputManager.appendToOutput(`screenshot error: ${e.message}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            }
+            break;
+        }
 
         default:
             await OutputManager.appendToOutput(`Unknown effect from Python: ${result.effect}`, { typeClass: 'text-warning' });
