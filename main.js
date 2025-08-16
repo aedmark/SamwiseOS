@@ -59,9 +59,11 @@ async function executePythonCommand(rawCommandText, options = {}) {
             } else if (pyResult.effect) {
                 // Single effect
                 result = await handleEffect(pyResult, options);
-            } else if (pyResult.output) {
+            } else if (pyResult.output !== undefined) {
                 // Handle direct output
-                await OutputManager.appendToOutput(pyResult.output);
+                if (pyResult.output) {
+                    await OutputManager.appendToOutput(pyResult.output);
+                }
             }
         } else {
             // Handle errors from Python
@@ -212,13 +214,22 @@ async function handleEffect(result, options) {
                 }
             });
             break;
-        case 'execute_script': {
+        case 'execute_script':
+        case 'execute_commands': {
             const commandsToRun = result.lines || result.commands;
             const scriptArgs = result.args || [];
             const envMgr = dependencies.EnvironmentManager;
             await envMgr.push();
+
+            const scriptingContext = {
+                isScripting: true,
+                lines: commandsToRun.map(item => (typeof item === 'string' ? item : item.command)),
+                currentLineIndex: -1
+            };
+
             try {
                 for (const item of commandsToRun) {
+                    scriptingContext.currentLineIndex++;
                     let commandText;
                     let passwordPipe = null;
 
@@ -233,44 +244,17 @@ async function handleEffect(result, options) {
                     }
                     const execOptions = {
                         isInteractive: false,
-                        scriptingContext: options.scriptingContext,
+                        scriptingContext: scriptingContext,
                         stdinContent: passwordPipe ? passwordPipe.join('\n') : null
                     };
                     const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
                     if (!commandResult.success) {
+                        await OutputManager.appendToOutput(`run: error in script on line ${scriptingContext.currentLineIndex + 1}: ${commandText}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         break;
                     }
                 }
             } finally {
                 await envMgr.pop();
-            }
-            break;
-        }
-        case 'execute_commands': {
-            const commandsToRun = result.lines || result.commands;
-            const scriptArgs = result.args || [];
-            for (const item of commandsToRun) {
-                let commandText;
-                let passwordPipe = null;
-
-                if (typeof item === 'string') {
-                    commandText = item;
-                } else {
-                    commandText = item.command;
-                    passwordPipe = item.password_pipe;
-                }
-                for (let i = 0; i < scriptArgs.length; i++) {
-                    commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
-                }
-                const execOptions = {
-                    isInteractive: false,
-                    scriptingContext: options.scriptingContext,
-                    stdinContent: passwordPipe ? passwordPipe.join('\n') : null
-                };
-                const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
-                if (!commandResult.success) {
-                    break;
-                }
             }
             break;
         }
@@ -344,7 +328,8 @@ async function handleEffect(result, options) {
             };
             MessageBusManager.registerJob(newJobId);
 
-            (async () => {
+            // We now AWAIT the execution.
+            await (async () => {
                 const bgOptions = { ...options, isInteractive: false, suppressOutput: true, signal: abortController.signal };
                 await executePythonCommand(result.command_string, bgOptions);
                 if (activeJobs[newJobId]) {
@@ -354,6 +339,7 @@ async function handleEffect(result, options) {
             })();
             await OutputManager.appendToOutput(`[${newJobId}] ${result.command_string}`);
             break;
+
         case 'login':
         case 'su': { // 'su' and 'login' effects are functionally identical
             const loginResult = await UserManager.loginUser(result.username, result.password);
@@ -455,10 +441,8 @@ async function handleEffect(result, options) {
             break;
 
         case 'page_output':
-            // Non-interactive scripts shouldn't hang on the pager.
-            // We just pass the content through as standard output.
             if (options.scriptingContext && options.scriptingContext.isScripting) {
-                await OutputManager.appendToOutput(result.content);
+                return { success: true, output: result.content };
             } else if (dependencies.PagerManager && typeof dependencies.PagerManager === 'function') {
                 const pagerApp = new dependencies.PagerManager();
                 AppLayerManager.show(pagerApp, {
@@ -467,7 +451,6 @@ async function handleEffect(result, options) {
                     mode: result.mode
                 });
             } else {
-                // Fallback: If PagerManager is unavailable, do not throw; just print.
                 await OutputManager.appendToOutput(result.content);
             }
             break;

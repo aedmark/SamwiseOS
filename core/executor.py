@@ -385,12 +385,36 @@ class CommandExecutor:
                 if pipeline.get('operator') == '&&' and not last_result_obj.get("success"): continue
                 if pipeline.get('operator') == '||' and last_result_obj.get("success"): continue
 
+                if pipeline.get('is_background'):
+                    first_segment = pipeline['segments'][0] if pipeline.get('segments') else None
+                    if not first_segment:
+                        last_result_obj = {"success": False, "error": "Syntax error: invalid null command for background job."}
+                        continue
+
+                    command_parts = [first_segment['command']] + first_segment['args']
+                    bg_result = {
+                        "effect": 'background_job',
+                        "command_string": " ".join(shlex.quote(p) for p in command_parts)
+                    }
+                    collected_effects.append(bg_result)
+                    last_result_obj = {"success": True}
+                    continue
+
                 pipeline_input = stdin_data
                 for i, segment in enumerate(pipeline['segments']):
                     result_or_promise = await self._execute_segment(segment, pipeline_input)
                     result_json = result_or_promise
                     last_result_obj = json.loads(result_json)
-                    # Collect effects so semicolon-separated commands can trigger multiple side-effects
+
+                    is_last_in_pipe = (i == len(pipeline['segments']) - 1)
+                    if (last_result_obj.get('effect') == 'page_output' and not is_last_in_pipe):
+                        # This is a pager, but its output is being piped. Act like `cat`.
+                        # Overwrite the result object to just pass the content through.
+                        last_result_obj = {
+                            "success": True,
+                            "output": last_result_obj.get("content", "")
+                        }
+
                     if isinstance(last_result_obj, dict) and last_result_obj.get('effect'):
                         collected_effects.append(last_result_obj)
                     if not last_result_obj.get("success"): break
@@ -407,15 +431,6 @@ class CommandExecutor:
                     self.fs_manager.write_file(file_path, content_to_write, self.user_context)
                     last_result_obj['output'] = ""
 
-                if pipeline['is_background']:
-                    last_result_obj['effect'] = 'background_job'
-                    first_segment = pipeline['segments'][0]
-                    command_parts = [first_segment['command']] + first_segment['args']
-                    last_result_obj['command_string'] = " ".join(shlex.quote(p) for p in command_parts)
-                    # Treat background job as an effect too
-                    collected_effects.append(last_result_obj)
-
-            # If we collected multiple effects, return them together while preserving other fields
             if collected_effects:
                 response_obj = {k: v for k, v in last_result_obj.items() if k != 'effect'}
                 response_obj['effects'] = collected_effects
