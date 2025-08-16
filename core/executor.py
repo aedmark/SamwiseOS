@@ -183,13 +183,15 @@ class CommandExecutor:
 
     async def _preprocess_command_string(self, command_string, js_context_json):
         # Brace Expansion
-        expanded_parts = []
-        for part in shlex.split(command_string):
-            expanded_parts.extend(self._expand_braces(part))
-        command_string = ' '.join(expanded_parts)
+        # Only perform the destructive split-join if braces are actually present.
+        if '{' in command_string and '}' in command_string:
+            expanded_parts = []
+            for part in shlex.split(command_string):
+                expanded_parts.extend(self._expand_braces(part))
+            command_string = ' '.join(expanded_parts)
 
         # Alias Resolution
-        parts = command_string.split()
+        parts = shlex.split(command_string) # Use shlex here too for consistency
         if parts:
             command_name = parts[0]
             alias_value = alias_manager.get_alias(command_name)
@@ -211,7 +213,7 @@ class CommandExecutor:
             sub_result_json = await self.execute(sub_command, js_context_json)
             sub_result = json.loads(sub_result_json)
             if sub_result.get("success"):
-                output = sub_result.get("output", "").strip().replace('\n', ' ')
+                output = sub_result.get("output", "").strip().replace('\\n', ' ')
                 command_string = command_string[:match.start()] + output + command_string[match.end():]
             else:
                 raise ValueError(f"Command substitution failed: {sub_result.get('error')}")

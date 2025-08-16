@@ -9,7 +9,7 @@ def run(args, flags, user_context, **kwargs):
     if not args:
         return {"success": False, "error": "groupadd: missing group name"}
 
-    group_name = args[0]
+    group_name = " ".join(args)
 
     if ' ' in group_name:
         return {"success": False, "error": "groupadd: group names cannot contain spaces."}

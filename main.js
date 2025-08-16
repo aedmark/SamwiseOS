@@ -416,7 +416,6 @@ async function handleEffect(result, options) {
             }
             break;
 
-        // --- MODIFICATION START ---
         case 'sync_group_state':
             if (result.groups) {
                 await GroupManager.syncAndSave(result.groups);
@@ -426,12 +425,17 @@ async function handleEffect(result, options) {
         case 'sync_user_and_group_state':
             if (result.users) {
                 await UserManager.syncUsersFromKernel(); // This fetches from Python kernel's memory
+                // After syncing, save the new state to JS localStorage
+                const allUsers = await OopisOS_Kernel.syscall("users", "get_all_users");
+                const parsedUsers = JSON.parse(allUsers);
+                if(parsedUsers.success){
+                    StorageManager.saveItem(Config.STORAGE_KEYS.USER_CREDENTIALS, parsedUsers.data, "User Credentials");
+                }
             }
             if (result.groups) {
                 await GroupManager.syncAndSave(result.groups);
             }
             break;
-        // --- MODIFICATION END ---
 
         default:
             await OutputManager.appendToOutput(`Unknown effect from Python: ${result.effect}`, { typeClass: 'text-warning' });

@@ -32,7 +32,7 @@ def run(args, flags, user_context, stdin_data=None):
         try:
             byte_count = int(byte_count_str)
             if byte_count < 0: raise ValueError
-            full_content = "\\n".join(lines)
+            full_content = "\n".join(lines)
             return full_content[:byte_count]
         except (ValueError, TypeError):
             return {"success": False, "error": f"head: invalid number of bytes: '{byte_count_str}'"}
@@ -44,7 +44,7 @@ def run(args, flags, user_context, stdin_data=None):
                 if line_count < 0: raise ValueError
             except (ValueError, TypeError):
                 return {"success": False, "error": f"head: invalid number of lines: '{line_count_str}'"}
-        return "\\n".join(lines[:line_count])
+        return "\n".join(lines[:line_count])
 
 
 def man(args, flags, user_context, stdin_data=None):
