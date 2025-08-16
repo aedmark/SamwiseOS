@@ -1,4 +1,4 @@
-# /core/executor.py
+# gemini/core/executor.py
 
 import shlex
 import json
@@ -21,14 +21,11 @@ class CommandExecutor:
         self.user_context = {"name": "Guest"}
         self._flag_def_cache = {}
         self.ai_manager = None
-        # This will be populated by the JS bridge during initialization.
         self.js_native_commands = set()
-
 
     def set_ai_manager(self, ai_manager_instance):
         self.ai_manager = ai_manager_instance
 
-    # This function allows the JS bridge to tell Python about its native commands.
     def set_js_native_commands(self, command_list):
         self.js_native_commands = set(command_list)
 
@@ -38,6 +35,7 @@ class CommandExecutor:
             py_files = [f for f in os.listdir(command_dir) if f.endswith('.py') and not f.startswith('__')]
             return sorted([os.path.splitext(f)[0] for f in py_files])
         except FileNotFoundError:
+            # Fallback for local development if /core isn't mounted in Pyodide
             local_command_dir = os.path.join(os.path.dirname(__file__), 'commands')
             if os.path.exists(local_command_dir):
                 py_files = [f for f in os.listdir(local_command_dir) if f.endswith('.py') and not f.startswith('__')]
@@ -73,15 +71,20 @@ class CommandExecutor:
     def _parts_to_segment(self, segment_parts):
         if not segment_parts:
             return None
+
         command_name = segment_parts[0]
         raw_args_and_flags = segment_parts[1:]
+
+        # Wildcard Expansion (Globbing)
         expanded_parts = []
         for part in raw_args_and_flags:
             if '*' in part or '?' in part or ('[' in part and ']' in part):
                 path_prefix, pattern_part = os.path.split(part)
                 if not path_prefix: path_prefix = '.'
+
                 search_dir_abs = self.fs_manager.get_absolute_path(path_prefix)
                 dir_node = self.fs_manager.get_node(search_dir_abs)
+
                 if dir_node and dir_node.get('type') == 'directory':
                     children_names = dir_node.get('children', {}).keys()
                     matches = fnmatch.filter(children_names, pattern_part)
@@ -89,11 +92,12 @@ class CommandExecutor:
                         for name in sorted(matches):
                             expanded_parts.append(os.path.join(path_prefix, name) if path_prefix != '.' else name)
                     else:
-                        expanded_parts.append(part)
+                        expanded_parts.append(part) # No match, pass the glob pattern literally
                 else:
                     expanded_parts.append(part)
             else:
                 expanded_parts.append(part)
+
         parts_to_process = [command_name] + expanded_parts
         args, flags, flag_definitions = [], {}, self._get_command_flag_definitions(command_name)
         flag_map = {}
@@ -101,6 +105,7 @@ class CommandExecutor:
             canonical_name, takes_value = flag_def['name'], flag_def.get('takes_value', False)
             if 'short' in flag_def: flag_map[f"-{flag_def['short']}"] = (canonical_name, takes_value)
             if 'long' in flag_def: flag_map[f"--{flag_def['long']}"] = (canonical_name, takes_value)
+
         i = 1
         while i < len(parts_to_process):
             part = parts_to_process[i]
@@ -124,6 +129,7 @@ class CommandExecutor:
                     flags[canonical_name] = flag_value
                     i += 1
                     continue
+
             if part in flag_map:
                 canonical_name, takes_value = flag_map[part]
                 if takes_value:
@@ -134,7 +140,7 @@ class CommandExecutor:
                 else:
                     flags[canonical_name] = True
                     i += 1
-            elif part.startswith('-') and not part.startswith('--') and len(part) > 2:
+            elif part.startswith('-') and not part.startswith('--') and len(part) > 2: # Combined short flags like -la
                 all_valid, temp_flags = True, {}
                 for char in part[1:]:
                     char_flag = f'-{char}'
@@ -152,6 +158,7 @@ class CommandExecutor:
             else:
                 args.append(part)
                 i += 1
+
         return {'command': command_name, 'args': args, 'flags': flags}
 
     def _expand_braces(self, segment):
@@ -173,7 +180,7 @@ class CommandExecutor:
                     start, end = int(range_parts[0]), int(range_parts[1])
                     step = 1 if start <= end else -1
                     return [f"{prefix}{i}{suffix}" for i in range(start, end + step, step)]
-                except ValueError: # Alphanumeric range
+                except ValueError:
                     start_char, end_char = range_parts[0], range_parts[1]
                     if len(start_char) == 1 and len(end_char) == 1:
                         start_ord, end_ord = ord(start_char), ord(end_char)
@@ -183,7 +190,6 @@ class CommandExecutor:
 
     async def _preprocess_command_string(self, command_string, js_context_json):
         # Brace Expansion
-        # Only perform the destructive split-join if braces are actually present.
         if '{' in command_string and '}' in command_string:
             expanded_parts = []
             for part in shlex.split(command_string):
@@ -191,7 +197,7 @@ class CommandExecutor:
             command_string = ' '.join(expanded_parts)
 
         # Alias Resolution
-        parts = shlex.split(command_string) # Use shlex here too for consistency
+        parts = shlex.split(command_string)
         if parts:
             command_name = parts[0]
             alias_value = alias_manager.get_alias(command_name)
@@ -199,27 +205,20 @@ class CommandExecutor:
                 remaining_args = ' '.join(parts[1:])
                 command_string = f"{alias_value} {remaining_args}".strip()
 
-        # ############### START MODIFIED SECTION ###############
         # Environment Variable Expansion
         def replace_var(match):
             var_name = match.group(1) or match.group(2)
             return env_manager.get(var_name) or ""
 
-        # New logic: Split by single quotes, expand only on the even-indexed parts (outside quotes).
-        # This correctly prevents variable expansion inside single-quoted strings like in 'awk'.
         parts = command_string.split("'")
         result_parts = []
         for i, part in enumerate(parts):
             if i % 2 == 0:
-                # This part is outside single quotes. Expand variables.
-                # This correctly handles expansion inside double quotes as they are not used as delimiters.
                 expanded_part = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace_var, part)
                 result_parts.append(expanded_part)
             else:
-                # This part is inside single quotes. Leave it as is.
                 result_parts.append(part)
         command_string = "'".join(result_parts)
-        # ################ END MODIFIED SECTION ################
 
         # Command Substitution
         pattern = re.compile(r'\$\((.*?)\)', re.DOTALL)

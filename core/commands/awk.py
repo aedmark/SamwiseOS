@@ -1,6 +1,7 @@
-# gem/core/commands/awk.py
+# gemini/core/commands/awk.py
 
 import re
+import shlex
 from filesystem import fs_manager
 
 def define_flags():
@@ -13,13 +14,16 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not args:
         return {"success": False, "error": "awk: missing program"}
 
-    program = args[0]
+    program_arg = args[0]
     file_path = args[1] if len(args) > 1 else None
 
-
-    if (program.startswith("'") and program.endswith("'")) or \
-            (program.startswith('"') and program.endswith('"')):
-        program = program[1:-1]
+    # The executor's shlex.split keeps the program as a single argument,
+    # including quotes. We need to strip them here for parsing.
+    if (program_arg.startswith("'") and program_arg.endswith("'")) or \
+            (program_arg.startswith('"') and program_arg.endswith('"')):
+        program = program_arg[1:-1]
+    else:
+        program = program_arg
 
     delimiter = flags.get('field-separator')
     lines = []
@@ -36,19 +40,24 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     begin_match = re.search(r'BEGIN\s*{(.*?)}', program, re.DOTALL)
     end_match = re.search(r'END\s*{(.*?)}', program, re.DOTALL)
     main_program = program
-    if begin_match: main_program = main_program.replace(begin_match.group(0), '')
-    if end_match: main_program = main_program.replace(end_match.group(0), '')
+    if begin_match: main_program = main_program.replace(begin_match.group(0), '', 1)
+    if end_match: main_program = main_program.replace(end_match.group(0), '', 1)
     main_program = main_program.strip()
 
     def execute_action_block(action_block, line_num=0, line=""):
-        # This regex now correctly finds `print` and captures its arguments.
         print_match = re.search(r'print(?:\s+(.*))?', action_block)
         if not print_match: return
 
-        to_print_str = print_match.group(1).strip() if print_match.group(1) else '$0'
-        # This regex is improved to handle multiple arguments to print, including quoted strings and variables.
-        print_parts = re.findall(r'(\$[0-9]+|NR|\".*?\"|\'.*?\'|[a-zA-Z_][a-zA-Z0-9_]*)', to_print_str)
+        to_print_str = print_match.group(1) if print_match.group(1) else '$0'
 
+        # Using shlex.split is far more robust for parsing arguments.
+        try:
+            print_parts = shlex.split(to_print_str)
+        except ValueError:
+            print_parts = to_print_str.split() # Fallback for simple cases
+
+        if not print_parts:
+            print_parts = ['$0']
 
         fields = line.split(delimiter) if delimiter else line.split()
         field_values = [line] + fields
@@ -56,18 +65,16 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
         output_line_parts = []
         for part in print_parts:
-            if (part.startswith('"') and part.endswith('"')) or (part.startswith("'") and part.endswith("'")):
-                output_line_parts.append(part[1:-1])
-            elif part.startswith('$'):
+            if part.startswith('$'):
                 try:
                     field_index = int(part[1:])
                     if 0 <= field_index < len(field_values):
                         output_line_parts.append(field_values[field_index])
                 except (ValueError, IndexError):
-                    pass # Ignore invalid field references
+                    pass
             elif part in special_vars:
                 output_line_parts.append(special_vars[part])
-            else: # It's a literal string not in quotes
+            else:
                 output_line_parts.append(part)
         output_lines.append(" ".join(output_line_parts))
 
