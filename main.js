@@ -139,19 +139,18 @@ async function handleEffect(result, options) {
                     commandText = item.command;
                     passwordPipe = item.password_pipe;
                 }
-
-
                 for (let i = 0; i < scriptArgs.length; i++) {
                     commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
                 }
-
                 const execOptions = {
                     isInteractive: false,
                     scriptingContext: options.scriptingContext,
                     stdinContent: passwordPipe ? passwordPipe.join('\n') : null
                 };
-                await CommandExecutor.processSingleCommand(commandText, execOptions);
-            }
+                const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
+                if (!commandResult.success) {
+                    break;
+                }}
             break;
 
         case 'useradd': {
@@ -319,6 +318,10 @@ async function handleEffect(result, options) {
             setTimeout(() => window.location.reload(), 1000);
             break;
 
+        case 'delay':
+            await Utils.safeDelay(result.milliseconds);
+            break;
+
         case 'launch_app':
             const App = window[result.app_name + "Manager"];
             if (App) {
@@ -412,6 +415,23 @@ async function handleEffect(result, options) {
                 await SessionManager.saveAutomaticState((await UserManager.getCurrentUser()).name);
             }
             break;
+
+        // --- MODIFICATION START ---
+        case 'sync_group_state':
+            if (result.groups) {
+                await GroupManager.syncAndSave(result.groups);
+            }
+            break;
+
+        case 'sync_user_and_group_state':
+            if (result.users) {
+                await UserManager.syncUsersFromKernel(); // This fetches from Python kernel's memory
+            }
+            if (result.groups) {
+                await GroupManager.syncAndSave(result.groups);
+            }
+            break;
+        // --- MODIFICATION END ---
 
         default:
             await OutputManager.appendToOutput(`Unknown effect from Python: ${result.effect}`, { typeClass: 'text-warning' });
