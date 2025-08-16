@@ -5,8 +5,16 @@ const OopisOS_Kernel = {
     pyodide: null,
     kernel: null,
     dependencies: null,
+    _initPromise: null,
+    _resolveInit: null,
 
     async syscall(module, func, args = [], kwargs = {}) {
+        // If kernel isn't ready yet, wait for initialization to complete
+        if (!this.isReady || !this.kernel) {
+            if (this._initPromise) {
+                try { await this._initPromise; } catch (_) { /* ignore */ }
+            }
+        }
         if (!this.isReady || !this.kernel) {
             return JSON.stringify({ "success": false, "error": "Error: Python kernel is not ready for syscall." });
         }
@@ -21,12 +29,20 @@ const OopisOS_Kernel = {
 
     async initialize(dependencies) {
         this.dependencies = dependencies;
-        const { OutputManager, Config, CommandRegistry } = this.dependencies;
+        const { OutputManager, Config } = this.dependencies;
+        // Set up an initialization promise that other calls can await
+        if (!this._initPromise) {
+            this._initPromise = new Promise((resolve) => { this._resolveInit = resolve; });
+        }
         try {
-            await OutputManager.appendToOutput("Initializing Python runtime via Pyodide...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+            await OutputManager.appendToOutput(`Initializing Python runtime via Pyodide (Browser Mode)...`, { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+
+            let pyodideIndexURL = './dist/pyodide/';
+
             this.pyodide = await loadPyodide({
-                indexURL: "./dist/pyodide/"
+                indexURL: pyodideIndexURL
             });
+
             await this.pyodide.loadPackage(["cryptography", "ssl"]);
             await OutputManager.appendToOutput("Python runtime loaded. Loading kernel...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
 
@@ -35,6 +51,7 @@ const OopisOS_Kernel = {
             this.pyodide.FS.mkdir('/core/apps');
             await this.pyodide.runPythonAsync(`import sys\nsys.path.append('/core')`);
 
+            // This file list remains unchanged.
             const filesToLoad = {
                 '/core/kernel.py': './core/kernel.py',
                 '/core/filesystem.py': './core/filesystem.py',
@@ -169,9 +186,12 @@ const OopisOS_Kernel = {
                 '/core/apps/log.py': './core/apps/log.py',
                 '/core/apps/basic.py': './core/apps/basic.py'
             };
+
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
-                    const code = await (await fetch(jsPath)).text();
+                    let code;
+                    // Browser: Use the original fetch method.
+                    code = await (await fetch(jsPath)).text();
                     this.pyodide.FS.writeFile(pyPath, code, { encoding: 'utf8' });
                 } else {
                     this.pyodide.FS.writeFile(pyPath, '', { encoding: 'utf8' });
@@ -179,26 +199,41 @@ const OopisOS_Kernel = {
             }
 
             this.kernel = this.pyodide.pyimport("kernel");
-            // Pass the save function to the Python kernel, binding `this` context.
             this.kernel.initialize_kernel(this.saveFileSystemToDB.bind(this));
 
             const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             Config.COMMANDS_MANIFEST.push(...pythonCommands);
             Config.COMMANDS_MANIFEST.sort();
 
-            // Inform the Python kernel about the JS-native commands.
-            await this.syscall("executor", "set_js_native_commands", [Config.JS_NATIVE_COMMANDS]);
+            // During initialization, call the Python syscall handler directly to avoid readiness gating deadlock
+            try {
+                const request = { module: "executor", "function": "set_js_native_commands", args: [Config.JS_NATIVE_COMMANDS], kwargs: {} };
+                await this.kernel.syscall_handler(JSON.stringify(request));
+            } catch (e) {
+                console.warn("Failed to set JS native commands during init:", e);
+            }
 
             this.isReady = true;
             await OutputManager.appendToOutput("OopisOS Python Kernel is online.", { typeClass: Config.CSS_CLASSES.SUCCESS_MSG });
+            if (this._resolveInit) { this._resolveInit(); this._resolveInit = null; }
         } catch (error) {
             this.isReady = false;
             console.error("Pyodide initialization failed:", error);
             await OutputManager.appendToOutput(`FATAL: Python Kernel failed to load: ${error.message}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            if (this._resolveInit) { this._resolveInit(); this._resolveInit = null; }
         }
     },
 
     async execute_command(commandString, jsContextJson, stdinContent = null) {
+        // Wait for initialization to complete if needed
+        if (!this.isReady || !this.kernel) {
+            if (this._initPromise) {
+                try { await this._initPromise; } catch (_) { /* ignore */ }
+            }
+        }
+        if (!this.isReady || !this.kernel) {
+            return JSON.stringify({ "success": false, "error": "Kernel not ready." });
+        }
         return await this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
 
