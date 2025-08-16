@@ -460,7 +460,12 @@ async function handleEffect(result, options) {
             if (options.scriptingContext && options.scriptingContext.isScripting) {
                 await OutputManager.appendToOutput(result.content);
             } else {
-                await PagerManager.enter(result.content, { mode: result.mode });
+                const pagerApp = new dependencies.PagerManager();
+                AppLayerManager.show(pagerApp, {
+                    dependencies,
+                    content: result.content,
+                    mode: result.mode
+                });
             }
             break;
 
@@ -783,6 +788,7 @@ window.onload = async () => {
         StorageHAL: storageHAL,
         CommandExecutor: CommandExecutor,
         // App classes
+        PagerManager: window.PagerManager,
         TextAdventureModal: window.TextAdventureModal, Adventure_create: window.Adventure_create,
         BasicUI: window.BasicUI, ChidiUI: window.ChidiUI, EditorUI: window.EditorUI,
         ExplorerUI: window.ExplorerUI, GeminiChatUI: window.GeminiChatUI, LogUI: window.LogUI,
@@ -791,8 +797,6 @@ window.onload = async () => {
 
     const userManager = new UserManager(dependencies);
     dependencies.UserManager = userManager;
-    const pagerManager = new PagerManager(dependencies);
-    dependencies.PagerManager = pagerManager;
 
     // Set dependencies for all managers
     Object.values(dependencies).forEach(dep => {
