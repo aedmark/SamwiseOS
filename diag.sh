@@ -1268,7 +1268,6 @@ delay 300
 removeuser -f diagUser
 removeuser -f sudouser
 removeuser -f testuser
-removeuser -f testuser2
 removeuser -f comm_user1
 removeuser -f comm_user2
 removeuser -f limitedsudo
@@ -1279,7 +1278,6 @@ delay 200
 rm -r -f /home/diagUser
 rm -r -f /home/sudouser
 rm -r -f /home/testuser
-rm -r -f /home/testuser2
 rm -r -f /home/comm_user1
 rm -r -f /home/comm_user2
 rm -r -f /home/limitedsudo
@@ -1407,7 +1405,7 @@ echo "  ======================================================"
 delay 150
 echo "  ==                                                  =="
 delay 150
-echo "  ==           SamwiseOS Core Diagnostics               =="
+echo "  ==           SamwiseOS Core Diagnostics             =="
 delay 150
 echo "  ==            ALL SYSTEMS OPERATIONAL               =="
 delay 150
