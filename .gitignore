@@ -1,7 +1,6 @@
 /node_modules/
 /.idea/
 /gem/
-/dist/
 /gemini/
 /gemini/core/
 /pyodide/
