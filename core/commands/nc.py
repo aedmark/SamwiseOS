@@ -7,10 +7,13 @@ def define_flags():
         {'name': 'exec', 'long': 'exec', 'takes_value': False},
     ]
 
-def run(args, flags, user_context, **kwargs):
+def run(args, flags, user_context, config=None, **kwargs):
     """
     Handles network communication by returning effects to the JS layer.
     """
+    if not config or not config.get('NETWORKING_ENABLED'):
+        return {"success": False, "error": "nc: networking is disabled by the system administrator."}
+
     is_listen = flags.get('listen', False)
     is_exec = flags.get('exec', False)
 

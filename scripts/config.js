@@ -22,6 +22,11 @@ class ConfigManager {
                 DEFAULT_HOST_NAME: "SamwiseOS",
             },
 
+            NETWORKING: {
+                NETWORKING_ENABLED: false, // The new master switch!
+                SIGNALING_SERVER_URL: 'ws://localhost:8080',
+            },
+
             USER: {
                 DEFAULT_NAME: "Guest",
                 RESERVED_USERNAMES: ["guest", "root", "admin", "system"],

@@ -129,7 +129,10 @@ async function createKernelContext(options = {}) {
         user_groups: userGroupsMap,
         groups: await GroupManager.getAllGroups(),
         jobs: activeJobs,
-        config: { MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE },
+        config: {
+            MAX_VFS_SIZE: Config.FILESYSTEM.MAX_VFS_SIZE,
+            NETWORKING_ENABLED: Config.NETWORKING.NETWORKING_ENABLED, // Pass the flag
+        },
         api_key: apiKey,
         session_start_time: window.sessionStartTime.toISOString(),
         session_stack: await SessionManager.getStack()
