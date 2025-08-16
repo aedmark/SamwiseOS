@@ -40,7 +40,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     lines = []
     if stdin_data is not None:
-        lines.extend(stdin_data.splitlines())
+        lines.extend(str(stdin_data or "").splitlines())
     elif args:
         for path in args:
             node = fs_manager.get_node(path)

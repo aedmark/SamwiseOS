@@ -320,6 +320,18 @@ class CommandExecutor:
                 session_start_time=context.get("session_start_time"), session_stack=context.get("session_stack")
             )
             processed_command_string = await self._preprocess_command_string(command_string, js_context_json)
+            # Standalone variable assignment(s) handling (e.g., VAR=value [VAR2=value ...])
+            try:
+                assign_parts = shlex.split(processed_command_string)
+            except ValueError as e:
+                raise ValueError(f"Syntax error in command: {e}")
+            def is_assignment_token(tok):
+                return bool(re.match(r'^[A-Za-z_][A-Za-z0-9_]*=', tok))
+            if assign_parts and all(is_assignment_token(tok) for tok in assign_parts):
+                for tok in assign_parts:
+                    name, value = tok.split('=', 1)
+                    env_manager.set(name, value)
+                return json.dumps({"success": True, "output": ""})
             command_sequence = self._parse_command_string(processed_command_string)
             if not command_sequence: return json.dumps({"success": True, "output": ""})
             last_result_obj = {"success": True, "output": ""}

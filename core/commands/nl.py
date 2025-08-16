@@ -5,9 +5,7 @@ from filesystem import fs_manager
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     lines = []
 
-    if stdin_data is not None:
-        lines.extend(stdin_data.splitlines())
-    elif args:
+    if args:
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
@@ -15,6 +13,8 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             if node.get('type') != 'file':
                 return {"success": False, "error": f"nl: {path}: Is a directory"}
             lines.extend(node.get('content', '').splitlines())
+    elif stdin_data is not None:
+        lines.extend(str(stdin_data or "").splitlines())
     else:
         return "" # No input, no output
 
