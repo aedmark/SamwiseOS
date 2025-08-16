@@ -300,10 +300,15 @@ class CommandExecutor:
 
             sub_commands, last_op_index = [], 0
             for i, part in enumerate(parts):
-                if part in ['&&', '||', '&']: # Removed ';' from here
+                if part in ['&&', '||', '&']:
                     sub_commands.append({'command_parts': parts[last_op_index:i], 'operator': part})
                     last_op_index = i + 1
-            sub_commands.append({'command_parts': parts[last_op_index:], 'operator': None})
+
+            # Only add the remaining parts if there are any.
+            # This prevents an empty sub-command when the line ends with an operator.
+            remaining_parts = parts[last_op_index:]
+            if remaining_parts:
+                sub_commands.append({'command_parts': remaining_parts, 'operator': None})
 
             for sub_cmd in sub_commands:
                 command_parts = sub_cmd['command_parts']
