@@ -220,7 +220,6 @@ class CommandExecutor:
 
     def _parse_command_string(self, command_string):
         try:
-            command_string = re.sub(r'(&&|\|\||;|\||&)', r' \1 ', command_string)
             parts = shlex.split(command_string)
         except ValueError as e:
             raise ValueError(f"Syntax error in command: {e}")
