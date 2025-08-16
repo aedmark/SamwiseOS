@@ -199,11 +199,27 @@ class CommandExecutor:
                 remaining_args = ' '.join(parts[1:])
                 command_string = f"{alias_value} {remaining_args}".strip()
 
+        # ############### START MODIFIED SECTION ###############
         # Environment Variable Expansion
         def replace_var(match):
             var_name = match.group(1) or match.group(2)
             return env_manager.get(var_name) or ""
-        command_string = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace_var, command_string)
+
+        # New logic: Split by single quotes, expand only on the even-indexed parts (outside quotes).
+        # This correctly prevents variable expansion inside single-quoted strings like in 'awk'.
+        parts = command_string.split("'")
+        result_parts = []
+        for i, part in enumerate(parts):
+            if i % 2 == 0:
+                # This part is outside single quotes. Expand variables.
+                # This correctly handles expansion inside double quotes as they are not used as delimiters.
+                expanded_part = re.sub(r'\$([a-zA-Z_][a-zA-Z0-9_]*)|\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}', replace_var, part)
+                result_parts.append(expanded_part)
+            else:
+                # This part is inside single quotes. Leave it as is.
+                result_parts.append(part)
+        command_string = "'".join(result_parts)
+        # ################ END MODIFIED SECTION ################
 
         # Command Substitution
         pattern = re.compile(r'\$\((.*?)\)', re.DOTALL)
