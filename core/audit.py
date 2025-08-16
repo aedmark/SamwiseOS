@@ -29,7 +29,7 @@ class AuditManager:
                 # Create the log file itself as root
                 fs_manager.write_file(LOG_PATH, "", {"name": "root", "group": "root"})
                 # Set permissions so only root can read/write
-                fs_manager.chmod(LOG_PATH, "0o640")
+                fs_manager.chmod(LOG_PATH, "640")
             except Exception as e:
                 print(f"AuditManager Critical: Could not create log file {LOG_PATH}: {e}")
                 return False

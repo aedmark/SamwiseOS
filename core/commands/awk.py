@@ -42,12 +42,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     def execute_action_block(action_block, line_num=0, line=""):
         # This regex now correctly finds `print` and captures its arguments.
-        print_match = re.search(r'print\s+(.*)', action_block)
+        print_match = re.search(r'print\s*(.*)', action_block)
         if not print_match: return
 
         to_print_str = print_match.group(1).strip()
         # This regex is improved to handle multiple arguments to print, including quoted strings and variables.
-        print_parts = re.findall(r'(\$[0-9]+|NR|\".*?\"|\'.*?\'|[a-zA-Z_][a-zA-Z0-9_]*)', to_print_str)
+        print_parts = re.findall(r'(\$[0-9]+|NR|".*?"|\'.*?\')', to_print_str)
 
 
         fields = line.split(delimiter) if delimiter else line.split()

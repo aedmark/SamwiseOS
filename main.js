@@ -25,7 +25,7 @@ function startOnboardingProcess(dependencies) {
 
 // --- Asynchronous Python Command Execution ---
 async function executePythonCommand(rawCommandText, options = {}) {
-    const { isInteractive = true, scriptingContext = null, stdinContent = null } = options;
+    const { isInteractive = true, scriptingContext = null, stdinContent = null, asUser = null } = options;
     const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler } = dependencies;
 
     // Handle interactive session UI updates
@@ -33,7 +33,9 @@ async function executePythonCommand(rawCommandText, options = {}) {
         TerminalUI.hideInputLine();
         const prompt = TerminalUI.getPromptText();
         await OutputManager.appendToOutput(`${prompt}${rawCommandText.trim()}`);
-        await HistoryManager.add(rawCommandText.trim());
+        if (!options.isSudoContinuation) { // Don't add the sudo prompt itself to history
+            await HistoryManager.add(rawCommandText.trim());
+        }
     }
 
     if (rawCommandText.trim() === "") {
@@ -43,7 +45,7 @@ async function executePythonCommand(rawCommandText, options = {}) {
 
     let result;
     try {
-        const kernelContextJson = await createKernelContext();
+        const kernelContextJson = await createKernelContext({ asUser });
         const jsonResult = await OopisOS_Kernel.execute_command(rawCommandText, kernelContextJson, stdinContent);
         const pyResult = JSON.parse(jsonResult);
 
@@ -82,9 +84,21 @@ const CommandExecutor = {
 
 
 // --- Kernel Context Creation ---
-async function createKernelContext() {
+async function createKernelContext(options = {}) {
+    const { asUser = null } = options;
     const { FileSystemManager, UserManager, GroupManager, StorageManager, Config, SessionManager, AliasManager, HistoryManager } = dependencies;
-    const user = await UserManager.getCurrentUser();
+
+    let user;
+    let primaryGroup;
+
+    if (asUser) {
+        user = { name: asUser.name };
+        primaryGroup = asUser.primaryGroup;
+    } else {
+        user = await UserManager.getCurrentUser();
+        primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
+    }
+
     const allUsers = StorageManager.loadItem(Config.STORAGE_KEYS.USER_CREDENTIALS, "User list", {});
     const allUsernames = Object.keys(allUsers);
     const userGroupsMap = {};
@@ -99,11 +113,10 @@ async function createKernelContext() {
     // This syncs the JS-side session state to Python before execution
     await OopisOS_Kernel.syscall("alias", "load_aliases", [await AliasManager.getAllAliases()]);
     await OopisOS_Kernel.syscall("history", "set_history", [await HistoryManager.getFullHistory()]);
-    // Environment variables are already synced via `set` and `unset` effects
 
     return JSON.stringify({
         current_path: FileSystemManager.getCurrentPath(),
-        user_context: { name: user.name, group: await UserManager.getPrimaryGroupForUser(user.name) },
+        user_context: { name: user.name, group: primaryGroup },
         users: allUsers,
         user_groups: userGroupsMap,
         groups: await GroupManager.getAllGroups(),
@@ -121,10 +134,55 @@ async function handleEffect(result, options) {
         FileSystemManager, TerminalUI, SoundManager, SessionManager, AppLayerManager,
         UserManager, ErrorHandler, Config, OutputManager, PagerManager, Utils,
         GroupManager, NetworkManager, MessageBusManager, ModalManager, StorageManager,
-        AuditManager, StorageHAL
+        AuditManager, StorageHAL, SudoManager
     } = dependencies;
 
     switch (result.effect) {
+        case 'sudo_exec': {
+            const currentUser = await UserManager.getCurrentUser();
+            const executeAsRoot = async () => {
+                SudoManager.updateUserTimestamp(currentUser.name);
+                await AuditManager.log(currentUser.name, 'SUDO_SUCCESS', `Command: ${result.command}`);
+                const execOptions = { ...options, isInteractive: false, asUser: { name: 'root', primaryGroup: 'root' }, isSudoContinuation: true };
+                await CommandExecutor.processSingleCommand(result.command, execOptions);
+            };
+
+            if (SudoManager.isUserTimestampValid(currentUser.name)) {
+                await executeAsRoot();
+                break;
+            }
+
+            let passwordToTry = result.password;
+            if (passwordToTry === null) {
+                passwordToTry = await new Promise((resolve) => {
+                    ModalManager.request({
+                        context: 'terminal', type: 'input',
+                        messageLines: [`[sudo] password for ${currentUser.name}:`],
+                        obscured: true,
+                        onConfirm: (pwd) => resolve(pwd),
+                        onCancel: () => resolve(null),
+                        options
+                    });
+                });
+            }
+
+            if (passwordToTry === null) {
+                await AuditManager.log(currentUser.name, 'SUDO_FAILURE', `Command: ${result.command} (Reason: Password prompt cancelled)`);
+                await OutputManager.appendToOutput("sudo: authentication cancelled", { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                break;
+            }
+
+            const verifyResultJson = await OopisOS_Kernel.syscall("users", "verify_password", [currentUser.name, passwordToTry]);
+            const verifyResult = JSON.parse(verifyResultJson);
+
+            if (verifyResult.success && verifyResult.data) {
+                await executeAsRoot();
+            } else {
+                await AuditManager.log(currentUser.name, 'SUDO_FAILURE', `Command: ${result.command} (Reason: Incorrect password)`);
+                await OutputManager.appendToOutput("sudo: incorrect password", { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            }
+            break;
+        }
         case 'full_reset':
             await OutputManager.appendToOutput("Performing factory reset... The system will reboot.", { typeClass: Config.CSS_CLASSES.WARNING_MSG });
             await StorageHAL.clear(); // Clears IndexedDB
@@ -634,6 +692,7 @@ window.onload = async () => {
         HistoryManager: historyManager, TabCompletionManager: tabCompletionManager, Utils: Utils,
         ErrorHandler: ErrorHandler, AIManager: aiManager, NetworkManager: networkManager,
         UIComponents: uiComponents, domElements: domElements, SoundManager: soundManager,
+        AuditManager: auditManager,
         EnvironmentManager: environmentManager, // Add it to dependencies
         StorageHAL: storageHAL,
         CommandExecutor: CommandExecutor,
