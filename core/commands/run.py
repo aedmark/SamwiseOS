@@ -1,4 +1,4 @@
-# gem/core/commands/run.py
+# gemini/core/commands/run.py
 
 from filesystem import fs_manager
 
@@ -28,16 +28,21 @@ def run(args, flags, user_context, **kwargs):
         line = lines[i]
         stripped_line = line.strip()
 
-        # First, skip blank lines or comments and advance the loop
         if not stripped_line or stripped_line.startswith('#'):
             i += 1
             continue
 
-        # Next, check for commands that require non-interactive passwords
+        line_parts = stripped_line.split()
+        cmd = line_parts[0] if line_parts else ""
+        num_parts = len(line_parts)
         password_lines_needed = 0
-        if stripped_line.startswith("useradd"):
+
+        # Determine if the command needs a password from the next line(s)
+        if cmd == 'useradd' and num_parts == 2:
             password_lines_needed = 2
-        elif stripped_line.startswith("sudo") or stripped_line.startswith("login") or stripped_line.startswith("su"):
+        elif cmd == 'sudo':
+            password_lines_needed = 1
+        elif cmd in ['su', 'login'] and num_parts < 3:
             password_lines_needed = 1
 
         if password_lines_needed > 0:
@@ -45,11 +50,9 @@ def run(args, flags, user_context, **kwargs):
             lookahead_index = i + 1
             lines_consumed = 0
 
-            # Look ahead to find the next N valid lines for the password
             while lookahead_index < len(lines) and len(password_pipe) < password_lines_needed:
                 next_line = lines[lookahead_index]
-                lines_consumed += 1 # Always consume the line we're looking at
-                # Only add the line if it's not a comment or blank
+                lines_consumed += 1
                 if next_line.strip() and not next_line.strip().startswith('#'):
                     password_pipe.append(next_line)
                 lookahead_index += 1
@@ -59,10 +62,8 @@ def run(args, flags, user_context, **kwargs):
                 "password_pipe": password_pipe if len(password_pipe) == password_lines_needed else None
             }
             commands_to_execute.append(command_obj)
-            # Jump the index past the command and all the lines we just looked at
             i += 1 + lines_consumed
         else:
-            # For any other normal command, just add it and move to the next line
             commands_to_execute.append({"command": line})
             i += 1
 

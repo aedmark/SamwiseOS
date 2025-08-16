@@ -154,6 +154,64 @@ async function handleEffect(result, options) {
             }
             break;
 
+        case 'useradd': {
+            const newPassword = await new Promise((resolve) => {
+                ModalManager.request({
+                    context: 'terminal', type: 'input', messageLines: [`Enter new password for ${result.username}:`],
+                    obscured: true, onConfirm: (pwd) => resolve(pwd), onCancel: () => resolve(null)
+                });
+            });
+            if (newPassword === null) {
+                await OutputManager.appendToOutput("User creation cancelled.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                break;
+            }
+            const confirmPassword = await new Promise((resolve) => {
+                ModalManager.request({
+                    context: 'terminal', type: 'input', messageLines: [`Confirm new password for ${result.username}:`],
+                    obscured: true, onConfirm: (pwd) => resolve(pwd), onCancel: () => resolve(null)
+                });
+            });
+            if (confirmPassword === null) {
+                await OutputManager.appendToOutput("User creation cancelled.", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+                break;
+            }
+            if (newPassword !== confirmPassword) {
+                await OutputManager.appendToOutput(Config.MESSAGES.PASSWORD_MISMATCH, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                break;
+            }
+            const command = `useradd ${result.username}`;
+            const stdin = `${newPassword}\n${confirmPassword}`;
+            await CommandExecutor.processSingleCommand(command, { isInteractive: false, stdinContent: stdin });
+            break;
+        }
+
+        case 'removeuser': {
+            const { username, remove_home } = result;
+            const message = [`Are you sure you want to permanently delete user '${username}'?`];
+            if (remove_home) {
+                message.push("This will also delete their home directory and all its contents.");
+            }
+            message.push("This action cannot be undone.");
+
+            ModalManager.request({
+                context: 'terminal', type: 'confirm', messageLines: message,
+                onConfirm: async () => {
+                    const deleteResultJson = await OopisOS_Kernel.syscall("users", "delete_user_and_data", [username, remove_home]);
+                    const deleteResult = JSON.parse(deleteResultJson);
+                    if (deleteResult.success) {
+                        await UserManager.syncUsersFromKernel();
+                        const allGroups = await GroupManager.getAllGroups();
+                        await GroupManager.syncAndSave(allGroups);
+                        await OutputManager.appendToOutput(`User '${username}' removed successfully.`);
+                    } else {
+                        await OutputManager.appendToOutput(`Error: ${deleteResult.error}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                    }
+                },
+            });
+            break;
+        }
+
+
         case 'background_job':
             const newJobId = ++backgroundProcessIdCounter;
             const abortController = new AbortController();
