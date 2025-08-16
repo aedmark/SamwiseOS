@@ -1,5 +1,19 @@
 // gemini/bridge.js
 
+// --- Hybrid Environment Detection ---
+// We check for properties that only exist in a Node.js-enabled Electron renderer.
+const isElectron = typeof window !== 'undefined' && window.process && window.process.type === 'renderer';
+
+// --- Node.js Modules (only loaded if in Electron) ---
+let fs, path, url;
+let appRoot = '';
+if (isElectron) {
+    fs = require('fs');
+    path = require('path');
+    url = require('url');
+    appRoot = __dirname;
+}
+
 const OopisOS_Kernel = {
     isReady: false,
     pyodide: null,
@@ -21,12 +35,22 @@ const OopisOS_Kernel = {
 
     async initialize(dependencies) {
         this.dependencies = dependencies;
-        const { OutputManager, Config, CommandRegistry } = this.dependencies;
+        const { OutputManager, Config } = this.dependencies;
         try {
-            await OutputManager.appendToOutput("Initializing Python runtime via Pyodide...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+            const mode = isElectron ? "Electron Mode" : "Browser Mode";
+            await OutputManager.appendToOutput(`Initializing Python runtime via Pyodide (${mode})...`, { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
+
+            let pyodideIndexURL = './dist/pyodide/';
+            if (isElectron) {
+                // In Electron, we need an absolute file path.
+                const pyodidePath = path.join(appRoot, 'dist', 'pyodide');
+                pyodideIndexURL = url.pathToFileURL(pyodidePath).href + '/';
+            }
+
             this.pyodide = await loadPyodide({
-                indexURL: "./dist/pyodide/"
+                indexURL: pyodideIndexURL
             });
+
             await this.pyodide.loadPackage(["cryptography", "ssl"]);
             await OutputManager.appendToOutput("Python runtime loaded. Loading kernel...", { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
 
@@ -35,6 +59,7 @@ const OopisOS_Kernel = {
             this.pyodide.FS.mkdir('/core/apps');
             await this.pyodide.runPythonAsync(`import sys\nsys.path.append('/core')`);
 
+            // This file list remains unchanged.
             const filesToLoad = {
                 '/core/kernel.py': './core/kernel.py',
                 '/core/filesystem.py': './core/filesystem.py',
@@ -169,9 +194,18 @@ const OopisOS_Kernel = {
                 '/core/apps/log.py': './core/apps/log.py',
                 '/core/apps/basic.py': './core/apps/basic.py'
             };
+
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
                 if (jsPath) {
-                    const code = await (await fetch(jsPath)).text();
+                    let code;
+                    if (isElectron) {
+                        // Electron: Use Node's fs module to read the file synchronously from disk.
+                        const absoluteJsPath = path.join(appRoot, jsPath);
+                        code = fs.readFileSync(absoluteJsPath, { encoding: 'utf8' });
+                    } else {
+                        // Browser: Use the original fetch method.
+                        code = await (await fetch(jsPath)).text();
+                    }
                     this.pyodide.FS.writeFile(pyPath, code, { encoding: 'utf8' });
                 } else {
                     this.pyodide.FS.writeFile(pyPath, '', { encoding: 'utf8' });
@@ -179,14 +213,12 @@ const OopisOS_Kernel = {
             }
 
             this.kernel = this.pyodide.pyimport("kernel");
-            // Pass the save function to the Python kernel, binding `this` context.
             this.kernel.initialize_kernel(this.saveFileSystemToDB.bind(this));
 
             const pythonCommands = this.kernel.MODULE_DISPATCHER["executor"].commands.toJs();
             Config.COMMANDS_MANIFEST.push(...pythonCommands);
             Config.COMMANDS_MANIFEST.sort();
 
-            // Inform the Python kernel about the JS-native commands.
             await this.syscall("executor", "set_js_native_commands", [Config.JS_NATIVE_COMMANDS]);
 
             this.isReady = true;
@@ -199,6 +231,9 @@ const OopisOS_Kernel = {
     },
 
     async execute_command(commandString, jsContextJson, stdinContent = null) {
+        if (!this.isReady) {
+            return JSON.stringify({ "success": false, "error": "Kernel not ready." });
+        }
         return await this.kernel.execute_command(commandString, jsContextJson, stdinContent);
     },
 

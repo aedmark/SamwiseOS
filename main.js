@@ -200,6 +200,7 @@ async function handleEffect(result, options) {
             localStorage.clear(); // Clears all local storage for this origin
             setTimeout(() => window.location.reload(), 2000); // Give user time to read message
             break;
+
         case 'confirm':
             ModalManager.request({
                 context: 'terminal',
@@ -214,7 +215,8 @@ async function handleEffect(result, options) {
                 },
                 onCancel: () => {
                     OutputManager.appendToOutput('Operation cancelled.', { typeClass: Config.CSS_CLASSES.CONSOLE_LOG_MSG });
-                }
+                },
+                options,
             });
             break;
         case 'execute_script':
