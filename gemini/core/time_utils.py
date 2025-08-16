@@ -14,12 +14,17 @@ class TimeUtils:
         if not isinstance(date_str, str):
             return None
 
-        # Try parsing relative time strings like "1 day ago"
-        relative_match = re.match(r'(\d+)\s+(day|hour|minute)s?\s+ago', date_str, re.IGNORECASE)
+        # Try parsing relative time strings like "2 days ago"
+        relative_match = re.match(r'(\d+)\s+(day|hour|minute|second)s?\s+ago', date_str, re.IGNORECASE)
         if relative_match:
             amount, unit = int(relative_match.group(1)), relative_match.group(2).lower()
+            # Correctly create timedelta arguments like {'days': 2} or {'seconds': 30}
             delta_args = {f"{unit}s": amount}
             return datetime.utcnow() - timedelta(**delta_args)
+
+        # Handle a simple integer as "seconds ago"
+        if date_str.isdigit():
+            return datetime.utcnow() - timedelta(seconds=int(date_str))
 
         # Fallback for ISO 8601 format dates
         try:
