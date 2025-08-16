@@ -23,11 +23,15 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     if replace_str:
         for item in input_items:
-            new_command_parts = [
+            # First, perform the simple string replacement for each part.
+            substituted_parts = [
                 part.replace(replace_str, item) for part in command_to_run_parts
             ]
-            new_commands.append(" ".join(new_command_parts))
+            # Now, quote each of the resulting parts to handle spaces correctly.
+            quoted_parts = [shlex.quote(p) for p in substituted_parts]
+            new_commands.append(" ".join(quoted_parts))
     else:
+        # The existing logic for no -I flag is already correct.
         quoted_items = [shlex.quote(item) for item in input_items]
         full_command_parts = command_to_run_parts + quoted_items
         new_commands.append(" ".join(full_command_parts))

@@ -7,7 +7,7 @@ def _parse_patch(patch_content):
     """Parses a unified diff string into a list of hunk objects."""
     hunks = []
     current_hunk = None
-    hunk_header_re = re.compile(r'^@@ -(\\d+)(,(\\d+))? \\+(\\d+)(,(\\d+))? @@')
+    hunk_header_re = re.compile(r'^@@\s+-(\d+)(,(\d+))?\s+\+(\d+)(,(\d+))?\s+@@')
 
     for line in patch_content.splitlines():
         if line.startswith('---') or line.startswith('+++'):
@@ -84,15 +84,15 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    patch - apply a diff file to an original
+patch - apply a diff file to an original
 
 SYNOPSIS
-    patch [ORIGINALFILE] [PATCHFILE]
+patch [ORIGINALFILE] [PATCHFILE]
 
 DESCRIPTION
-    patch takes a patch file containing a difference listing produced
-    by the diff program and applies those differences to an original
-    file, producing a patched version.
+patch takes a patch file containing a difference listing produced
+by the diff program and applies those differences to an original
+file, producing a patched version.
 """
 
 def help(args, flags, user_context, **kwargs):

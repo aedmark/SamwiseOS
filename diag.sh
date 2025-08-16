@@ -1329,7 +1329,7 @@ delay 200
 logout
 delay 200
 echo "Attempting to create project as root (should succeed)..."
-sudo planner create city_mural
+planner create city_mural
 delay 200
 
 echo "Verifying project file was created in /etc/projects/..."
@@ -1393,7 +1393,7 @@ check_fail "ls /etc/projects/city_mural.json"
 echo ""
 echo "===== Planner Command Test Suite Complete! ====="
 
-login Guest password
+login Guest
 listusers
 delay 200
 

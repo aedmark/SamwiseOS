@@ -101,6 +101,7 @@ const OopisOS_Kernel = {
                 '/core/commands/storyboard.py': './core/commands/storyboard.py',
                 '/core/commands/forge.py': './core/commands/forge.py',
                 '/core/commands/csplit.py': './core/commands/csplit.py',
+                '/core/commands/planner.py': './core/commands/planner.py',
                 '/core/commands/awk.py': './core/commands/awk.py',
                 '/core/commands/expr.py': './core/commands/expr.py',
                 '/core/commands/rename.py': './core/commands/rename.py',
