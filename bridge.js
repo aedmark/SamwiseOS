@@ -88,6 +88,7 @@ const OopisOS_Kernel = {
                 '/core/commands/tail.py': './core/commands/tail.py',
                 '/core/commands/diff.py': './core/commands/diff.py',
                 '/core/commands/beep.py': './core/commands/beep.py',
+                '/core/commands/play.py': './core/commands/play.py',
                 '/core/commands/chmod.py': './core/commands/chmod.py',
                 '/core/commands/chown.py': './core/commands/chown.py',
                 '/core/commands/chgrp.py': './core/commands/chgrp.py',

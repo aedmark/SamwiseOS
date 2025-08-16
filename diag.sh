@@ -1385,7 +1385,7 @@ echo "--- Phase 5: Cleanup ---"
 echo "Removing test users and project file..."
 removeuser -f plan_user1
 removeuser -f plan_user2
-sudo rm /etc/projects/city_mural.json
+rm /etc/projects/city_mural.json
 delay 200
 
 echo "Verifying cleanup..."
@@ -1393,7 +1393,6 @@ check_fail "ls /etc/projects/city_mural.json"
 echo ""
 echo "===== Planner Command Test Suite Complete! ====="
 
-login Guest
 listusers
 delay 200
 
@@ -1417,7 +1416,7 @@ echo "  ======================================================"
 echo " "
 delay 400
 echo "(As usual, you've been a real pantload!)"
-beep; beep
+beep
 delay 650
 echo " "
 echo " "
