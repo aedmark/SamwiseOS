@@ -58,7 +58,7 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
         # The data from agentic search is already formatted Markdown
         return {
             "effect": "display_prose",
-            "header": "### Gemini Response",
+            "header": "Gemini Response",
             "content": result.get("data")
         }
     else:
