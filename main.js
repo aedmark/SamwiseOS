@@ -781,7 +781,8 @@ window.onload = async () => {
         PagerManager: window.PagerManager,
         TextAdventureModal: window.TextAdventureModal, Adventure_create: window.Adventure_create,
         BasicUI: window.BasicUI, ChidiUI: window.ChidiUI, EditorUI: window.EditorUI,
-        GeminiChatManager: window.GeminiChatManager, // Add GeminiChatManager
+        GeminiChatManager: window.GeminiChatManager,
+        GeminiChatUI: window.GeminiChatUI,
         LogUI: window.LogUI,
         PaintUI: window.PaintUI, TopUI: window.TopUI,
     });

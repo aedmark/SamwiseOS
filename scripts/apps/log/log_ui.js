@@ -17,6 +17,8 @@ window.LogUI = class LogUI {
         this.elements.container = appWindow.container;
         this.elements.header = appWindow.header;
         this.elements.main = appWindow.main;
+        const exitBtn = this.elements.header.querySelector('.app-header__exit-btn');
+        const title = this.elements.header.querySelector('.app-header__title');
 
         this.elements.searchBar = Utils.createElement("input", {
             id: "log-search-bar",
@@ -41,7 +43,8 @@ window.LogUI = class LogUI {
             this.elements.saveBtn,
         ]);
 
-        this.elements.header.append(this.elements.searchBar, actionButtons);
+        this.elements.header.innerHTML = '';
+        this.elements.header.append(title, this.elements.searchBar, actionButtons, exitBtn);
 
         this.elements.entryList = Utils.createElement("div", {
             id: "log-entry-list",

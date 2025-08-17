@@ -1,3 +1,4 @@
+// gemini/scripts/apps/gemini_chat/gemini_chat_ui.js
 window.GeminiChatUI = class GeminiChatUI {
     constructor(callbacks, dependencies) {
         this.elements = {};
@@ -86,8 +87,7 @@ window.GeminiChatUI = class GeminiChatUI {
             messageDiv.innerHTML = sanitizedHtml;
 
             const copyBtn = Utils.createElement("button", {
-                className: "btn",
-                style: "position: absolute; top: 5px; right: 5px; font-size: 0.75rem; padding: 2px 5px;",
+                className: "btn gemini-chat__copy-btn",
                 textContent: "Copy",
             });
             copyBtn.addEventListener("click", async () => {
@@ -101,7 +101,7 @@ window.GeminiChatUI = class GeminiChatUI {
                     setTimeout(() => { copyBtn.textContent = "Copy"; }, 2000);
                 }
             });
-            messageDiv.style.position = "relative";
+
             messageDiv.appendChild(copyBtn);
 
             messageDiv.querySelectorAll("pre > code").forEach((codeBlock) => {
