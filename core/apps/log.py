@@ -38,14 +38,13 @@ def load_entries(user_context):
     for filename, file_node in log_dir_node.get('children', {}).items():
         if filename.endswith(".md") and file_node.get('type') == 'file':
             try:
-                # Corrected parsing logic to match the new, simpler filename format
+                # Example: '2025-08-17T21-45-01-123Z.md' -> '2025-08-17T21:45:01.123Z'
                 ts_part = filename.replace(".md", "")
-                # Reconstruct an ISO-8601 compatible string from our filename format
-                iso_ts_str = f"{ts_part[:10]}T{ts_part[11:13]}:{ts_part[14:16]}:{ts_part[17:19]}.{ts_part[20:23]}Z"
+                iso_ts_str = ts_part[:10] + 'T' + ts_part[11:23].replace('-', ':', 2)
                 timestamp = datetime.fromisoformat(iso_ts_str.replace("Z", "+00:00"))
 
                 entries.append({
-                    "timestamp": timestamp.isoformat() + "Z",
+                    "timestamp": timestamp.isoformat().replace('+00:00', 'Z'),
                     "content": file_node.get('content', ''),
                     "path": os.path.join(log_dir_path, filename)
                 })
