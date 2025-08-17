@@ -26,14 +26,13 @@ function startOnboardingProcess(dependencies) {
 // --- Asynchronous Python Command Execution ---
 async function executePythonCommand(rawCommandText, options = {}) {
     const { isInteractive = true, scriptingContext = null, stdinContent = null, asUser = null } = options;
-    const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler } = dependencies;
+    const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Utils } = dependencies;
 
-    // Handle interactive session UI updates
     if (isInteractive && !scriptingContext) {
         TerminalUI.hideInputLine();
         const prompt = TerminalUI.getPromptText();
         await OutputManager.appendToOutput(`${prompt}${rawCommandText.trim()}`);
-        if (!options.isSudoContinuation) { // Don't add the sudo prompt itself to history
+        if (!options.isSudoContinuation) {
             await HistoryManager.add(rawCommandText.trim());
         }
     }
@@ -41,6 +40,20 @@ async function executePythonCommand(rawCommandText, options = {}) {
     if (rawCommandText.trim() === "") {
         if (isInteractive) await finalizeInteractiveModeUI(rawCommandText);
         return { success: true, output: "" };
+    }
+
+    const commandName = rawCommandText.trim().split(/\s+/)[0];
+    const aiCommands = ['gemini', 'storyboard', 'remix', 'forge', 'planner'];
+    let thinkingMessageDiv = null;
+
+    if (aiCommands.includes(commandName) && isInteractive && !scriptingContext) {
+        const randomMessage = Config.MESSAGES.AI_LOADING_MESSAGES[Math.floor(Math.random() * Config.MESSAGES.AI_LOADING_MESSAGES.length)];
+        thinkingMessageDiv = Utils.createElement('div', {
+            className: `${Config.CSS_CLASSES.OUTPUT_LINE} ${Config.CSS_CLASSES.CONSOLE_LOG_MSG}`,
+            textContent: `🧠 ${randomMessage}`
+        });
+        OutputManager.cachedOutputDiv.appendChild(thinkingMessageDiv);
+        TerminalUI.scrollOutputToEnd();
     }
 
     let result;
@@ -51,22 +64,18 @@ async function executePythonCommand(rawCommandText, options = {}) {
 
         if (pyResult.success) {
             if (Array.isArray(pyResult.effects)) {
-                // Multiple effects returned (e.g., from semicolon-separated commands). Run sequentially.
                 for (const eff of pyResult.effects) {
                     await handleEffect(eff, options);
                 }
                 result = { success: true };
             } else if (pyResult.effect) {
-                // Single effect
                 result = await handleEffect(pyResult, options);
             } else if (pyResult.output !== undefined) {
-                // Handle direct output
                 if (pyResult.output) {
                     await OutputManager.appendToOutput(pyResult.output);
                 }
             }
         } else {
-            // Handle errors from Python
             await OutputManager.appendToOutput(pyResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
             result = { success: false, error: pyResult.error };
         }
@@ -74,9 +83,12 @@ async function executePythonCommand(rawCommandText, options = {}) {
         const errorMsg = e.message || "An unknown JavaScript error occurred.";
         await OutputManager.appendToOutput(errorMsg, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
         result = { success: false, error: errorMsg };
+    } finally {
+        if (thinkingMessageDiv) {
+            thinkingMessageDiv.remove();
+        }
     }
 
-    // Finalize UI for interactive commands
     if (isInteractive) {
         await finalizeInteractiveModeUI(rawCommandText);
     }
@@ -561,6 +573,13 @@ async function handleEffect(result, options) {
             if (result.groups) {
                 await GroupManager.syncAndSave(result.groups);
             }
+            break;
+
+        case 'display_prose':
+            await OutputManager.appendToOutput(
+                DOMPurify.sanitize(marked.parse(`### ${result.header}\n\n${result.content}`)),
+                { asBlock: true, typeClass: 'prose-output' }
+            );
             break;
 
         case 'dump_screen_text': {
