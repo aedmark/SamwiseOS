@@ -80,6 +80,15 @@ class ConfigManager {
             },
 
             MESSAGES: {
+                AI_LOADING_MESSAGES: [
+                    "Analyzing narrative structure...",
+                    "Calibrating the irony meter...",
+                    "Reticulating splines...",
+                    "Consulting the oracle...",
+                    "Asking the right questions...",
+                    "Brewing coffee for the AI...",
+                    "Warming up the neural networks...",
+                ],
                 PERMISSION_DENIED_SUFFIX: ": You aren't allowed to do that.",
                 CONFIRMATION_PROMPT: "Type 'YES' (all caps) if you really wanna go through with this.",
                 OPERATION_CANCELLED: "Nevermind.",

@@ -103,7 +103,7 @@ window.ChidiManager = class ChidiManager extends App {
                 }
             },
             onAsk: async () => {
-                const { ModalManager } = this.dependencies;
+                const { ModalManager, Config } = this.dependencies;
                 const userQuestion = await new Promise((resolve) => {
                     ModalManager.request({
                         context: "graphical",
@@ -117,7 +117,9 @@ window.ChidiManager = class ChidiManager extends App {
                 if (!userQuestion || !userQuestion.trim()) return;
 
                 this.ui.toggleLoader(true);
-                this.ui.showMessage("Analyzing...");
+                const randomMessage = Config.MESSAGES.AI_LOADING_MESSAGES[Math.floor(Math.random() * Config.MESSAGES.AI_LOADING_MESSAGES.length)];
+                this.ui.showMessage(randomMessage);
+
 
                 const result = await this._callPythonKernelForAnalysis(
                     'ask',
@@ -130,19 +132,25 @@ window.ChidiManager = class ChidiManager extends App {
                     this.ui.appendAiOutput(`Answer for "${userQuestion}"`, result.answer);
                     this.ui.showMessage("Response received.", true);
                 } else {
-                    this.ui.appendAiOutput(
-                        "API Error",
-                        `Failed to get a response. Details: ${result.error}`
-                    );
+                    if (result.error && result.error.toLowerCase().includes("api key")) {
+                        this.ui.appendAiOutput("API Error", "Looks like we're missing the secret handshake (API key). Try running 'gemini' in the terminal to set it up!");
+                    } else {
+                        this.ui.appendAiOutput(
+                            "API Error",
+                            `Failed to get a response. Details: ${result.error}`
+                        );
+                    }
                     this.ui.showMessage(`Error: ${result.error}`, true);
                 }
             },
             onSummarize: async () => {
-                const { Utils } = this.dependencies;
+                const { Utils, Config } = this.dependencies;
                 const currentFile = this.state.loadedFiles[this.state.currentIndex];
                 if (!currentFile) return;
                 this.ui.toggleLoader(true);
-                this.ui.showMessage(`Contacting ${this.state.provider} API...`);
+                const randomMessage = Config.MESSAGES.AI_LOADING_MESSAGES[Math.floor(Math.random() * Config.MESSAGES.AI_LOADING_MESSAGES.length)];
+                this.ui.showMessage(randomMessage);
+
                 let contentToSummarize = currentFile.content;
                 if (currentFile.isCode) {
                     const comments = Utils.extractComments(
@@ -164,19 +172,24 @@ window.ChidiManager = class ChidiManager extends App {
                     this.ui.appendAiOutput("Summary", result.answer);
                     this.ui.showMessage("Summary received.", true);
                 } else {
-                    this.ui.appendAiOutput(
-                        "API Error",
-                        `Failed to get a summary. Details: ${result.error}`
-                    );
+                    if (result.error && result.error.toLowerCase().includes("api key")) {
+                        this.ui.appendAiOutput("API Error", "Looks like we're missing the secret handshake (API key). Try running 'gemini' in the terminal to set it up!");
+                    } else {
+                        this.ui.appendAiOutput(
+                            "API Error",
+                            `Failed to get a summary. Details: ${result.error}`
+                        );
+                    }
                     this.ui.showMessage(`Error: ${result.error}`, true);
                 }
             },
             onStudy: async () => {
-                const { Utils } = this.dependencies;
+                const { Utils, Config } = this.dependencies;
                 const currentFile = this.state.loadedFiles[this.state.currentIndex];
                 if (!currentFile) return;
                 this.ui.toggleLoader(true);
-                this.ui.showMessage(`Contacting ${this.state.provider} API...`);
+                const randomMessage = Config.MESSAGES.AI_LOADING_MESSAGES[Math.floor(Math.random() * Config.MESSAGES.AI_LOADING_MESSAGES.length)];
+                this.ui.showMessage(randomMessage);
                 let contentForQuestions = currentFile.content;
                 if (currentFile.isCode) {
                     const comments = Utils.extractComments(
@@ -198,10 +211,14 @@ window.ChidiManager = class ChidiManager extends App {
                     this.ui.appendAiOutput("Suggested Questions", result.answer);
                     this.ui.showMessage("Suggestions received.", true);
                 } else {
-                    this.ui.appendAiOutput(
-                        "API Error",
-                        `Failed to get suggestions. Details: ${result.error}`
-                    );
+                    if (result.error && result.error.toLowerCase().includes("api key")) {
+                        this.ui.appendAiOutput("API Error", "Looks like we're missing the secret handshake (API key). Try running 'gemini' in the terminal to set it up!");
+                    } else {
+                        this.ui.appendAiOutput(
+                            "API Error",
+                            `Failed to get suggestions. Details: ${result.error}`
+                        );
+                    }
                     this.ui.showMessage(`Error: ${result.error}`, true);
                 }
             },

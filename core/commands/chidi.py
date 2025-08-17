@@ -108,7 +108,7 @@ SYNOPSIS
 
 DESCRIPTION
     Chidi is a powerful graphical tool that leverages a Large Language
-    Model (LLM) to help you understand and interact with your files.
+    Model (LLM) to help you understand and interact with your files in SamwiseOS.
     It can summarize documents, suggest insightful questions, and answer
     your questions based on the content of the files you provide.
 """
