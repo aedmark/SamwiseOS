@@ -223,9 +223,9 @@ window.PaintUI = class PaintUI {
             const coords = this._getCoordsFromEvent(e);
             if (coords) this.managerCallbacks.onCanvasMouseDown(coords);
         });
-        this.elements.canvas.addEventListener("mousemove", (e) => {
+        this.elements.canvas.addEventListener("mousemove", async (e) => {
             const coords = this._getCoordsFromEvent(e);
-            if (coords) this.managerCallbacks.onCanvasMouseMove(coords);
+            if (coords) await this.managerCallbacks.onCanvasMouseMove(coords);
         });
         this._globalMouseUpHandler = () => this.managerCallbacks.onCanvasMouseUp();
         document.addEventListener("mouseup", this._globalMouseUpHandler);

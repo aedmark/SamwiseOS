@@ -143,21 +143,22 @@ window.PaintManager = class PaintManager extends App {
                 this.state.startCoords = coords;
                 this.state.lastCoords = coords;
             },
-            onCanvasMouseMove: (coords) => {
+            onCanvasMouseMove: async (coords) => {
                 this.ui.updateStatusBar(this.state, coords);
                 if (!this.state.isDrawing) return;
 
                 const tool = this.state.currentTool;
 
                 if (tool === 'pencil' || tool === 'eraser') {
-                    const result = JSON.parse(OopisOS_Kernel.syscall("paint", "draw_shape", [
+                    const resultJson = await OopisOS_Kernel.syscall("paint", "draw_shape", [
                         tool,
                         this.state.lastCoords,
                         coords,
                         this.state.currentCharacter,
                         this.state.currentColor,
                         this.state.brushSize
-                    ]));
+                    ]);
+                    const result = JSON.parse(resultJson);
                     this._updateStateFromPython(result);
                 }
 
