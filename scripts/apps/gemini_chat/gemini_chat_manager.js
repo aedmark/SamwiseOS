@@ -16,7 +16,6 @@ window.GeminiChatManager = class GeminiChatManager extends App {
         this.isActive = true;
         this.state = {
             isActive: true,
-            conversationHistory: [],
             provider: options.provider || "gemini",
             model: options.model || null,
             options,
@@ -56,53 +55,25 @@ window.GeminiChatManager = class GeminiChatManager extends App {
     _createCallbacks() {
         return {
             onSendMessage: async (userInput) => {
-                const { AIManager } = this.dependencies;
+                const { CommandExecutor } = this.dependencies;
                 if (!userInput || userInput.trim() === "") return;
 
                 this.ui.appendMessage(userInput, "user", false);
-                this.state.conversationHistory.push({
-                    role: "user",
-                    parts: [{ text: userInput }],
-                });
-
                 this.ui.toggleLoader(true);
 
-                const apiKeyResult = await AIManager.getApiKey(this.state.provider, { isInteractive: true, dependencies: this.dependencies });
-                if (!apiKeyResult.success) {
-                    this.ui.toggleLoader(false);
-                    this.ui.appendMessage(`API Key Error: ${apiKeyResult.error}`, "ai", true);
-                    this.state.conversationHistory.pop(); // Remove the user message that failed
-                    return;
-                }
-
-                const options = { apiKey: apiKeyResult.data.key };
-
-                const resultJson = await OopisOS_Kernel.syscall("ai", "perform_agentic_search", [
-                    userInput,
-                    this.state.conversationHistory,
-                    this.state.provider,
-                    this.state.model,
-                    options
-                ]);
-                const agentResult = JSON.parse(resultJson);
-
+                const command = `gemini --chat-internal "${userInput}"`;
+                const result = await CommandExecutor.processSingleCommand(command, { isInteractive: false });
 
                 this.ui.toggleLoader(false);
 
-                if (agentResult.success) {
-                    const finalAnswer = agentResult.data;
-                    this.state.conversationHistory.push({
-                        role: "model",
-                        parts: [{ text: finalAnswer }],
-                    });
-                    this.ui.appendMessage(finalAnswer, "ai", true);
+                if (result.success) {
+                    this.ui.appendMessage(result.output, "ai", true);
                 } else {
                     this.ui.appendMessage(
-                        `An error occurred: ${agentResult.error}`,
+                        `An error occurred: ${result.error}`,
                         "ai",
                         true
                     );
-                    this.state.conversationHistory.pop();
                 }
             },
             onExit: this.exit.bind(this),

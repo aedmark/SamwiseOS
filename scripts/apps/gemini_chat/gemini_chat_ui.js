@@ -1,35 +1,15 @@
-/**
- * Gemini Chat UI - Manages the visual interface for the Gemini Chat application.
- * @class GeminiChatUI
- */
 window.GeminiChatUI = class GeminiChatUI {
-  /**
-   * Constructs a new GeminiChatUI instance.
-   * @param {object} callbacks - An object containing callback functions for user interactions.
-   * @param {object} dependencies - The dependency injection container.
-   */
   constructor(callbacks, dependencies) {
-    /** @type {object} A cache of DOM elements for the UI. */
     this.elements = {};
-    /** @type {object} Callback functions for UI events. */
     this.managerCallbacks = callbacks;
-    /** @type {object} The dependency injection container. */
     this.dependencies = dependencies;
     this._buildLayout();
   }
 
-  /**
-   * Returns the main container element of the chat application.
-   * @returns {HTMLElement} The root DOM element.
-   */
   getContainer() {
     return this.elements.container;
   }
 
-  /**
-   * Builds the main UI layout, including the message display and input form.
-   * @private
-   */
   _buildLayout() {
     const { Utils, UIComponents } = this.dependencies;
 
@@ -85,9 +65,6 @@ window.GeminiChatUI = class GeminiChatUI {
     this.elements.input.focus();
   }
 
-  /**
-   * Hides the chat application and cleans up its DOM elements.
-   */
   hideAndReset() {
     if (this.elements.container) {
       this.elements.container.remove();
@@ -96,12 +73,6 @@ window.GeminiChatUI = class GeminiChatUI {
     this.managerCallbacks = {};
   }
 
-  /**
-   * Appends a new message to the chat display.
-   * @param {string} message - The message text.
-   * @param {string} sender - The sender of the message ('user' or 'ai').
-   * @param {boolean} processMarkdown - Whether to render the message as Markdown.
-   */
   appendMessage(message, sender, processMarkdown) {
     if (!this.elements.messageDisplay) return;
     const { Utils } = this.dependencies;
@@ -157,10 +128,6 @@ window.GeminiChatUI = class GeminiChatUI {
     this.elements.messageDisplay.scrollTop = this.elements.messageDisplay.scrollHeight;
   }
 
-  /**
-   * Toggles the visibility of the loading indicator.
-   * @param {boolean} show - Whether to show or hide the loader.
-   */
   toggleLoader(show) {
     if (this.elements.loader) {
       this.elements.loader.classList.toggle("hidden", !show);
