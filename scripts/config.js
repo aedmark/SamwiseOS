@@ -165,7 +165,7 @@ class ConfigManager {
                     },
                     ollama: {
                         url: "http://localhost:11434/api/generate",
-                        defaultModel: "gemma3:latest",
+                        defaultModel: "gemma3n",
                     },
                 },
             },

@@ -112,7 +112,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
     def _call_llm_api(self, provider, model, conversation, api_key, system_prompt=None):
         provider_config = {
             "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "defaultModel": "gemini-1.5-flash"},
-            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "llama3:latest"}
+            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma3n"}
         }.get(provider)
 
         if not provider_config:
@@ -214,7 +214,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
         else:
             return result
 
-    def perform_chidi_analysis(self, files_context, analysis_type, question=None, provider="gemini", model=None, api_key=None):
+    def perform_chidi_analysis(self, files_context, analysis_type, question=None, provider="ollama", model=None, api_key=None):
         """
         Performs a specific analysis (summarize, study, ask) on a set of files.
         """

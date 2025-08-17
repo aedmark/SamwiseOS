@@ -91,7 +91,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             "initialFiles": files,
             "launchOptions": {
                 "isNewSession": flags.get('new', False),
-                "provider": flags.get("provider"),
+                "provider": flags.get("provider", "ollama"),
                 "model": flags.get("model")
             }
         }

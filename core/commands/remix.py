@@ -31,7 +31,7 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
     if not content1.strip() or not content2.strip():
         return {"success": False, "error": "remix: One or both input files are empty."}
 
-    provider = flags.get("provider") or "gemini"
+    provider = flags.get("provider") or "ollama"
     model = flags.get("model")
 
     result = ai_manager.perform_remix(path1, content1, path2, content2, provider, model, api_key)

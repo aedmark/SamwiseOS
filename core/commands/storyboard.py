@@ -72,7 +72,7 @@ def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=Non
         mode=flags.get('mode', 'code'),
         is_summary=flags.get('summary', False),
         question=flags.get('ask'),
-        provider=flags.get('provider', 'gemini'),
+        provider=flags.get('provider', 'ollama'),
         model=flags.get('model'),
         api_key=api_key
     )

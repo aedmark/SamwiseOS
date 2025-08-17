@@ -224,7 +224,12 @@ class CommandExecutor:
             command_string = ' '.join(expanded_parts)
 
         # Alias Resolution
-        parts = shlex.split(command_string)
+        try:
+            parts = shlex.split(command_string)
+        except ValueError as e:
+            if "No closing quotation" in str(e):
+                raise ValueError("Syntax error: No closing quotation.")
+            raise e
         if parts:
             command_name = parts[0]
             alias_value = alias_manager.get_alias(command_name)

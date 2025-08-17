@@ -34,7 +34,7 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
         result = await ai_manager.continue_chat_conversation(
             user_prompt,
             history,
-            flags.get('provider', 'gemini'),
+            flags.get('provider', 'ollama'),
             flags.get('model'),
             api_key
         )
@@ -48,7 +48,7 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
 
     user_prompt = " ".join(args)
 
-    result = await ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'gemini'), flags.get('model'), {"apiKey": api_key})
+    result = await ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'ollama'), flags.get('model'), {"apiKey": api_key})
 
     if result["success"]:
         # The data from agentic search is already formatted Markdown

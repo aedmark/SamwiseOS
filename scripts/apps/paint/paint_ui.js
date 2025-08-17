@@ -56,10 +56,9 @@ window.PaintUI = class PaintUI {
         const zoomGroup = Utils.createElement("div", { className: "paint-tool-group" }, [this.elements.zoomOutBtn, this.elements.zoomInBtn]);
 
         if (!isWindowed) {
-            this.elements.titleInput = Utils.createElement("input", { type: "text", className: "paint-title-input", value: initialState.filePath || "untitled.oopic" });
             const exitBtn = this.elements.header.querySelector('.app-header__exit-btn');
             this.elements.header.innerHTML = '';
-            this.elements.header.append(this.elements.titleInput, toolGroup, colorGroup, brushGroup, this.elements.charInput, editGroup, historyGroup, zoomGroup, exitBtn);
+            this.elements.header.append(toolGroup, colorGroup, brushGroup, this.elements.charInput, editGroup, historyGroup, zoomGroup, exitBtn);
         } else {
             this.elements.header.append(toolGroup, colorGroup, brushGroup, this.elements.charInput, editGroup, historyGroup, zoomGroup);
         }
@@ -70,13 +69,27 @@ window.PaintUI = class PaintUI {
         const canvasContainer = Utils.createElement("div", { className: "paint-canvas-container" }, [this.elements.canvas, this.elements.previewCanvas, this.elements.selectionRect]);
         const mainDrawingArea = Utils.createElement("div", { className: "paint-main-drawing-area" }, [canvasContainer]);
         this.elements.main.appendChild(mainDrawingArea);
+
+        // Footer construction
         this.elements.statusTool = Utils.createElement("span");
         this.elements.statusChar = Utils.createElement("span");
         this.elements.statusBrush = Utils.createElement("span");
         this.elements.statusCoords = Utils.createElement("span");
         this.elements.statusZoom = Utils.createElement("span");
-        this.elements.statusMessage = Utils.createElement("span");
-        this.elements.footer.append(this.elements.statusTool, this.elements.statusChar, this.elements.statusBrush, this.elements.statusCoords, this.elements.statusZoom, this.elements.statusMessage);
+        this.elements.statusMessage = Utils.createElement("span", { className: "paint-status-message" });
+
+        const statusItemsGroup = Utils.createElement("div", { className: "paint-status-group" }, [
+            this.elements.statusTool, this.elements.statusChar, this.elements.statusBrush, this.elements.statusCoords, this.elements.statusZoom
+        ]);
+
+        this.elements.footer.innerHTML = ''; // Clear footer
+        if (!isWindowed) {
+            this.elements.titleInput = Utils.createElement("input", { type: "text", className: "paint-title-input", value: initialState.filePath || "untitled.oopic" });
+            this.elements.footer.append(this.elements.titleInput, this.elements.statusMessage, statusItemsGroup);
+        } else {
+            this.elements.footer.append(this.elements.statusMessage, statusItemsGroup);
+        }
+
         this.renderInitialCanvas(initialState.canvasData, initialState.canvasDimensions);
         this.updateToolbar(initialState);
         this.updateStatusBar(initialState);
