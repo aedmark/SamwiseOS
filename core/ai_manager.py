@@ -1,10 +1,10 @@
 # gem/core/ai_manager.py
 
 import json
-import urllib.request
-import urllib.error
 import re
 import shlex
+import pyodide.http as pyodide_http
+from asyncio import TimeoutError
 
 class AIManager:
     """
@@ -63,7 +63,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         planner_conversation = history + [{"role": "user", "parts": [{"text": planner_prompt}]}]
 
-        planner_result = self._call_llm_api(provider, model, planner_conversation, options.get("apiKey"), self.PLANNER_SYSTEM_PROMPT)
+        planner_result = await self._call_llm_api(provider, model, planner_conversation, options.get("apiKey"), self.PLANNER_SYSTEM_PROMPT)
 
         if not planner_result["success"]:
             return {"success": False, "error": f"Planner stage failed: {planner_result.get('error')}"}
@@ -93,7 +93,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             executed_commands_output += f"--- Output of '{command_str}' ---\n{output}\n\n"
 
         synthesizer_prompt = f'Original user question: "{prompt}"\n\nContext from file system:\n{executed_commands_output}'
-        synthesizer_result = self._call_llm_api(provider, model, [{"role": "user", "parts": [{"text": synthesizer_prompt}]}], options.get("apiKey"), self.SYNTHESIZER_SYSTEM_PROMPT)
+        synthesizer_result = await self._call_llm_api(provider, model, [{"role": "user", "parts": [{"text": synthesizer_prompt}]}], options.get("apiKey"), self.SYNTHESIZER_SYSTEM_PROMPT)
 
         if not synthesizer_result["success"]:
             return {"success": False, "error": f"Synthesizer stage failed: {synthesizer_result.get('error')}"}
@@ -109,9 +109,9 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
         Continues a chat conversation without the agentic search/planning steps.
         """
         conversation = history + [{"role": "user", "parts": [{"text": prompt}]}]
-        return self._call_llm_api(provider, model, conversation, api_key, self.CHAT_SYSTEM_PROMPT)
+        return await self._call_llm_api(provider, model, conversation, api_key, self.CHAT_SYSTEM_PROMPT)
 
-    def _call_llm_api(self, provider, model, conversation, api_key, system_prompt=None):
+    async def _call_llm_api(self, provider, model, conversation, api_key, system_prompt=None):
         provider_config = {
             "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "defaultModel": "gemini-1.5-flash"},
             "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma:latest"}
@@ -122,16 +122,15 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         url = provider_config["url"]
         headers = {"Content-Type": "application/json"}
-        body = {}
+        request_body_dict = {}
 
         if provider == "gemini":
             if not api_key:
                 return {"success": False, "error": "Gemini API key is missing."}
             headers["x-goog-api-key"] = api_key
-            request_body = {"contents": [turn for turn in conversation if turn["role"] in ["user", "model"]]}
+            request_body_dict = {"contents": [turn for turn in conversation if turn["role"] in ["user", "model"]]}
             if system_prompt:
-                request_body["systemInstruction"] = {"parts": [{"text": system_prompt}]}
-            body = json.dumps(request_body).encode('utf-8')
+                request_body_dict["systemInstruction"] = {"parts": [{"text": system_prompt}]}
         elif provider == "ollama":
             ollama_model = model or provider_config["defaultModel"]
             ollama_messages = []
@@ -145,42 +144,49 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             if system_prompt:
                 ollama_messages.insert(0, {"role": "system", "content": system_prompt})
 
-            request_body = {
+            request_body_dict = {
                 "model": ollama_model,
                 "messages": ollama_messages,
                 "stream": False
             }
-            body = json.dumps(request_body).encode('utf-8')
         else:
             return {"success": False, "error": f"Provider '{provider}' not implemented in Python AIManager."}
 
         try:
-            req = urllib.request.Request(url, data=body, headers=headers, method='POST')
-            with urllib.request.urlopen(req, timeout=20) as response:
-                if response.status >= 400:
-                    return {"success": False, "error": f"API request failed with status {response.status}"}
+            response = await pyodide_http.pyfetch(
+                url=url,
+                method='POST',
+                headers=headers,
+                body=json.dumps(request_body_dict),
+                timeout=20
+            )
 
-                response_data = json.loads(response.read().decode('utf-8'))
+            if response.status >= 400:
+                return {"success": False, "error": f"API request failed with status {response.status}"}
 
-                if provider == "gemini":
-                    answer = response_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
-                    if answer:
-                        return {"success": True, "answer": answer}
-                elif provider == "ollama":
-                    answer = response_data.get("message", {}).get("content")
-                    if answer:
-                        return {"success": True, "answer": answer}
+            response_data = await response.json()
 
-            return {"success": False, "error": "AI failed to generate a valid response."}
+            answer = None
+            if provider == "gemini":
+                answer = response_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
+            elif provider == "ollama":
+                answer = response_data.get("message", {}).get("content")
 
-        except urllib.error.URLError as e:
+            if answer:
+                return {"success": True, "answer": answer}
+            else:
+                return {"success": False, "error": "AI failed to generate a valid response structure."}
+
+        except TimeoutError:
+            if provider == "ollama":
+                return {"success": False, "error": f"Connection to Ollama timed out. Is it running on http://localhost:11434?"}
+            return {"success": False, "error": f"Network error: Request to {url} timed out."}
+        except Exception as e:
             if provider == "ollama":
                 return {"success": False, "error": f"Could not connect to Ollama. Is it running locally on http://localhost:11434? Details: {repr(e)}"}
             return {"success": False, "error": f"Network error: Could not reach {url}. Details: {repr(e)}"}
-        except Exception as e:
-            return {"success": False, "error": f"API call failed: {repr(e)}"}
 
-    def perform_remix(self, path1, content1, path2, content2, provider, model, api_key):
+    async def perform_remix(self, path1, content1, path2, content2, provider, model, api_key):
         """
         Synthesizes a new article from two source documents using an LLM.
         """
@@ -196,7 +202,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         conversation = [{"role": "user", "parts": [{"text": user_prompt}]}]
 
-        result = self._call_llm_api(provider, model, conversation, api_key, self.REMIX_SYSTEM_PROMPT)
+        result = await self._call_llm_api(provider, model, conversation, api_key, self.REMIX_SYSTEM_PROMPT)
 
         if result.get("success"):
             final_article = re.sub(r'(?<!\n)\n(?!\n)', '\n\n', result.get("answer", ""))
@@ -204,7 +210,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
         else:
             return result
 
-    def perform_storyboard(self, files, mode, is_summary, question, provider, model, api_key):
+    async def perform_storyboard(self, files, mode, is_summary, question, provider, model, api_key):
         """
         Generates a narrative summary of a collection of files.
         """
@@ -224,26 +230,26 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
         full_prompt = f"{user_prompt}\\n\\nFILE CONTEXT:\\n{file_context_string[:15000]}" # Truncate for safety
 
         conversation = [{"role": "user", "parts": [{"text": full_prompt}]}]
-        result = self._call_llm_api(provider, model, conversation, api_key, STORYBOARD_SYSTEM_PROMPT)
+        result = await self._call_llm_api(provider, model, conversation, api_key, STORYBOARD_SYSTEM_PROMPT)
 
         if result.get("success"):
             return {"success": True, "data": result.get("answer", "No summary generated.")}
         else:
             return result
 
-    def perform_forge(self, description, provider, model, api_key):
+    async def perform_forge(self, description, provider, model, api_key):
         """
         Generates file content from a description using an LLM.
         """
         conversation = [{"role": "user", "parts": [{"text": description}]}]
-        result = self._call_llm_api(provider, model, conversation, api_key, self.FORGE_SYSTEM_PROMPT)
+        result = await self._call_llm_api(provider, model, conversation, api_key, self.FORGE_SYSTEM_PROMPT)
 
         if result.get("success"):
             return {"success": True, "data": result.get("answer", "")}
         else:
             return result
 
-    def perform_chidi_analysis(self, files_context, analysis_type, question=None, provider="ollama", model=None, api_key=None):
+    async def perform_chidi_analysis(self, files_context, analysis_type, question=None, provider="ollama", model=None, api_key=None):
         """
         Performs a specific analysis (summarize, study, ask) on a set of files.
         """
@@ -262,7 +268,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             full_prompt = f"{user_prompt}"
 
         conversation = [{"role": "user", "parts": [{"text": full_prompt}]}]
-        result = self._call_llm_api(provider, model, conversation, api_key, CHIDI_SYSTEM_PROMPT)
+        result = await self._call_llm_api(provider, model, conversation, api_key, CHIDI_SYSTEM_PROMPT)
 
         if result.get("success"):
             return {"success": True, "data": result.get("answer", "No analysis generated.")}

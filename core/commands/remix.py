@@ -9,7 +9,7 @@ def define_flags():
         {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
     ]
 
-def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
+async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
 
@@ -34,7 +34,7 @@ def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=Non
     provider = flags.get("provider") or "ollama"
     model = flags.get("model")
 
-    result = ai_manager.perform_remix(path1, content1, path2, content2, provider, model, api_key)
+    result = await ai_manager.perform_remix(path1, content1, path2, content2, provider, model, api_key)
 
     if result["success"]:
         return {

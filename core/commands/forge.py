@@ -10,7 +10,7 @@ def define_flags():
         {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
     ]
 
-def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
+async def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
 
@@ -18,12 +18,12 @@ def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
         return {"success": False, "error": "Usage: forge \"<description>\" [output_file]"}
 
     description = args[0]
-    output_file = args[1] if len(args) > 2 else None
+    output_file = args[1] if len(args) > 1 else None
 
     provider = flags.get("provider") or "ollama"
     model = flags.get("model")
 
-    result = ai_manager.perform_forge(description, provider, model, api_key)
+    result = await ai_manager.perform_forge(description, provider, model, api_key)
 
     if not result.get("success"):
         return {"success": False, "error": f"forge: The AI failed to generate the file. Reason: {result.get('error')}"}

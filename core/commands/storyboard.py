@@ -46,7 +46,7 @@ def _get_files_for_analysis(start_path, user_context):
         recurse(start_path, start_node)
     return files
 
-def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=None, **kwargs):
+async def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=None, **kwargs):
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
 
@@ -67,7 +67,7 @@ def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=Non
     if not files_to_analyze:
         return "No supported files found to analyze."
 
-    result = ai_manager.perform_storyboard(
+    result = await ai_manager.perform_storyboard(
         files_to_analyze,
         mode=flags.get('mode', 'code'),
         is_summary=flags.get('summary', False),
