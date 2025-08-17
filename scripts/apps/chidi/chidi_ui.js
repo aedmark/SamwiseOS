@@ -1,40 +1,19 @@
 // scripts/apps/chidi/chidi_ui.js
 
-/**
- * Chidi User Interface - Handles the visual interface for the document analyst
- * @class ChidiUI
- */
 window.ChidiUI = class ChidiUI {
-  /**
-   * Create a Chidi UI instance
-   * @param {Object} initialState - Initial application state
-   * @param {Object} callbacks - Callback functions for user interaction
-   * @param {Object} dependencies - Required dependencies
-   */
+
   constructor(initialState, callbacks, dependencies) {
-    /** @type {Object} DOM elements cache */
     this.elements = {};
-    /** @type {Object} Callback functions */
     this.callbacks = callbacks;
-    /** @type {Object} Injected dependencies */
     this.dependencies = dependencies;
 
     this._buildAndShow(initialState);
   }
 
-  /**
-   * Get the main container element
-   * @returns {HTMLElement} Container DOM element
-   */
   getContainer() {
     return this.elements.container;
   }
 
-  /**
-   * Build and show the UI layout
-   * @private
-   * @param {Object} initialState - Initial application state
-   */
   _buildAndShow(initialState) {
     const { Utils, UIComponents } = this.dependencies;
 
@@ -87,7 +66,6 @@ window.ChidiUI = class ChidiUI {
     appWindow.header.insertBefore(headerControlsLeft, this.elements.mainTitle);
     appWindow.header.appendChild(headerControlsRight);
 
-
     this.elements.markdownDisplay = Utils.createElement("main", {
       id: "chidi-markdownDisplay",
       className: "chidi-markdown-content",
@@ -130,19 +108,12 @@ window.ChidiUI = class ChidiUI {
     this.update(initialState);
   }
 
-  /**
-   * Hide the UI and clean up resources
-   */
   hideAndReset() {
     this.elements = {};
     this.callbacks = {};
     this.dependencies = {};
   }
 
-  /**
-   * Update the UI with new state
-   * @param {Object} state - Current application state
-   */
   update(state) {
     if (!this.elements.container) return;
     const { Utils } = this.dependencies;
@@ -183,10 +154,6 @@ window.ChidiUI = class ChidiUI {
     }
   }
 
-  /**
-   * Set up event listeners for UI interactions
-   * @private
-   */
   _setupEventListeners() {
     this.elements.exportBtn.addEventListener("click", this.callbacks.onExport);
     this.elements.prevBtn.addEventListener("click", this.callbacks.onPrevFile);
@@ -208,19 +175,10 @@ window.ChidiUI = class ChidiUI {
     );
   }
 
-  /**
-   * Show a status message
-   * @param {string} msg - Message to display
-   */
   showMessage(msg) {
     if (this.elements.messageBox) this.elements.messageBox.textContent = `֎ ${msg}`;
   }
 
-  /**
-   * Append AI-generated output to the display
-   * @param {string} title - Output section title
-   * @param {string} content - AI-generated content
-   */
   appendAiOutput(title, content) {
     const outputBlock = this.dependencies.Utils.createElement("div", {
       className: "chidi-ai-output",
@@ -233,20 +191,11 @@ window.ChidiUI = class ChidiUI {
     this.showMessage(`AI Response received for "${title}".`);
   }
 
-  /**
-   * Toggle the loading indicator
-   * @param {boolean} show - Whether to show the loader
-   */
   toggleLoader(show) {
     if (this.elements.loader)
       this.elements.loader.classList.toggle("chidi-hidden", !show);
   }
 
-  /**
-   * Package the current session as HTML for export
-   * @param {Object} state - Current application state
-   * @returns {string} HTML content for export
-   */
   packageSessionAsHTML(state) {
     const { Utils } = this.dependencies;
     const currentFile = state.loadedFiles[state.currentIndex];

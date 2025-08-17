@@ -1,37 +1,18 @@
 // scripts/apps/basic/basic_ui.js
 
-/**
- * BASIC IDE User Interface - Handles the visual interface for the BASIC development environment
- * @class BasicUI
- */
 window.BasicUI = class BasicUI {
-  /**
-   * Create a BASIC UI instance
-   * @param {Object} callbacks - Callback functions for user interaction
-   * @param {Object} dependencies - Required dependencies
-   */
+
   constructor(callbacks, dependencies) {
-    /** @type {Object} DOM elements cache */
     this.elements = {};
-    /** @type {Object} Callback functions */
     this.callbacks = callbacks;
-    /** @type {Object} Injected dependencies */
     this.dependencies = dependencies;
     this._buildLayout();
   }
 
-  /**
-   * Get the main container element
-   * @returns {HTMLElement} Container DOM element
-   */
   getContainer() {
     return this.elements.container;
   }
 
-  /**
-   * Build the UI layout
-   * @private
-   */
   _buildLayout() {
     const { Utils, UIComponents } = this.dependencies;
 
@@ -73,10 +54,6 @@ window.BasicUI = class BasicUI {
     });
   }
 
-  /**
-   * Write text to the output without a newline
-   * @param {string} text - Text to write
-   */
   write(text) {
     if (this.elements.output) {
       this.elements.output.textContent += text;
@@ -84,10 +61,6 @@ window.BasicUI = class BasicUI {
     }
   }
 
-  /**
-   * Write text to the output with a newline
-   * @param {string} text - Text to write
-   */
   writeln(text) {
     if (this.elements.output) {
       this.elements.output.textContent += text + "\n";
@@ -95,18 +68,12 @@ window.BasicUI = class BasicUI {
     }
   }
 
-  /**
-   * Focus the input field
-   */
   focusInput() {
     if (this.elements.input) {
       this.elements.input.focus();
     }
   }
 
-  /**
-   * Reset and clean up the UI
-   */
   reset() {
     this.elements = {};
     this.callbacks = {};
