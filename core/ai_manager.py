@@ -84,12 +84,24 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         executed_commands_output = ""
         for command_line in commands_to_execute_raw:
-            command_str = re.sub(r'^\d+\.\s*', '', command_line)
+            command_str_from_plan = re.sub(r'^\d+\.\s*', '', command_line).strip()
+
+            # Sanitize the command string by removing markdown code fences
+            command_str = command_str_from_plan
+            if command_str.startswith('```') and command_str.endswith('```'):
+                command_str = command_str[3:-3].strip()
+                # Handle optional language hint like ```bash
+                if '\n' in command_str:
+                    command_str = command_str.split('\n', 1)[1].strip()
+            elif command_str.startswith('`') and command_str.endswith('`'):
+                command_str = command_str[1:-1].strip()
+
             command_parts = shlex.split(command_str)
             command_name = command_parts[0] if command_parts else ""
 
             if command_name not in self.COMMAND_WHITELIST:
-                error_msg = f"Execution HALTED: AI attempted to run a non-whitelisted command: '{command_name}'."
+                # Use the sanitized string in the error for clarity
+                error_msg = f"Execution HALTED: AI attempted to run a non-whitelisted command: '{command_name}' from plan line '{command_str_from_plan}'."
                 return {"success": False, "error": error_msg}
 
             js_context = {"user_context": self.command_executor.user_context, "current_path": self.command_executor.fs_manager.current_path}
