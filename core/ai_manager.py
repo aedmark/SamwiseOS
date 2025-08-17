@@ -1,6 +1,7 @@
 # gem/core/ai_manager.py
 import json
 import urllib.request
+import urllib.error
 import re
 import shlex
 
@@ -112,7 +113,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
     def _call_llm_api(self, provider, model, conversation, api_key, system_prompt=None):
         provider_config = {
             "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "defaultModel": "gemini-1.5-flash"},
-            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma3n"}
+            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma3:latest"}
         }.get(provider)
 
         if not provider_config:
@@ -130,6 +131,25 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             if system_prompt:
                 request_body["systemInstruction"] = {"parts": [{"text": system_prompt}]}
             body = json.dumps(request_body).encode('utf-8')
+        elif provider == "ollama":
+            ollama_model = model or provider_config["defaultModel"]
+            ollama_messages = []
+            for turn in conversation:
+                content = " ".join([part.get("text", "") for part in turn.get("parts", [])])
+                ollama_messages.append({
+                    "role": "assistant" if turn["role"] == "model" else turn["role"],
+                    "content": content
+                })
+
+            if system_prompt:
+                ollama_messages.insert(0, {"role": "system", "content": system_prompt})
+
+            request_body = {
+                "model": ollama_model,
+                "messages": ollama_messages,
+                "stream": False
+            }
+            body = json.dumps(request_body).encode('utf-8')
         else:
             return {"success": False, "error": f"Provider '{provider}' not implemented in Python AIManager."}
 
@@ -145,11 +165,19 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
                     answer = response_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
                     if answer:
                         return {"success": True, "answer": answer}
+                elif provider == "ollama":
+                    answer = response_data.get("message", {}).get("content")
+                    if answer:
+                        return {"success": True, "answer": answer}
 
             return {"success": False, "error": "AI failed to generate a valid response."}
 
+        except urllib.error.URLError as e:
+            if provider == "ollama":
+                return {"success": False, "error": f"Could not connect to Ollama. Is it running locally on http://localhost:11434? Details: {repr(e)}"}
+            return {"success": False, "error": f"Network error: Could not reach {url}. Details: {repr(e)}"}
         except Exception as e:
-            return {"success": False, "error": f"Network or fetch error: {repr(e)}"}
+            return {"success": False, "error": f"API call failed: {repr(e)}"}
 
     def perform_remix(self, path1, content1, path2, content2, provider, model, api_key):
         """
@@ -170,11 +198,11 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
         result = self._call_llm_api(provider, model, conversation, api_key, self.REMIX_SYSTEM_PROMPT)
 
         if result.get("success"):
-            # A little formatting to ensure good paragraph breaks
             final_article = re.sub(r'(?<!\n)\n(?!\n)', '\n\n', result.get("answer", ""))
             return {"success": True, "data": final_article}
         else:
             return result
+
     def perform_storyboard(self, files, mode, is_summary, question, provider, model, api_key):
         """
         Generates a narrative summary of a collection of files.

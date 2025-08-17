@@ -49,7 +49,7 @@ window.ChidiManager = class ChidiManager extends App {
             })),
             currentIndex: initialFiles.length > 0 ? 0 : -1,
             isNewSession: launchOptions.isNewSession,
-            provider: launchOptions.provider || "gemini",
+            provider: launchOptions.provider || "ollama",
             model: launchOptions.model || null,
             conversationHistory: [],
             sessionContext: initialFiles
