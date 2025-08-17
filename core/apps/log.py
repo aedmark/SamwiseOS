@@ -1,61 +1,66 @@
-# /core/commands/log.py
-
+# gem/core/apps/log.py
 import os
-from filesystem import fs_manager
+import json
 from datetime import datetime
-import shlex
+from filesystem import fs_manager
 
-def define_flags():
-    """Declares the flags that the log command accepts."""
-    return [
-        {'name': 'new', 'short': 'n', 'long': 'new', 'takes_value': True},
-    ]
+LOG_DIR_TEMPLATE = "/home/{username}/.journal"
 
-def run(args, flags, user_context, **kwargs):
+def _get_log_dir_path(user_context):
+    """Gets the log directory path for the current user."""
+    username = user_context.get('name', 'guest')
+    return LOG_DIR_TEMPLATE.format(username=username)
+
+def ensure_log_dir(user_context):
     """
-    Launches the Log application or performs a quick-add entry.
+    Ensures the log directory exists for the user, creating it if necessary.
     """
-    if flags.get('new'):
-        entry_text = flags.get('new')
-        user_home = f"/home/{user_context.get('name', 'guest')}"
-        log_dir_path = os.path.join(user_home, ".journal")
-
+    log_dir_path = _get_log_dir_path(user_context)
+    try:
         if not fs_manager.get_node(log_dir_path):
+            # The fs_manager will handle creating parent dirs if needed
+            fs_manager.create_directory(log_dir_path, user_context)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": f"Failed to ensure log directory: {repr(e)}"}
+
+def load_entries(user_context):
+    """
+    Loads, parses, and sorts all log entries for a user.
+    """
+    log_dir_path = _get_log_dir_path(user_context)
+    log_dir_node = fs_manager.get_node(log_dir_path)
+
+    if not log_dir_node or log_dir_node.get('type') != 'directory':
+        return []
+
+    entries = []
+    for filename, file_node in log_dir_node.get('children', {}).items():
+        if filename.endswith(".md") and file_node.get('type') == 'file':
             try:
-                fs_manager.create_directory(log_dir_path, user_context)
-            except Exception as e:
-                return {"success": False, "error": f"log: failed to create log directory: {repr(e)}"}
+                # Filename format: 2025-08-09T-14-30-00-000Z.md
+                raw_timestamp = filename.replace(".md", "").replace("T-", "T").replace("-", ":", 2)
+                timestamp = datetime.fromisoformat(raw_timestamp.replace("Z", "+00:00"))
+                entries.append({
+                    "timestamp": timestamp.isoformat() + "Z",
+                    "content": file_node.get('content', ''),
+                    "path": os.path.join(log_dir_path, filename)
+                })
+            except (ValueError, IndexError):
+                # Skip files with malformed names
+                continue
 
-        timestamp = datetime.utcnow().isoformat()[:-3].replace(":", "-").replace(".", "-") + "Z"
-        filename = f"{timestamp.replace('T', 'T-')}.md"
-        full_path = os.path.join(log_dir_path, filename)
+    # Sort entries by timestamp, newest first
+    entries.sort(key=lambda e: e['timestamp'], reverse=True)
+    return entries
 
-        try:
-            fs_manager.write_file(full_path, entry_text, user_context)
-            return f"Log entry saved to {full_path}"
-        except Exception as e:
-            return {"success": False, "error": f"log: failed to save entry: {repr(e)}"}
-    else:
-        return {
-            "effect": "launch_app",
-            "app_name": "Log",
-            "options": {}
-        }
-
-def man(args, flags, user_context, **kwargs):
-    return """
-NAME
-    log - A personal, timestamped journal and log application.
-
-SYNOPSIS
-    log [-n "entry text"]
-
-DESCRIPTION
-    The 'log' command serves as your personal, timestamped journal.
-    - Quick Add Mode: Running 'log' with the -n flag creates a new entry.
-    - Application Mode: Running 'log' with no arguments launches the graphical app.
-"""
-
-def help(args, flags, user_context, **kwargs):
-    """Provides help information for the log command."""
-    return 'Usage: log [-n "entry text"]'
+def save_entry(path, content, user_context):
+    """
+    Saves content to a specific log entry file.
+    This reuses the core write_file function.
+    """
+    try:
+        fs_manager.write_file(path, content, user_context)
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": repr(e)}
