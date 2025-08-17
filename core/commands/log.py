@@ -26,8 +26,10 @@ def run(args, flags, user_context, **kwargs):
             except Exception as e:
                 return {"success": False, "error": f"log: failed to create log directory: {repr(e)}"}
 
-        timestamp = datetime.utcnow().isoformat()[:-3].replace(":", "-").replace(".", "-") + "Z"
-        filename = f"{timestamp.replace('T', 'T-')}.md"
+        timestamp = datetime.utcnow()
+        # Generate a safer, more easily parsable filename by replacing colons from isoformat.
+        # Example: '2025-08-17T21-45-01.123Z.md'
+        filename = timestamp.isoformat()[:23].replace(':', '-') + "Z.md"
         full_path = os.path.join(log_dir_path, filename)
 
         try:
