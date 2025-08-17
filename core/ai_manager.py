@@ -18,7 +18,7 @@ class AIManager:
         # This dictionary is now the single source of truth for provider info.
         self.provider_config = {
             "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "defaultModel": "gemini-1.5-flash"},
-            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma3n"}
+            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma3"}
         }
 
         self.CHAT_SYSTEM_PROMPT = "You are a helpful assistant in the SamwiseOS environment. Be friendly and concise. Format your responses in Markdown."
