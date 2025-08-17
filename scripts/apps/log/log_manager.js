@@ -75,7 +75,6 @@ window.LogManager = class LogManager extends App {
     }
 
     _createCallbacks() {
-        const { ModalManager, CommandExecutor } = this.dependencies;
         return {
             onExit: this.exit.bind(this),
             onSearch: (query) => {
@@ -88,7 +87,7 @@ window.LogManager = class LogManager extends App {
                 );
             },
             onSelect: async (path) => {
-
+                const { ModalManager } = this.dependencies;
                 if (this.state.isDirty) {
                     const confirmed = await new Promise((r) =>
                         ModalManager.request({
@@ -114,7 +113,7 @@ window.LogManager = class LogManager extends App {
                 this.ui.updateSaveButton(false);
             },
             onNew: async () => {
-
+                const { ModalManager, CommandExecutor } = this.dependencies;
                 const title = await new Promise((resolve) =>
                     ModalManager.request({
                         context: "graphical",
