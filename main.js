@@ -817,7 +817,7 @@ window.onload = async () => {
     });
     // Special cases
     userManager.setDependencies(sessionManager, sudoManager, CommandExecutor, modalManager);
-
+    sudoManager.setDependencies(fsManager, groupManager, configManager);
     outputManager.initialize(domElements);
     terminalUI.initialize(domElements);
     modalManager.initialize(domElements);

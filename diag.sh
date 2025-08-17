@@ -1419,5 +1419,6 @@ beep
 delay 650
 echo " "
 echo " "
-delay 200
+delay 400
 play E6 20n; play F6 32n; play F#6 32n; play A6 32n; play D7 64n
+delay 200
