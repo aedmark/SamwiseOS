@@ -1,21 +1,31 @@
 # gem/core/commands/bc.py
 
 import re
+import operator
+import math
 
 # A simple, safe calculator for basic arithmetic.
 def _safe_eval(expression):
-    # Remove all characters that are not digits, operators, or parentheses
-    clean_expr = re.sub(r'[^0-9\.\+\-\*\/\(\)\s]', '', expression)
+    # Allow letters for functions, but still be very strict.
+    clean_expr = re.sub(r'[^0-9\.\+\-\*\/\(\)\s\w]', '', expression)
 
     if not clean_expr:
         raise ValueError("Invalid expression")
 
-    # A second pass to ensure safety after cleaning
-    if re.search(r'[a-zA-Z_]', clean_expr):
+    # A second pass to ensure no double underscores, which can access dangerous attributes.
+    if '__' in clean_expr:
         raise ValueError("Invalid characters in expression")
 
-    # Using eval() here is now safe because we've heavily sanitized the input string.
-    return eval(clean_expr)
+    # Create a dictionary of safe functions from the math module
+    safe_dict = {
+        'sqrt': math.sqrt, 'pow': math.pow, 'sin': math.sin, 'cos': math.cos,
+        'tan': math.tan, 'abs': abs, 'pi': math.pi, 'e': math.e,
+        'log': math.log, 'log10': math.log10, 'ceil': math.ceil, 'floor': math.floor
+    }
+
+    # Using eval() here is safe because we provide a controlled global scope.
+    # The second argument to eval ({}) makes the default builtins unavailable.
+    return eval(clean_expr, {"__builtins__": {}}, safe_dict)
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     expression = ""
