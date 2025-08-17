@@ -1,4 +1,5 @@
 # gem/core/ai_manager.py
+
 import json
 import urllib.request
 import urllib.error
@@ -113,7 +114,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
     def _call_llm_api(self, provider, model, conversation, api_key, system_prompt=None):
         provider_config = {
             "gemini": {"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent", "defaultModel": "gemini-1.5-flash"},
-            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma3:latest"}
+            "ollama": {"url": "http://localhost:11434/api/generate", "defaultModel": "gemma:latest"}
         }.get(provider)
 
         if not provider_config:

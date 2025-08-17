@@ -84,6 +84,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not files:
         return "No supported files (.md, .txt, .html, .js, .sh, .css, .json) found to open."
 
+    provider = flags.get("provider", "ollama")
+    model = flags.get("model")
+
     return {
         "effect": "launch_app",
         "app_name": "Chidi",
@@ -91,8 +94,8 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             "initialFiles": files,
             "launchOptions": {
                 "isNewSession": flags.get('new', False),
-                "provider": flags.get("provider", "ollama"),
-                "model": flags.get("model")
+                "provider": provider,
+                "model": model
             }
         }
     }

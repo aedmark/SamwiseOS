@@ -1,4 +1,5 @@
 # gem/core/commands/gemini.py
+
 import asyncio
 import json
 
@@ -18,13 +19,16 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
     if not ai_manager:
         return {"success": False, "error": "AI Manager is not available."}
 
+    provider = flags.get('provider', 'ollama')
+    model = flags.get('model')
+
     if flags.get('chat', False):
         return {
             "effect": "launch_app",
             "app_name": "GeminiChat",
             "options": {
-                "provider": flags.get('provider'),
-                "model": flags.get('model')
+                "provider": provider,
+                "model": model
             }
         }
 
@@ -34,8 +38,8 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
         result = await ai_manager.continue_chat_conversation(
             user_prompt,
             history,
-            flags.get('provider', 'ollama'),
-            flags.get('model'),
+            provider,
+            model,
             api_key
         )
         if result["success"]:
@@ -48,7 +52,7 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
 
     user_prompt = " ".join(args)
 
-    result = await ai_manager.perform_agentic_search(user_prompt, [], flags.get('provider', 'ollama'), flags.get('model'), {"apiKey": api_key})
+    result = await ai_manager.perform_agentic_search(user_prompt, [], provider, model, {"apiKey": api_key})
 
     if result["success"]:
         # The data from agentic search is already formatted Markdown

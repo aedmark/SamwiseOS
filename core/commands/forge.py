@@ -18,7 +18,7 @@ def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
         return {"success": False, "error": "Usage: forge \"<description>\" [output_file]"}
 
     description = args[0]
-    output_file = args[1] if len(args) > 1 else None
+    output_file = args[1] if len(args) > 2 else None
 
     provider = flags.get("provider") or "ollama"
     model = flags.get("model")
