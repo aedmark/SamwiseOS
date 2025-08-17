@@ -1,4 +1,4 @@
-# gem/core/ai_manager.py
+# gemini/core/ai_manager.py
 
 import json
 import re
@@ -137,20 +137,18 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
                 request_body_dict["systemInstruction"] = {"parts": [{"text": system_prompt}]}
         elif provider == "ollama":
             ollama_model = model or provider_config["defaultModel"]
-            ollama_messages = []
+            # For the /api/generate endpoint, we send the full prompt in one go.
+            # We'll build a single string from the conversation history.
+            full_prompt = ""
+            if system_prompt:
+                full_prompt += f"{system_prompt}\n\n"
             for turn in conversation:
                 content = " ".join([part.get("text", "") for part in turn.get("parts", [])])
-                ollama_messages.append({
-                    "role": "assistant" if turn["role"] == "model" else turn["role"],
-                    "content": content
-                })
-
-            if system_prompt:
-                ollama_messages.insert(0, {"role": "system", "content": system_prompt})
+                full_prompt += f"**{turn['role'].title()}**: {content}\n\n"
 
             request_body_dict = {
                 "model": ollama_model,
-                "messages": ollama_messages,
+                "prompt": full_prompt,
                 "stream": False
             }
         else:
@@ -158,7 +156,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
 
         try:
             response = await pyodide_http.pyfetch(
-                url=url,
+                url,
                 method='POST',
                 headers=headers,
                 body=json.dumps(request_body_dict),
@@ -174,7 +172,7 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             if provider == "gemini":
                 answer = response_data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text")
             elif provider == "ollama":
-                answer = response_data.get("message", {}).get("content")
+                answer = response_data.get("response") # <-- The Fix!
 
             if answer:
                 return {"success": True, "answer": answer}
