@@ -156,18 +156,6 @@ class ConfigManager {
                 SOURCE_NOT_FOUND_IN_PARENT_SUFFIX: "'",
             },
 
-            API: {
-                GEMINI_URL: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                LLM_PROVIDERS: {
-                    gemini: {
-                        url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                        defaultModel: "gemini-2.5-flash",
-                    },
-                    ollama: {
-                        url: "http://localhost:11434/api/generate",
-                    },
-                },
-            },
             COMMANDS_MANIFEST: [],
         };
 
