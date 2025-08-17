@@ -128,9 +128,20 @@ window.PaintUI = class PaintUI {
 
     clearPreview() {
         Array.from(this.elements.previewCanvas.children).forEach((child) => {
-            if (child.textContent !== " ") {
+            if (child.textContent !== " " || child.style.color !== "transparent") {
                 child.textContent = " ";
                 child.style.color = "transparent";
+            }
+        });
+    }
+
+    updatePreviewCanvas(cellsToUpdate) {
+        this.clearPreview();
+        cellsToUpdate.forEach(data => {
+            const cell = document.getElementById(`preview-cell-${data.x}-${data.y}`);
+            if (cell) {
+                cell.textContent = data.char;
+                cell.style.color = data.color;
             }
         });
     }
@@ -143,8 +154,8 @@ window.PaintUI = class PaintUI {
         this.elements.colorPicker.value = state.currentColor;
         this.elements.brushSizeInput.value = state.brushSize;
         this.elements.charInput.value = state.currentCharacter;
-        this.elements.undoBtn.disabled = !state.canUndo;
-        this.elements.redoBtn.disabled = !state.canRedo;
+        this.elements.undoBtn.disabled = state.undoStack.length <= 1;
+        this.elements.redoBtn.disabled = state.redoStack.length === 0;
     }
 
     updateStatusBar(state, coords = null, message = "") {
