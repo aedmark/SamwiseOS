@@ -22,6 +22,13 @@ window.ChidiUI = class ChidiUI {
         this.elements.main = appWindow.main;
         this.elements.footer = appWindow.footer;
 
+        // Get references to the standard header elements
+        this.elements.mainTitle = appWindow.header.querySelector('.app-header__title');
+        const exitBtn = appWindow.header.querySelector('.app-header__exit-btn');
+
+        // Clear the header to rebuild it in the correct order
+        appWindow.header.innerHTML = '';
+
         const headerControlsLeft = Utils.createElement(
             "div",
             { id: "chidi-nav-controls", className: "chidi-control-group" },
@@ -38,8 +45,6 @@ window.ChidiUI = class ChidiUI {
                 }))
             ]
         );
-
-        this.elements.mainTitle = appWindow.header.querySelector('.app-header__title');
 
         const headerControlsRight = Utils.createElement(
             "div",
@@ -63,8 +68,9 @@ window.ChidiUI = class ChidiUI {
             ]
         );
 
-        appWindow.header.insertBefore(headerControlsLeft, this.elements.mainTitle);
-        appWindow.header.appendChild(headerControlsRight);
+        // Re-append all elements to the header in a logical structure
+        appWindow.header.append(headerControlsLeft, this.elements.mainTitle, headerControlsRight, exitBtn);
+
 
         this.elements.markdownDisplay = Utils.createElement("main", {
             id: "chidi-markdownDisplay",

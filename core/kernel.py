@@ -7,7 +7,6 @@ from groups import group_manager
 from users import user_manager
 from sudo import SudoManager
 from ai_manager import AIManager
-from apps.explorer import explorer_manager
 from apps.editor import editor_manager
 from apps.paint import paint_manager
 from apps.adventure import adventure_manager
@@ -29,7 +28,7 @@ MODULE_DISPATCHER = {
     "executor": command_executor, "filesystem": fs_manager, "session": session_manager,
     "env": env_manager, "history": history_manager, "alias": alias_manager,
     "groups": group_manager, "users": user_manager, "sudo": sudo_manager, "ai": ai_manager,
-    "explorer": explorer_manager, "editor": editor_manager, "paint": paint_manager,
+    "editor": editor_manager, "paint": paint_manager,
     "adventure": adventure_manager, "top": top_app, "log": log_app, "basic": basic_app, "audit": audit_manager
 }
 
