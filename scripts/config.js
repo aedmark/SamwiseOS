@@ -80,6 +80,8 @@ class ConfigManager {
             },
 
             MESSAGES: {
+                BASIC_WELCOME_1: "Samwise BASIC v0.0.3",
+                BASIC_WELCOME_2: "Copyright (c) 2025 Edmark & Gemini",
                 AI_LOADING_MESSAGES: [
                     "Analyzing narrative structure...",
                     "Calibrating the irony meter...",

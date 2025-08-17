@@ -16,18 +16,18 @@ window.PaintUI = class PaintUI {
         const isWindowed = this.dependencies.isWindowed;
 
         if (isWindowed) {
-            this.elements.container = Utils.createElement('div', { id: 'oopis-paint-app-container', className: 'paint-windowed-container', style: 'width: 100%; height: 100%; display: flex; flex-direction: column;' });
+            this.elements.container = Utils.createElement('div', { id: 'samwiseos-paint-app-container', className: 'paint-windowed-container', style: 'width: 100%; height: 100%; display: flex; flex-direction: column;' });
             this.elements.header = Utils.createElement('div', { className: 'paint-toolbar', style: 'flex-shrink: 0;' });
             this.elements.main = Utils.createElement('div', { className: 'paint-main-content', style: 'flex: 1; overflow: hidden;' });
             this.elements.footer = Utils.createElement('div', { className: 'paint-statusbar', style: 'flex-shrink: 0;' });
             this.elements.container.append(this.elements.header, this.elements.main, this.elements.footer);
         } else {
-            const appWindow = UIComponents.createAppWindow('Oopis Paint', this.managerCallbacks.onExitRequest);
+            const appWindow = UIComponents.createAppWindow('SamwiseOS Paint', this.managerCallbacks.onExitRequest);
             this.elements.container = appWindow.container;
             this.elements.header = appWindow.header;
             this.elements.main = appWindow.main;
             this.elements.footer = appWindow.footer;
-            this.elements.container.id = 'oopis-paint-app-container';
+            this.elements.container.id = 'samwiseos-paint-app-container';
         }
 
         const createToolBtn = (name, key, label) => UIComponents.createButton({ id: `paint-tool-${name}`, text: label, title: `${name.charAt(0).toUpperCase() + name.slice(1)} (${key.toUpperCase()})`});
@@ -49,15 +49,17 @@ window.PaintUI = class PaintUI {
         this.elements.undoBtn = UIComponents.createButton({ text: "↩" });
         this.elements.redoBtn = UIComponents.createButton({ text: "↪" });
         this.elements.gridBtn = UIComponents.createButton({ text: "▦" });
-        const historyGroup = Utils.createElement("div", { className: "paint-tool-group" }, [this.elements.undoBtn, this.elements.redoBtn, this.elements.gridBtn]);
+        this.elements.saveBtn = UIComponents.createButton({ text: "💾", title: "Save" });
+        const historyGroup = Utils.createElement("div", { className: "paint-tool-group" }, [this.elements.undoBtn, this.elements.redoBtn, this.elements.gridBtn, this.elements.saveBtn]);
         this.elements.zoomInBtn = UIComponents.createButton({ text: "+" });
         this.elements.zoomOutBtn = UIComponents.createButton({ text: "-" });
         const zoomGroup = Utils.createElement("div", { className: "paint-tool-group" }, [this.elements.zoomOutBtn, this.elements.zoomInBtn]);
 
         if (!isWindowed) {
+            this.elements.titleInput = Utils.createElement("input", { type: "text", className: "paint-title-input", value: initialState.filePath || "untitled.oopic" });
             const exitBtn = this.elements.header.querySelector('.app-header__exit-btn');
             this.elements.header.innerHTML = '';
-            this.elements.header.append(toolGroup, colorGroup, brushGroup, this.elements.charInput, editGroup, historyGroup, zoomGroup, exitBtn);
+            this.elements.header.append(this.elements.titleInput, toolGroup, colorGroup, brushGroup, this.elements.charInput, editGroup, historyGroup, zoomGroup, exitBtn);
         } else {
             this.elements.header.append(toolGroup, colorGroup, brushGroup, this.elements.charInput, editGroup, historyGroup, zoomGroup);
         }
@@ -73,7 +75,8 @@ window.PaintUI = class PaintUI {
         this.elements.statusBrush = Utils.createElement("span");
         this.elements.statusCoords = Utils.createElement("span");
         this.elements.statusZoom = Utils.createElement("span");
-        this.elements.footer.append(this.elements.statusTool, this.elements.statusChar, this.elements.statusBrush, this.elements.statusCoords, this.elements.statusZoom);
+        this.elements.statusMessage = Utils.createElement("span");
+        this.elements.footer.append(this.elements.statusTool, this.elements.statusChar, this.elements.statusBrush, this.elements.statusCoords, this.elements.statusZoom, this.elements.statusMessage);
         this.renderInitialCanvas(initialState.canvasData, initialState.canvasDimensions);
         this.updateToolbar(initialState);
         this.updateStatusBar(initialState);
@@ -123,22 +126,6 @@ window.PaintUI = class PaintUI {
         });
     }
 
-    updatePreviewCanvas(cellsToUpdate) {
-        Array.from(this.elements.previewCanvas.children).forEach((child) => {
-            if (child.textContent !== " ") {
-                child.textContent = " ";
-                child.style.color = "transparent";
-            }
-        });
-        cellsToUpdate.forEach((data) => {
-            const cell = document.getElementById(`preview-cell-${data.x}-${data.y}`);
-            if (cell) {
-                cell.textContent = data.char;
-                cell.style.color = data.color;
-            }
-        });
-    }
-
     clearPreview() {
         Array.from(this.elements.previewCanvas.children).forEach((child) => {
             if (child.textContent !== " ") {
@@ -160,13 +147,14 @@ window.PaintUI = class PaintUI {
         this.elements.redoBtn.disabled = !state.canRedo;
     }
 
-    updateStatusBar(state, coords = null) {
+    updateStatusBar(state, coords = null, message = "") {
         if (!this.elements.statusTool) return;
         this.elements.statusTool.textContent = `Tool: ${state.currentTool}`;
         this.elements.statusChar.textContent = `Char: ${state.currentCharacter}`;
         this.elements.statusBrush.textContent = `Brush: ${state.brushSize}`;
         this.elements.statusCoords.textContent = coords ? `Coords: ${coords.x}, ${coords.y}` : "";
         this.elements.statusZoom.textContent = `Zoom: ${state.zoomLevel}%`;
+        this.elements.statusMessage.textContent = message;
     }
 
     toggleGrid(visible) {
@@ -228,6 +216,7 @@ window.PaintUI = class PaintUI {
         this.elements.undoBtn.addEventListener("click", () => this.managerCallbacks.onUndo());
         this.elements.redoBtn.addEventListener("click", () => this.managerCallbacks.onRedo());
         this.elements.gridBtn.addEventListener("click", () => this.managerCallbacks.onToggleGrid());
+        this.elements.saveBtn.addEventListener("click", () => this.managerCallbacks.onSaveRequest());
         this.elements.zoomInBtn.addEventListener("click", () => this.managerCallbacks.onZoomIn());
         this.elements.zoomOutBtn.addEventListener("click", () => this.managerCallbacks.onZoomOut());
         this.elements.canvas.addEventListener("mousedown", (e) => {

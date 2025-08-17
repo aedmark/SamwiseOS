@@ -16,7 +16,7 @@ window.BasicUI = class BasicUI {
   _buildLayout() {
     const { Utils, UIComponents } = this.dependencies;
 
-    const appWindow = UIComponents.createAppWindow('Oopis BASIC v1.0', this.callbacks.onExit);
+    const appWindow = UIComponents.createAppWindow('Samwise BASIC v0.0.3', this.callbacks.onExit);
     this.elements.container = appWindow.container;
     this.elements.main = appWindow.main;
 
