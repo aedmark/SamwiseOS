@@ -182,7 +182,8 @@ const OopisOS_Kernel = {
                 '/core/apps/adventure.py': './core/apps/adventure.py',
                 '/core/apps/top.py': './core/apps/top.py',
                 '/core/apps/log.py': './core/apps/log.py',
-                '/core/apps/basic.py': './core/apps/basic.py'
+                '/core/apps/basic.py': './core/apps/basic.py',
+                '/core/apps/gemini_chat.py': null, // Add this line
             };
 
             for (const [pyPath, jsPath] of Object.entries(filesToLoad)) {
