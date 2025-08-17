@@ -89,6 +89,8 @@ class PaintManager:
         """Updates the state after a successful save operation."""
         self.current_file_path = path
         self.is_dirty = False
+        # After saving, the current state is the new "clean" state.
+        # We reset the undo stack to this new baseline.
         self.undo_stack = [json.dumps(self.canvas_data)]
         self.redo_stack = []
         return self._get_state_for_ui()

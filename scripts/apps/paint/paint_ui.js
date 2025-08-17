@@ -1,7 +1,3 @@
-/**
- * Paint UI - Manages the visual interface for the Paint application.
- * @class PaintUI
- */
 window.PaintUI = class PaintUI {
     constructor(initialState, callbacks, dependencies) {
         this.elements = {};

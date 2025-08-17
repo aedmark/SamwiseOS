@@ -1,10 +1,3 @@
-/**
- * Log Manager - Manages the state and logic for the Log (journal) application.
- * All core logic is now delegated to the Python kernel.
- * @class LogManager
- * @extends App
- */
-
 window.LogManager = class LogManager extends App {
     constructor() {
         super();
@@ -27,7 +20,7 @@ window.LogManager = class LogManager extends App {
 
         const ensureResult = JSON.parse(await OopisOS_Kernel.syscall("log", "ensure_log_dir", [this._getContext()]));
         if (!ensureResult.success) {
-            console.error("Log App Error:", ensureResult.error);
+            this.dependencies.OutputManager.appendToOutput(`Log App Error: ${ensureResult.error}`, { typeClass: 'text-error' });
             this.exit();
             return;
         }
@@ -119,7 +112,6 @@ window.LogManager = class LogManager extends App {
                 this.ui.updateSaveButton(false);
             },
             onNew: async () => {
-                // 'log <entry>' command now handles quick-add, so we just re-load
                 const { ModalManager, CommandExecutor } = this.dependencies;
                 const title = await new Promise((resolve) =>
                     ModalManager.request({
@@ -133,10 +125,8 @@ window.LogManager = class LogManager extends App {
                 );
                 if (title) {
                     const newContent = `# ${title}`;
-                    // Use the 'log' command for quick-add
-                    await CommandExecutor.processSingleCommand(`log "${newContent}"`, { isInteractive: false });
+                    await CommandExecutor.processSingleCommand(`log -n "${newContent}"`, { isInteractive: false });
                     await this._loadEntries();
-                    // Find the newest entry and select it
                     if (this.state.allEntries.length > 0) {
                         const newestPath = this.state.allEntries[0].path;
                         await this.callbacks.onSelect(newestPath);
@@ -156,7 +146,7 @@ window.LogManager = class LogManager extends App {
                     this.state.isDirty = false;
                     this.ui.updateSaveButton(false);
                 } else {
-                    alert(`Error saving: ${result.error}`);
+                    this.dependencies.OutputManager.appendToOutput(`Error saving: ${result.error}`, { typeClass: 'text-error' });
                 }
             },
             onContentChange: () => {
@@ -179,7 +169,7 @@ window.LogManager = class LogManager extends App {
             this.state.filteredEntries = [...this.state.allEntries];
             this.ui.renderEntries(this.state.filteredEntries, this.state.selectedPath);
         } else {
-            console.error("Log App: Failed to load entries from Python", result.error);
+            this.dependencies.OutputManager.appendToOutput(`Log App: Failed to load entries: ${result.error}`, { typeClass: 'text-error' });
         }
     }
 };

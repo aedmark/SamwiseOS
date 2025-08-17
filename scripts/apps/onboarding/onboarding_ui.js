@@ -1,9 +1,5 @@
 // scripts/apps/onboarding/onboarding_ui.js
 
-/**
- * The user interface for the first-time setup process.
- * @class OnboardingUI
- */
 window.OnboardingUI = class OnboardingUI {
     constructor(initialState, callbacks, dependencies) {
         this.elements = {};

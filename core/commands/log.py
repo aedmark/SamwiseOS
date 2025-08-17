@@ -1,14 +1,22 @@
-# gem/core/commands/log.py
+# /core/commands/log.py
 
+import os
 from filesystem import fs_manager
 from datetime import datetime
-import os
+import shlex
+
+def define_flags():
+    """Declares the flags that the log command accepts."""
+    return [
+        {'name': 'new', 'short': 'n', 'long': 'new', 'takes_value': True},
+    ]
 
 def run(args, flags, user_context, **kwargs):
     """
     Launches the Log application or performs a quick-add entry.
     """
-    if args:
+    if flags.get('new'):
+        entry_text = flags.get('new')
         user_home = f"/home/{user_context.get('name', 'guest')}"
         log_dir_path = os.path.join(user_home, ".journal")
 
@@ -18,7 +26,6 @@ def run(args, flags, user_context, **kwargs):
             except Exception as e:
                 return {"success": False, "error": f"log: failed to create log directory: {repr(e)}"}
 
-        entry_text = " ".join(args)
         timestamp = datetime.utcnow().isoformat()[:-3].replace(":", "-").replace(".", "-") + "Z"
         filename = f"{timestamp.replace('T', 'T-')}.md"
         full_path = os.path.join(log_dir_path, filename)
@@ -41,14 +48,14 @@ NAME
     log - A personal, timestamped journal and log application.
 
 SYNOPSIS
-    log ["entry text"]
+    log [-n "entry text"]
 
 DESCRIPTION
     The 'log' command serves as your personal, timestamped journal.
-    - Quick Add Mode: Running 'log' with a quoted string creates a new entry.
+    - Quick Add Mode: Running 'log' with the -n flag creates a new entry.
     - Application Mode: Running 'log' with no arguments launches the graphical app.
 """
 
 def help(args, flags, user_context, **kwargs):
     """Provides help information for the log command."""
-    return 'Usage: log ["entry text"]'
+    return 'Usage: log [-n "entry text"]'
