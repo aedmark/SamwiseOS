@@ -1,36 +1,15 @@
-/**
- * BASIC IDE Manager - Provides an integrated development environment for BASIC programming
- * @class BasicManager
- * @extends App
- */
 window.BasicManager = class BasicManager extends App {
-    /**
-     * Create a BASIC IDE manager instance
-     */
+
     constructor() {
         super();
-        /** @type {Object} Injected dependencies */
         this.dependencies = {};
-        /** @type {Map<number, string>} Program line buffer */
         this.programBuffer = new Map();
-        /** @type {Function|null} Input promise resolver for program execution */
         this.onInputPromiseResolver = null;
-        /** @type {Object} Load options including file path and content */
         this.loadOptions = {};
-        /** @type {Object} Callback functions for UI interaction */
         this.callbacks = {};
-        /** @type {Object|null} UI instance */
         this.ui = null;
     }
 
-    /**
-     * Enter the BASIC IDE
-     * @param {HTMLElement} appLayer - DOM element to attach the IDE UI
-     * @param {Object} options - Configuration options
-     * @param {Object} options.dependencies - Required dependencies
-     * @param {string} [options.path] - File path to load
-     * @param {string} [options.content] - File content to load
-     */
     enter(appLayer, options = {}) {
         this.dependencies = options.dependencies;
         this.callbacks = this._createCallbacks();
@@ -46,9 +25,6 @@ window.BasicManager = class BasicManager extends App {
         this._init();
     }
 
-    /**
-     * Exit the BASIC IDE
-     */
     exit() {
         if (!this.isActive) return;
         const { AppLayerManager } = this.dependencies;
@@ -65,13 +41,10 @@ window.BasicManager = class BasicManager extends App {
         this.ui = null;
     }
 
-    /**
-     * Initialize the IDE interface
-     * @private
-     */
     _init() {
-        this.ui.writeln("Oopis BASIC [Version 1.0]");
-        this.ui.writeln("(c) 2025 Oopis Systems. All rights reserved.");
+        const { Config } = this.dependencies;
+        this.ui.writeln(Config.MESSAGES.BASIC_WELCOME_1);
+        this.ui.writeln(Config.MESSAGES.BASIC_WELCOME_2);
         this.ui.writeln("");
 
         if (this.loadOptions.content) {
@@ -83,11 +56,6 @@ window.BasicManager = class BasicManager extends App {
         setTimeout(() => this.ui.focusInput(), 0);
     }
 
-    /**
-     * Create callback functions for UI interaction
-     * @private
-     * @returns {Object} Callback object
-     */
     _createCallbacks() {
         return {
             onInput: this._handleIdeInput.bind(this),
@@ -95,11 +63,13 @@ window.BasicManager = class BasicManager extends App {
         };
     }
 
-    /**
-     * Load program content into the line buffer
-     * @private
-     * @param {string} content - Program source code
-     */
+    async _getKernelContext() {
+        const { UserManager } = this.dependencies;
+        const user = await UserManager.getCurrentUser();
+        const primaryGroup = await UserManager.getPrimaryGroupForUser(user.name);
+        return { name: user.name, group: primaryGroup };
+    }
+
     _loadContentIntoBuffer(content) {
         this.programBuffer.clear();
         const lines = content.split("\n");
@@ -116,11 +86,6 @@ window.BasicManager = class BasicManager extends App {
         }
     }
 
-    /**
-     * Handle input from the IDE command line
-     * @private
-     * @param {string} command - User input command
-     */
     async _handleIdeInput(command) {
         command = command.trim();
         this.ui.writeln(`> ${command}`);
@@ -162,12 +127,6 @@ window.BasicManager = class BasicManager extends App {
         }
     }
 
-    /**
-     * Execute an IDE command
-     * @private
-     * @param {string} cmd - Command name
-     * @param {string} argsStr - Command arguments
-     */
     async _executeIdeCommand(cmd, argsStr) {
         switch (cmd) {
             case "RUN":
@@ -191,16 +150,11 @@ window.BasicManager = class BasicManager extends App {
                 this.exit();
                 break;
             default:
-                this.ui.writeln("SYNTAX ERROR");
+                this.ui.writeln("?SYNTAX ERROR");
                 break;
         }
     }
 
-    /**
-     * Get the complete program text from the buffer
-     * @private
-     * @returns {string} Complete program source code
-     */
     _getProgramText() {
         const sortedLines = Array.from(this.programBuffer.keys()).sort(
             (a, b) => a - b
@@ -210,10 +164,6 @@ window.BasicManager = class BasicManager extends App {
             .join("\n");
     }
 
-    /**
-     * List the current program in the buffer
-     * @private
-     */
     _listProgram() {
         const sortedLines = Array.from(this.programBuffer.keys()).sort(
             (a, b) => a - b
@@ -224,10 +174,6 @@ window.BasicManager = class BasicManager extends App {
         this.ui.writeln("OK");
     }
 
-    /**
-     * Run the current program
-     * @private
-     */
     async _runProgram() {
         const programText = this._getProgramText();
         if (programText.length === 0) {
@@ -235,7 +181,7 @@ window.BasicManager = class BasicManager extends App {
             return;
         }
 
-        const result = JSON.parse(OopisOS_Kernel.basic_run_program(
+        const result = JSON.parse(await OopisOS_Kernel.syscall("basic", "run_program", [
             programText,
             (text, withNewline = true) => {
                 withNewline ? this.ui.writeln(text) : this.ui.write(text);
@@ -243,22 +189,17 @@ window.BasicManager = class BasicManager extends App {
             async () => new Promise((resolve) => {
                 this.onInputPromiseResolver = resolve;
             })
-        ));
+        ]));
 
         if (!result.success) {
-            this.ui.writeln(`\nRUNTIME ERROR: ${result.error}`);
+            this.ui.writeln(`\n?RUNTIME ERROR: ${result.error}`);
         }
 
         this.ui.writeln("");
     }
 
-    /**
-     * Save the current program to a file
-     * @private
-     * @param {string} filePathArg - File path argument
-     */
     async _saveProgram(filePathArg) {
-        const { FileSystemManager, UserManager } = this.dependencies;
+        const { FileSystemManager } = this.dependencies;
         let savePath = filePathArg
             ? filePathArg.replace(/["']/g, "")
             : this.loadOptions.path;
@@ -270,12 +211,11 @@ window.BasicManager = class BasicManager extends App {
 
         const content = this._getProgramText();
         const absPath = FileSystemManager.getAbsolutePath(savePath);
-        const currentUser = UserManager.getCurrentUser().name;
-        const primaryGroup = UserManager.getPrimaryGroupForUser(currentUser);
+        const context = await this._getKernelContext();
         const saveResult = await FileSystemManager.createOrUpdateFile(
             absPath,
             content,
-            { currentUser, primaryGroup }
+            { currentUser: context.name, primaryGroup: context.group }
         );
 
         if (saveResult.success && (await FileSystemManager.save())) {
@@ -288,11 +228,6 @@ window.BasicManager = class BasicManager extends App {
         }
     }
 
-    /**
-     * Load a program from a file
-     * @private
-     * @param {string} filePathArg - File path argument
-     */
     async _loadProgram(filePathArg) {
         const { FileSystemManager } = this.dependencies;
         if (!filePathArg) {
@@ -300,10 +235,12 @@ window.BasicManager = class BasicManager extends App {
             return;
         }
         const path = filePathArg.replace(/["']/g, "");
-        const pathValidation = FileSystemManager.validatePath(path, {
+        const context = await this._getKernelContext();
+        const pathValidation = await FileSystemManager.validatePath(path, {
             expectedType: "file",
             permissions: ["read"],
-        });
+        }, context);
+
         if (!pathValidation.success) {
             this.ui.writeln(`?ERROR: ${pathValidation.error}`);
             return;

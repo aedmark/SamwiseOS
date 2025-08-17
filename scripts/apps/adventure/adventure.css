@@ -16,22 +16,6 @@
     color: var(--color-text-primary);
 }
 
-#adventure-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: var(--spacing-sm);
-    margin-bottom: var(--spacing-md);
-    border-bottom: var(--border-width) solid var(--color-border-primary);
-    flex-shrink: 0;
-}
-
-#adventure-title {
-    font-weight: bold;
-}
-
-#adventure-close-btn {}
-
 #adventure-output {
     flex-grow: 1;
     overflow-y: auto;

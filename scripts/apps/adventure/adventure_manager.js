@@ -1,34 +1,13 @@
 // scripts/apps/adventure/adventure_manager.js
 
-/**
- * Text Adventure Game Manager - Handles the execution of interactive fiction games
- * @class AdventureManager
- * @extends App
- */
 window.AdventureManager = class AdventureManager extends App {
-    /**
-     * Create an adventure manager instance
-     */
     constructor() {
         super();
-        /** @type {Object} Game state including player, adventure data, and context */
         this.state = {};
-        /** @type {Object} Injected dependencies */
         this.dependencies = {};
-        /** @type {Object} Callback functions for UI interaction */
         this.callbacks = {};
-        /** @type {Object|null} UI modal instance */
         this.ui = null;
     }
-
-    /**
-     * Enter the adventure game
-     * @param {HTMLElement} appLayer - DOM element to attach the game UI
-     * @param {Object} options - Configuration options
-     * @param {Object} options.dependencies - Required dependencies
-     * @param {Object} options.adventureData - Adventure game data
-     * @param {Object} [options.scriptingContext] - Scripting context for automated play
-     */
 
     async enter(appLayer, options = {}) {
         if (this.isActive) return;
@@ -49,7 +28,7 @@ window.AdventureManager = class AdventureManager extends App {
         appLayer.appendChild(this.container);
 
         if (initialStateResult.success) this._applyUiUpdates(initialStateResult.updates);
-        else this.ui.appendOutput(initialStateResult.error, "error");
+        else this.ui.appendOutput("I couldn't start the adventure.", "error");
 
         if (options.scriptingContext?.isScripting) await this._runScript(options.scriptingContext);
         else setTimeout(() => this.container.focus(), 0);
@@ -68,10 +47,6 @@ window.AdventureManager = class AdventureManager extends App {
         });
     }
 
-    /**
-     * Run the adventure in scripting mode
-     * @private
-     */
     async _runScript(scriptingContext) {
         while (
             scriptingContext.currentLineIndex < scriptingContext.lines.length - 1 &&
@@ -86,9 +61,6 @@ window.AdventureManager = class AdventureManager extends App {
         }
     }
 
-    /**
-     * Exit the adventure game
-     */
     exit() {
         if (!this.isActive) return;
         const { AppLayerManager } = this.dependencies;
@@ -101,20 +73,12 @@ window.AdventureManager = class AdventureManager extends App {
         this.ui = null;
     }
 
-    /**
-     * Handle keyboard events
-     * @param {KeyboardEvent} event - Keyboard event
-     */
     handleKeyDown(event) {
         if (event.key === "Escape") {
             this.exit();
         }
     }
 
-    /**
-     * Process a command through the Python game engine
-     * @param {string} command - Player command
-     */
 
     async processCommand(command) {
         const result = JSON.parse(await OopisOS_Kernel.syscall("adventure", "process_command", [command]));

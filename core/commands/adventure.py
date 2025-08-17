@@ -45,11 +45,11 @@ def run(args, flags, user_context, **kwargs):
         if not node:
             return {"success": False, "error": f"adventure: {file_path}: No such file or directory"}
         if node.get('type') != 'file':
-            return {"success": False, "error": f"adventure: {file_path}: is not a file"}
+            return {"success": False, "error": "adventure: That's a directory, not an adventure file."}
         try:
             adventure_to_load = json.loads(node.get('content', '{}'))
         except json.JSONDecodeError:
-            return {"success": False, "error": f"adventure: Error parsing adventure file '{file_path}'"}
+            return {"success": False, "error": f"adventure: The adventure file appears to be corrupted or not formatted correctly."}
     else:
         adventure_to_load = default_adventure_data
 
@@ -70,7 +70,7 @@ SYNOPSIS
     adventure [--create] [path_to_game.json]
 
 DESCRIPTION
-    Launches the OopisOS interactive text adventure engine. If no file is
+    Launches the SamwiseOS interactive fiction engine. If no file is
     provided, starts the default adventure. Use 'adventure --create' to
     enter the interactive adventure creation tool.
 """

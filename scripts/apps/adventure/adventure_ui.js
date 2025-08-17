@@ -1,43 +1,20 @@
 // scripts/apps/adventure/adventure_ui.js
 
-/**
- * Text Adventure UI Modal - Handles the user interface for text adventure games
- * @class TextAdventureModal
- */
 window.TextAdventureModal = class TextAdventureModal {
-  /**
-   * Create a text adventure modal
-   * @param {Object} callbacks - Callback functions for game interaction
-   * @param {Object} dependencies - Required dependencies
-   * @param {Object} [scriptingContext] - Scripting context for automated play
-   */
   constructor(callbacks, dependencies, scriptingContext) {
-    /** @type {Object} DOM elements cache */
     this.elements = {};
-    /** @type {Object} Callback functions */
     this.callbacks = callbacks;
-    /** @type {Object} Injected dependencies */
     this.dependencies = dependencies;
 
-    /** @type {Function} Bound input handler */
     this._boundHandleInput = this._handleInput.bind(this);
 
     this._buildLayout(scriptingContext);
   }
 
-  /**
-   * Get the main container element
-   * @returns {HTMLElement} Container DOM element
-   */
   getContainer() {
     return this.elements.container;
   }
 
-  /**
-   * Build the UI layout
-   * @private
-   * @param {Object} [scriptingContext] - Scripting context
-   */
   _buildLayout(scriptingContext) {
     const { Utils } = this.dependencies;
     this._createElements();
@@ -51,9 +28,6 @@ window.TextAdventureModal = class TextAdventureModal {
     setTimeout(() => this.elements.input.focus(), 0);
   }
 
-  /**
-   * Hide the modal and clean up resources
-   */
   hideAndReset() {
     if (this.elements.input) {
       this.elements.input.removeEventListener("keydown", this._boundHandleInput);
@@ -66,10 +40,6 @@ window.TextAdventureModal = class TextAdventureModal {
     this.dependencies = {};
   }
 
-  /**
-   * Create all DOM elements for the adventure UI
-   * @private
-   */
   _createElements() {
     const { Utils } = this.dependencies;
     const roomNameSpan = Utils.createElement("span", { id: "adventure-room-name" });
@@ -91,11 +61,6 @@ window.TextAdventureModal = class TextAdventureModal {
     this.elements = { container, header, output, input, roomNameSpan, scoreSpan };
   }
 
-  /**
-   * Handle input events from the text input field
-   * @private
-   * @param {KeyboardEvent} e - Keyboard event
-   */
   _handleInput(e) {
     if (e.key !== "Enter" || !this.callbacks.processCommand) return;
     e.preventDefault();
@@ -105,11 +70,6 @@ window.TextAdventureModal = class TextAdventureModal {
     this.callbacks.processCommand(command);
   }
 
-  /**
-   * Append text output to the game display
-   * @param {string} text - Text to display
-   * @param {string} [styleClass] - CSS class for styling
-   */
   appendOutput(text, styleClass = "") {
     if (!this.elements.output) return;
     const { Utils } = this.dependencies;
@@ -121,12 +81,6 @@ window.TextAdventureModal = class TextAdventureModal {
     this.elements.output.scrollTop = this.elements.output.scrollHeight;
   }
 
-  /**
-   * Update the status line with current game info
-   * @param {string} roomName - Current room name
-   * @param {number} score - Player's score
-   * @param {number} moves - Number of moves taken
-   */
   updateStatusLine(roomName, score, moves) {
     if (this.elements.roomNameSpan) {
       this.elements.roomNameSpan.textContent = roomName;
