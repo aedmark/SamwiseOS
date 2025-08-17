@@ -71,8 +71,13 @@ async function executePythonCommand(rawCommandText, options = {}) {
             } else if (pyResult.effect) {
                 result = await handleEffect(pyResult, options);
             } else if (pyResult.output !== undefined) {
-                if (pyResult.output) {
-                    await OutputManager.appendToOutput(pyResult.output);
+                if (isInteractive) {
+                    if (pyResult.output) {
+                        await OutputManager.appendToOutput(pyResult.output);
+                    }
+                } else {
+                    // For non-interactive calls, return the result directly.
+                    return { success: true, output: pyResult.output };
                 }
             }
         } else {

@@ -55,7 +55,7 @@
     right: var(--spacing-sm);
     font-size: 0.75rem;
     padding: 2px 5px;
-    opacity: 0.3;
+    opacity: 0.1;
     transition: opacity 0.2s ease-in-out;
 }
 
