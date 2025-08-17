@@ -16,6 +16,7 @@ window.GeminiChatManager = class GeminiChatManager extends App {
         this.isActive = true;
         this.state = {
             isActive: true,
+            conversationHistory: [], // Re-added history
             provider: options.provider || "gemini",
             model: options.model || null,
             options,
@@ -59,21 +60,28 @@ window.GeminiChatManager = class GeminiChatManager extends App {
                 if (!userInput || userInput.trim() === "") return;
 
                 this.ui.appendMessage(userInput, "user", false);
+                this.state.conversationHistory.push({ role: "user", parts: [{ text: userInput }] });
                 this.ui.toggleLoader(true);
 
-                const command = `gemini --chat-internal "${userInput}"`;
-                const result = await CommandExecutor.processSingleCommand(command, { isInteractive: false });
+                const command = `gemini --chat-internal="${userInput}"`;
+                const result = await CommandExecutor.processSingleCommand(command, {
+                    isInteractive: false,
+                    stdinContent: JSON.stringify(this.state.conversationHistory.slice(0, -1)) // Pass history BEFORE the new message
+                });
 
                 this.ui.toggleLoader(false);
 
                 if (result.success) {
-                    this.ui.appendMessage(result.output, "ai", true);
+                    const finalAnswer = result.output;
+                    this.state.conversationHistory.push({ role: "model", parts: [{ text: finalAnswer }] });
+                    this.ui.appendMessage(finalAnswer, "ai", true);
                 } else {
                     this.ui.appendMessage(
                         `An error occurred: ${result.error}`,
                         "ai",
                         true
                     );
+                    this.state.conversationHistory.pop(); // Remove the user message that failed
                 }
             },
             onExit: this.exit.bind(this),

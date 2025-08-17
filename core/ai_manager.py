@@ -12,6 +12,7 @@ class AIManager:
     def __init__(self, fs_manager, command_executor):
         self.fs_manager = fs_manager
         self.command_executor = command_executor
+        self.CHAT_SYSTEM_PROMPT = "You are a helpful assistant in the SamwiseOS environment. Be friendly and concise. Format your responses in Markdown."
         self.REMIX_SYSTEM_PROMPT = "You are an expert document synthesist. Your task is to generate a new, cohesive article in Markdown format that blends the key ideas from two source documents. Respond ONLY with the raw Markdown content for the new article. Do not include explanations or surrounding text."
         self.PLANNER_SYSTEM_PROMPT = """You are a command-line Agent for OopisOS. Your goal is to formulate a plan of simple, sequential OopisOS commands to gather the necessary information to answer the user's prompt.
 
@@ -100,6 +101,13 @@ ls [-l, -a, -R], cd, cat, grep [-i, -v, -n, -R], find [path] -name [pattern] -ty
             return {"success": False, "error": "AI failed to synthesize a final answer."}
 
         return {"success": True, "data": final_answer}
+
+    async def continue_chat_conversation(self, prompt, history, provider, model, api_key):
+        """
+        Continues a chat conversation without the agentic search/planning steps.
+        """
+        conversation = history + [{"role": "user", "parts": [{"text": prompt}]}]
+        return self._call_llm_api(provider, model, conversation, api_key, self.CHAT_SYSTEM_PROMPT)
 
     def _call_llm_api(self, provider, model, conversation, api_key, system_prompt=None):
         provider_config = {

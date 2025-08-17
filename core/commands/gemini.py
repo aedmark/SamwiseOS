@@ -1,5 +1,6 @@
 # gem/core/commands/gemini.py
 import asyncio
+import json
 
 def define_flags():
     """Declares the flags that the gemini command accepts."""
@@ -7,6 +8,7 @@ def define_flags():
         {'name': 'chat', 'short': 'c', 'long': 'chat', 'takes_value': False},
         {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
         {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
+        {'name': 'chat-internal', 'long': 'chat-internal', 'takes_value': True, 'hidden': True},
     ]
 
 async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
@@ -25,6 +27,21 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
                 "model": flags.get('model')
             }
         }
+
+    if flags.get('chat-internal'):
+        user_prompt = flags.get('chat-internal')
+        history = json.loads(stdin_data) if stdin_data else []
+        result = await ai_manager.continue_chat_conversation(
+            user_prompt,
+            history,
+            flags.get('provider', 'gemini'),
+            flags.get('model'),
+            api_key
+        )
+        if result["success"]:
+            return result.get("answer") # Return the raw string output
+        else:
+            return {"success": False, "error": result["error"]}
 
     if not args:
         return {"success": False, "error": 'Insufficient arguments. Usage: gemini "<prompt>"'}
