@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SamwiseOS - The Little OS That Could</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: #a3a3a3;
+        }
+        .font-vt323 {
+            font-family: 'VT323', monospace;
+        }
+        .glow-text {
+            text-shadow: 0 0 8px rgba(0, 255, 91, 0.6);
+        }
+        .feature-card {
+            background-color: rgba(39, 39, 42, 0.5);
+            border: 1px solid #3f3f46;
+            transition: all 0.3s ease;
+        }
+        .feature-card:hover {
+            border-color: #00ff5b;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 255, 91, 0.1);
+        }
+        .roadmap-item::before {
+            content: '';
+            position: absolute;
+            left: 1.25rem;
+            top: 2.5rem;
+            bottom: -2.5rem;
+            width: 2px;
+            background-color: #3f3f46;
+        }
+        .roadmap-item:last-child::before {
+            display: none;
+        }
+        .roadmap-dot {
+            background-color: #0a0a0a;
+            border: 2px solid #3f3f46;
+        }
+        .roadmap-item:hover .roadmap-dot {
+            border-color: #00ff5b;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+<!-- Header -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-black/30 backdrop-blur-sm border-b border-neutral-800">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+        <h1 class="text-2xl font-vt323 font-bold text-white glow-text"><a href="#">SamwiseOS</a></h1>
+        <nav class="hidden md:flex space-x-8">
+            <a href="#features" class="hover:text-green-400 transition-colors">Features</a>
+            <a href="#how-it-works" class="hover:text-green-400 transition-colors">How It Works</a>
+            <a href="#user-guide" class="hover:text-green-400 transition-colors">User Guide</a>
+            <a href="#roadmap" class="hover:text-green-400 transition-colors">Roadmap</a>
+            <a href="https://github.com/aedmark/SamwiseOS" target="_blank" class="hover:text-green-400 transition-colors">GitHub</a>
+        </nav>
+        <button id="mobile-menu-button" class="md:hidden text-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+            </svg>
+        </button>
+    </div>
+    <!-- Mobile Menu -->
+    <div id="mobile-menu" class="hidden md:hidden px-6 pb-4 space-y-2">
+        <a href="#features" class="block hover:text-green-400 transition-colors">Features</a>
+        <a href="#how-it-works" class="block hover:text-green-400 transition-colors">How It Works</a>
+        <a href="#user-guide" class="block hover:text-green-400 transition-colors">User Guide</a>
+        <a href="#roadmap" class="block hover:text-green-400 transition-colors">Roadmap</a>
+        <a href="https://github.com/aedmark/SamwiseOS" target="_blank" class="block hover:text-green-400 transition-colors">GitHub</a>
+    </div>
+</header>
+
+<main>
+    <!-- Hero Section -->
+    <section class="min-h-screen flex items-center justify-center text-center bg-grid-neutral-800/[0.2] pt-20">
+        <div class="container mx-auto px-6">
+            <h2 class="text-5xl md:text-7xl font-black text-white leading-tight">
+                SamwiseOS: <span class="text-green-400 glow-text">The Little OS That Could.</span>
+            </h2>
+            <p class="mt-4 text-xl md:text-2xl max-w-3xl mx-auto">
+                An AI-centric operating system built with relentless optimism and a whole lot of Python.
+            </p>
+            <div class="mt-8">
+                <a href="https://aedmark.github.io/SamwiseOS/" class="bg-green-500 text-black font-bold py-3 px-8 rounded-lg text-lg hover:bg-green-400 transition-all transform hover:scale-105">
+                    Launch SamwiseOS
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-20 sm:py-32">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="font-vt323 text-green-400 text-lg">Core Features</h2>
+                <p class="mt-2 text-4xl font-black text-white sm:text-5xl">What Makes SamwiseOS Special</p>
+            </div>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Feature Card 1 -->
+                <div class="feature-card p-8 rounded-xl">
+                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                    </div>
+                    <h3 class="mt-6 text-xl font-bold text-white">AI-Powered Shell</h3>
+                    <p class="mt-2">Interact with the OS using natural language. The `gemini` command can use system tools to answer questions, and commands like `forge` and `storyboard` can generate and analyze code for you.</p>
+                </div>
+                <!-- Feature Card 2 -->
+                <div class="feature-card p-8 rounded-xl">
+                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" /></svg>
+                    </div>
+                    <h3 class="mt-6 text-xl font-bold text-white">Hybrid Kernel</h3>
+                    <p class="mt-2">A robust, sandboxed Python kernel running in WebAssembly handles core logic, while a nimble JavaScript frontend interacts with browser APIs for a secure and powerful experience.</p>
+                </div>
+                <!-- Feature Card 3 -->
+                <div class="feature-card p-8 rounded-xl">
+                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                    </div>
+                    <h3 class="mt-6 text-xl font-bold text-white">Persistent File System</h3>
+                    <p class="mt-2">Your files, users, and groups are saved locally and securely to your browser's IndexedDB, making the OS offline-first and entirely self-contained after initial load.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="py-20 sm:py-32 bg-neutral-900/50">
+        <div class="container mx-auto px-6">
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h2 class="font-vt323 text-green-400 text-lg">The "effect" Contract</h2>
+                    <p class="mt-2 text-4xl font-black text-white sm:text-5xl">The Magic of the Hybrid Kernel</p>
+                    <p class="mt-6 text-lg">The Python kernel and JavaScript frontend communicate through a simple, powerful contract. When a command needs to interact with the browser (like playing a sound or showing a file prompt), the Python kernel validates the request and returns a JSON object called an `effect`.</p>
+                    <p class="mt-4 text-lg">This keeps our core logic clean and secure within Python while leveraging the browser's full capabilities for a rich, interactive experience.</p>
+                </div>
+                <div class="bg-black rounded-xl border border-neutral-800 p-6">
+                        <pre><code class="language-json text-sm text-neutral-300">// User runs: play C4 4n
+// Python Kernel returns this 'effect':
+
+{
+  <span class="text-sky-400">"effect"</span>: <span class="text-amber-400">"play_sound"</span>,
+  <span class="text-sky-400">"notes"</span>: [
+    <span class="text-amber-400">"C4"</span>
+  ],
+  <span class="text-sky-400">"duration"</span>: <span class="text-amber-400">"4n"</span>
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- User Guide Section -->
+    <section id="user-guide" class="py-20 sm:py-32">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="font-vt323 text-green-400 text-lg">Getting Started</h2>
+                <p class="mt-2 text-4xl font-black text-white sm:text-5xl">Your Field Guide to SamwiseOS</p>
+                <p class="mt-4 text-lg max-w-3xl mx-auto">SamwiseOS is designed for everyone. Whether you want to have a conversation with an AI or you prefer to type `ls -la`, the power is in your hands.</p>
+            </div>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Guide Card 1 -->
+                <div class="feature-card p-8 rounded-xl">
+                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center text-2xl font-vt323">>_</div>
+                    <h3 class="mt-6 text-xl font-bold text-white">The Command Line</h3>
+                    <p class="mt-2">For the traditionalists, SamwiseOS offers a powerful POSIX-like command line with a rich set of commands. Manage files, users, and processes with familiar tools like `ls`, `cd`, `grep`, and `sudo`.</p>
+                </div>
+                <!-- Guide Card 2 -->
+                <div class="feature-card p-8 rounded-xl">
+                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+                    </div>
+                    <h3 class="mt-6 text-xl font-bold text-white">The AI Assistant</h3>
+                    <p class="mt-2">For the conversationalists, the `gemini` command is your gateway to an AI that can use the OS for you. Ask it to "find all text files in my home directory and zip them up," and it will formulate and execute the plan.</p>
+                </div>
+                <!-- Guide Card 3 -->
+                <div class="feature-card p-8 rounded-xl">
+                    <div class="w-12 h-12 bg-green-900/50 text-green-400 rounded-lg flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                    <h3 class="mt-6 text-xl font-bold text-white">Graphical Apps</h3>
+                    <p class="mt-2">For the visual thinkers, SamwiseOS supports a growing suite of graphical applications. Run `edit` for a text editor, `paint` for an ASCII art studio, or `top` for a real-time process viewer, all without leaving the terminal.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap Section -->
+    <section id="roadmap" class="py-20 sm:py-32 bg-neutral-900/50">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="font-vt323 text-green-400 text-lg">Our Next Five Parks</h2>
+                <p class="mt-2 text-4xl font-black text-white sm:text-5xl">The Road Ahead</p>
+            </div>
+            <div class="relative max-w-2xl mx-auto">
+                <!-- Roadmap Item 1 -->
+                <div class="roadmap-item relative pl-16 pb-16">
+                    <div class="roadmap-dot absolute left-0 top-10 w-10 h-10 rounded-full flex items-center justify-center text-green-400 text-2xl transition-colors">🧠</div>
+                    <h3 class="text-2xl font-bold text-white">The AI Town Manager</h3>
+                    <p class="mt-2">Enhance the AI with long-term memory, advanced tool use, and the ability to self-correct its own plans.</p>
+                </div>
+                <!-- Roadmap Item 2 -->
+                <div class="roadmap-item relative pl-16 pb-16">
+                    <div class="roadmap-dot absolute left-0 top-10 w-10 h-10 rounded-full flex items-center justify-center text-green-400 text-2xl transition-colors">🎨</div>
+                    <h3 class="text-2xl font-bold text-white">The Creative Suite</h3>
+                    <p class="mt-2">Expand our suite of GUI apps with a collaborative code editor, a spreadsheet app, and a presentation tool.</p>
+                </div>
+                <!-- Roadmap Item 3 -->
+                <div class="roadmap-item relative pl-16 pb-16">
+                    <div class="roadmap-dot absolute left-0 top-10 w-10 h-10 rounded-full flex items-center justify-center text-green-400 text-2xl transition-colors">🤝</div>
+                    <h3 class="text-2xl font-bold text-white">The Social Fabric</h3>
+                    <p class="mt-2">Implement peer-to-peer file sharing and an encrypted chat client using WebRTC.</p>
+                </div>
+                <!-- Roadmap Item 4 -->
+                <div class="roadmap-item relative pl-16 pb-16">
+                    <div class="roadmap-dot absolute left-0 top-10 w-10 h-10 rounded-full flex items-center justify-center text-green-400 text-2xl transition-colors">🔌</div>
+                    <h3 class="text-2xl font-bold text-white">The Hardware Bridge</h3>
+                    <p class="mt-2">Integrate WebUSB/WebBluetooth for game controllers and WebGPU for accelerated graphics.</p>
+                </div>
+                <!-- Roadmap Item 5 -->
+                <div class="roadmap-item relative pl-16">
+                    <div class="roadmap-dot absolute left-0 top-10 w-10 h-10 rounded-full flex items-center justify-center text-green-400 text-2xl transition-colors">🏛️</div>
+                    <h3 class="text-2xl font-bold text-white">The Town Hall</h3>
+                    <p class="mt-2">Focus on community, polish, and long-term sustainability with a theming engine and a developer SDK.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<!-- Footer -->
+<footer class="bg-neutral-900/50 border-t border-neutral-800">
+    <div class="container mx-auto px-6 py-8 text-center text-neutral-400">
+        <p>| Copyright ©2025 | Edmark & Gemini |
+            <a href="https://github.com/aedmark/SamwiseOS" target="_blank" class="hover:text-green-400 transition-colors">Github</a> |
+            <a href="https://github.com/aedmark/SamwiseOS/wiki" target="_blank" class="hover:text-green-400 transition-colors">Wiki</a> |
+        </p>
+    </div>
+</footer>
+
+<script>
+    // Simple mobile menu toggle
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileMenuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+            // Close mobile menu on link click
+            if (!mobileMenu.classList.contains('hidden')) {
+                mobileMenu.classList.add('hidden');
+            }
+        });
+    });
+</script>
+</body>
+</html>
