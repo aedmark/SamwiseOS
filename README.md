@@ -14,9 +14,9 @@ SamwiseOS is a new genre of operating system: a **Hybrid Web OS**.
 
 Our architecture is a deliberate fusion of two powerful environments. We combine a robust, sandboxed **Python kernel** running in WebAssembly with a nimble **JavaScript frontend** that has direct access to browser APIs. This isn't a compromise; it's our greatest strength.
 
--   **The Python Kernel:** Handles the heavy lifting. All core logic for the virtual file system, user and group management, process control, and complex command execution lives here. It's secure, stateful, and the single source of truth for the OS.
+* **The Python Kernel:** Handles the heavy lifting. All core logic for the virtual file system, user and group management, process control, and complex command execution lives here. It's secure, stateful, and the single source of truth for the OS.
 
--   **The JavaScript Stage Manager:** Interacts with the world outside the sandbox. It handles everything that makes the OS feel alive and connected, including the terminal UI, sound synthesis, peer-to-peer networking, and graphical applications.
+* **The JavaScript Stage Manager:** Interacts with the world outside the sandbox. It handles everything that makes the OS feel alive and connected, including the terminal UI, sound synthesis, peer-to-peer networking, and graphical applications.
 
 ### How It Works: The `effect` Contract
 
@@ -26,15 +26,15 @@ The magic happens through a simple, powerful contract. When a command needs to i
 
 ## Features
 
--   **Brand New Onboarding!** A friendly, guided setup process to create your user account and secure the `root` password.
--   **AI-Powered Shell:** Interact with the OS using natural language. The `gemini` command can use system tools to answer questions, and commands like `forge` and `storyboard` can generate and analyze code for you.
--   **Python Backend, JS Frontend:** A powerful and unique combination running entirely in your browser, leveraging Pyodide for the Python runtime.
--   **Self-Contained & Offline-First:** No internet connection required after the initial setup!
--   **Persistent File System:** Your files are saved locally to your browser's IndexedDB.
--   **Rich Command Set:** A huge list of POSIX-like commands and custom AI-powered tools.
--   **GUI Applications:** Supports graphical applications like a text editor (`edit`), a file explorer, a paint program (`paint`), a BASIC interpreter (`basic`), a process viewer (`top`), and more!
--   **User and Group Management:** A robust, secure system for managing users and groups, complete with `sudo` capabilities and a virtual `/etc/sudoers` file.
--   **Job Control:** Run long-running tasks in the background (`&`), view them (`ps`, `jobs`), and manage them (`kill`, `fg`, `bg`).
+* **Brand New Onboarding!** A friendly, guided setup process to create your user account and secure the `root` password.
+* **AI-Powered Shell:** Interact with the OS using natural language. The `gemini` command can use system tools to answer questions, and commands like `forge` and `storyboard` can generate and analyze code for you.
+* **Python Backend, JS Frontend:** A powerful and unique combination running entirely in your browser, leveraging Pyodide for the Python runtime.
+* **Self-Contained & Offline-First:** No internet connection required after the initial setup!
+* **Persistent File System:** Your files are saved locally to your browser's IndexedDB.
+* **Rich Command Set:** A huge list of POSIX-like commands and custom AI-powered tools.
+* **GUI Applications:** Supports graphical applications like a text editor (`edit`), a file explorer, a paint program (`paint`), a BASIC interpreter (`basic`), a process viewer (`top`), and more!
+* **User and Group Management:** A robust, secure system for managing users and groups, complete with `sudo` capabilities and a virtual `/etc/sudoers` file.
+* **Job Control:** Run long-running tasks in the background (`&`), view them (`ps`, `jobs`), and manage them (`kill`, `fg`, `bg`).
 
 ## The Road Ahead: Our Next Five Parks
 
@@ -44,40 +44,40 @@ A vision without a plan is just a dream. Here is our official roadmap—a commit
 
 The AI is the heart of SamwiseOS. Our next priority is to make it a true partner in productivity.
 
--   **Long-Term Memory:** Enable the AI to remember context across multiple sessions.
--   **Advanced Tool Use:** Greatly expand the number of `effects` the AI can use, allowing it to perform more complex, multi-step tasks on its own.
--   **Self-Correction:** Implement logic for the AI to analyze the output of commands it runs, recognize errors, and attempt to correct its own course of action.
+* **Long-Term Memory:** Enable the AI to remember context across multiple sessions.
+* **Advanced Tool Use:** Greatly expand the number of `effects` the AI can use, allowing it to perform more complex, multi-step tasks on its own.
+* **Self-Correction:** Implement logic for the AI to analyze the output of commands it runs, recognize errors, and attempt to correct its own course of action.
 
 ### Milestone 2: The Creative Suite 🎨
 
 An OS needs powerful, intuitive applications. We will expand our suite of GUI programs to empower human creativity.
 
--   **`edit` v2.0:** Add syntax highlighting and collaborative multi-user editing.
--   **`calc`:** A new grid-based spreadsheet application for calculations and data organization.
--   **`slides`:** A new application for creating and presenting simple slideshows.
+* **`edit` v2.0:** Add syntax highlighting and collaborative multi-user editing.
+* **`calc`:** A new grid-based spreadsheet application for calculations and data organization.
+* **`slides`:** A new application for creating and presenting simple slideshows.
 
 ### Milestone 3: The Social Fabric 🤝
 
 Leverage the browser's native networking capabilities to connect users in new ways.
 
--   **Peer-to-Peer Filesystem:** Using **WebRTC**, allow users to securely and directly share files or entire directories with each other, right from the terminal.
--   **`talk` command:** A simple, end-to-end encrypted chat client for real-time communication between SamwiseOS users.
+* **Peer-to-Peer Filesystem:** Using **WebRTC**, allow users to securely and directly share files or entire directories with each other, right from the terminal.
+* **`talk` command:** A simple, end-to-end encrypted chat client for real-time communication between SamwiseOS users.
 
 ### Milestone 4: The Hardware Bridge 🔌
 
 The browser is our motherboard. It's time to plug things into it.
 
--   **`joypad` API:** Integrate the **WebUSB/WebBluetooth** APIs to allow games and applications to respond to physical game controllers.
--   **`g-paint`:** Create a new version of our `paint` application that uses **WebGPU** for hardware-accelerated graphics and effects.
--   **`device-link`:** A command and API for interacting with microcontrollers and other USB-serial devices.
+* **`joypad` API:** Integrate the **WebUSB/WebBluetooth** APIs to allow games and applications to respond to physical game controllers.
+* **`g-paint`:** Create a new version of our `paint` application that uses **WebGPU** for hardware-accelerated graphics and effects.
+* **`device-link`:** A command and API for interacting with microcontrollers and other USB-serial devices.
 
 ### Milestone 5: The Town Hall 🏛️
 
 Focus on community, polish, and long-term sustainability.
 
--   **Theming Engine:** Allow users to customize the look and feel of the OS with custom colors, fonts, and sound packs.
--   **Developer SDK:** Create clear, robust documentation and tooling to help third-party developers build and share their own commands and applications for SamwiseOS.
--   **Accessibility Overhaul:** A top-to-bottom review to ensure the OS is usable and enjoyable for everyone.
+* **Theming Engine:** Allow users to customize the look and feel of the OS with custom colors, fonts, and sound packs.
+* **Developer SDK:** Create clear, robust documentation and tooling to help third-party developers build and share their own commands and applications for SamwiseOS.
+* **Accessibility Overhaul:** A top-to-bottom review to ensure the OS is usable and enjoyable for everyone.
 
 ---
 
@@ -110,7 +110,7 @@ Focus on community, polish, and long-term sustainability.
 | **bulletin** | Manages the system-wide bulletin board. |
 | **cat** | Concatenate and print files. |
 | **cd** | Change the current directory. |
-| **check_fail**| A testing utility to check if a command fails. |
+| **check\_fail**| A testing utility to check if a command fails. |
 | **chgrp** | Change group ownership of files. |
 | **chidi** | AI-powered document and code analyst. |
 | **chmod** | Change file mode bits (permissions). |
@@ -166,12 +166,12 @@ Focus on community, polish, and long-term sustainability.
 | **patch** | Apply a diff file to an original. |
 | **planner** | Manages shared project to-do lists. |
 | **play** | Plays a musical note or chord. |
-| **post_message**| Sends a message to a background job. |
+| **post\_message**| Sends a message to a background job. |
 | **printf** | Format and print data. |
 | **printscreen**| Captures the screen content as an image or text. |
 | **ps** | Report a snapshot of the current processes. |
 | **pwd** | Print name of current/working directory. |
-| **read_messages**| Reads all messages from a job's message queue. |
+| **read\_messages**| Reads all messages from a job's message queue. |
 | **reboot** | Reboot the system. |
 | **remix** | Synthesizes a new article from two source documents using AI. |
 | **removeuser**| Remove a user from the system. |
@@ -223,4 +223,6 @@ Focus on community, polish, and long-term sustainability.
 | **basic** | Samwise BASIC | An integrated development environment for the BASIC programming language. |
 | **adventure** | Text Adventure | A classic interactive fiction game engine. |
 
-This is more than just an OS; it's a project built with passion, dedication, and a belief in making things better. Thank you for being a part of it. Now, let's get to work!
+This is more than just an OS; it's a project built with passion, dedication, and a belief in making things better. Thank you for being a part of it.
+
+Now, let's get to work!
