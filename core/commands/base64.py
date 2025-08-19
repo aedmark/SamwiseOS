@@ -60,7 +60,7 @@ def run(args, flags, user_context, stdin_data=None):
         return {
             "success": False,
             "error": {
-                "message": f"base64: invalid input",
+                "message": "base64: invalid input",
                 "suggestion": "The input data is not valid base64. Check for corruption or incorrect format."
             }
         }
@@ -73,8 +73,7 @@ def run(args, flags, user_context, stdin_data=None):
             }
         }
 
-
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     base64 - base64 encode or decode data and print to standard output
@@ -83,12 +82,17 @@ SYNOPSIS
     base64 [OPTION]... [FILE]
 
 DESCRIPTION
-    Base64 encode or decode FILE, or standard input, to standard output.
-    With no FILE, or when FILE is -, read standard input.
+    Base64 encode or decode FILE, or standard input, to standard output. With no FILE, or when FILE is -, read standard input.
 
+OPTIONS
     -d, --decode
           decode data
+
+EXAMPLES
+    echo "hello world" | base64
+    echo "aGVsbG8gd29ybGQ=" | base64 -d
 """
 
-def help(args, flags, user_context, stdin_data=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the base64 command."""
     return "Usage: base64 [-d] [FILE]"

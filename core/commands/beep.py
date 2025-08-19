@@ -5,7 +5,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     Returns a special dictionary to signal a beep effect.
     """
     if args:
-        return {"success": False, "error": "beep: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "beep: command takes no arguments",
+                "suggestion": "Simply run 'beep' by itself to hear a sound."
+            }
+        }
 
     return {"effect": "beep"}
 
@@ -18,8 +24,10 @@ SYNOPSIS
     beep
 
 DESCRIPTION
-    Plays a short, simple system tone through the emulated sound card.
-    It's useful for getting auditory feedback.
+    Plays a short, simple system tone through the emulated sound card. It's useful for getting auditory feedback in scripts or to signal the completion of a task.
+
+OPTIONS
+    This command takes no options.
 """
 
 def help(args, flags, user_context, **kwargs):

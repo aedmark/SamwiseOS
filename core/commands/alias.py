@@ -51,20 +51,26 @@ def run(args, flags, user_context, stdin_data=None):
                 }
             }
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    alias - define or display aliases
+    alias - define or display command aliases
 
 SYNOPSIS
     alias [name[=value] ...]
 
 DESCRIPTION
-    Alias allows you to create shortcuts for commands. Without arguments,
-    `alias` prints the list of all aliases. With a name and value, it
-    creates or redefines an alias. With only a name, it prints that alias.
+    The `alias` command allows you to create shortcuts for longer or more complex commands.
+    - Running `alias` with no arguments prints the list of all current aliases.
+    - With a name and value (e.g., `alias ll='ls -l'`), it creates or redefines an alias.
+    - With only a name, it prints the value of that specific alias.
+
+EXAMPLES
+    alias
+    alias ll='ls -la'
+    alias myhome='cd /home/guest'
 """
 
-def help(args, flags, user_context, stdin_data=None):
+def help(args, flags, user_context, **kwargs):
     """Provides help information for the alias command."""
     return "Usage: alias [name='command']..."

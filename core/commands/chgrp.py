@@ -7,11 +7,9 @@ def define_flags():
     return {
         'flags': [
             {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
-            {'name': 'recursive', 'short': 'R', 'takes_value': False},
+            {'name': 'recursive', 'short': 'R', 'takes_value': False}, # Alias for recursive
         ],
-        'metadata': {
-            'root_required': True
-        }
+        'metadata': {}
     }
 
 
@@ -20,7 +18,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
         return {
             "success": False,
             "error": {
-                "message": "chgrp: missing operand.",
+                "message": "chgrp: missing operand",
                 "suggestion": "Try 'chgrp <group> <file_or_directory>'."
             }
         }
@@ -40,7 +38,16 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     for path in paths:
         try:
+            # Security check is handled within fs_manager.chgrp
             fs_manager.chgrp(path, new_group, recursive=is_recursive)
+        except PermissionError as e:
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chgrp: changing group of '{path}': {e}",
+                    "suggestion": "Only the root user can change the group ownership of files."
+                }
+            }
         except FileNotFoundError:
             return {
                 "success": False,
@@ -60,7 +67,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None
 
     return "" # Success
 
-def man(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
     chgrp - change group ownership
@@ -69,11 +76,17 @@ SYNOPSIS
     chgrp [OPTION]... GROUP FILE...
 
 DESCRIPTION
-    Changes the group ownership of each given FILE to GROUP.
+    Changes the group ownership of each given FILE to GROUP. The user running the command must be root.
 
+OPTIONS
     -R, -r, --recursive
-          operate on files and directories recursively
+          Operate on files and directories recursively.
+
+EXAMPLES
+    chgrp developers /home/project_alpha
+    chgrp -R staff /home/shared_docs
 """
 
-def help(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
+def help(args, flags, user_context, **kwargs):
+    """Provides help information for the chgrp command."""
     return "Usage: chgrp [-R] <group> <path>..."

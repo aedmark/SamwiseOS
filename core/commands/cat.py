@@ -4,65 +4,50 @@ import json
 
 def define_flags():
     """Declares the flags that the cat command accepts."""
-    return [
-        {'name': 'number', 'short': 'n', 'long': 'number', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'number', 'short': 'n', 'long': 'number', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None):
     """
-    Concatenates files and prints them to the standard output, now with proper permission checks.
+    Concatenates files and prints them to the standard output, with permission checks.
     """
     output_parts = []
-    files = args
-    had_error = False
+    files = args if args else []
     error_messages = []
 
-    if stdin_data:
+    # If there's data from a pipe, process it first.
+    if stdin_data is not None:
         output_parts.extend(stdin_data.splitlines())
 
+    # Process each file argument.
     for file_path in files:
-        validation_result = fs_manager.validate_path(
-            file_path,
-            user_context,
-            json.dumps({"permissions": ["read"]}) # We just need read permission
-        )
+        node = fs_manager.get_node(file_path)
 
-        if not validation_result.get("success"):
-            had_error = True
-            error_msg = validation_result.get('error', 'An unknown error occurred')
-            error_messages.append(f"cat: {file_path}: {error_msg}")
+        if not node:
+            error_messages.append(f"cat: {file_path}: No such file or directory")
             continue
 
-        node = validation_result.get("node")
+        if not fs_manager.has_permission(file_path, user_context, 'read'):
+            error_messages.append(f"cat: {file_path}: Permission denied")
+            continue
+
         if node.get('type') != 'file':
-            had_error = True
-            error_messages.append(f"cat: {file_path}: Is not a file")
+            error_messages.append(f"cat: {file_path}: Is a directory")
             continue
 
         try:
             content = node.get('content', '')
             output_parts.extend(content.splitlines())
         except Exception as e:
-            had_error = True
             error_messages.append(f"cat: {file_path}: An unexpected error occurred - {repr(e)}")
 
-    if not files and not stdin_data:
-        return ""
-
-    final_output_str = ""
-    if flags.get('number'):
-        numbered_output = []
-        line_num = 1
-        # We only number the actual content lines, not the error lines
-        content_lines_to_process = [line for line in output_parts if not line.startswith("cat:")]
-        for line in content_lines_to_process:
-            numbered_output.append(f"     {line_num}  {line}")
-            line_num += 1
-        final_output_str = "\n".join(numbered_output)
-    else:
-        final_output_str = "\n".join(output_parts)
-
-    if had_error:
+    # If there were any errors at all, return a structured error.
+    # This is more consistent than mixing output and errors.
+    if error_messages:
         return {
             "success": False,
             "error": {
@@ -71,28 +56,45 @@ def run(args, flags, user_context, stdin_data=None):
             }
         }
 
-    # Prepend errors to the output if some files failed but others succeeded
-    if error_messages:
-        final_output_str = "\n".join(error_messages) + "\n" + final_output_str
+    # Handle the case of `cat` with no arguments and no stdin.
+    if not files and stdin_data is None:
+        return ""
 
-    return final_output_str
+    # Format the final output if there were no errors.
+    if flags.get('number'):
+        numbered_output = []
+        for i, line in enumerate(output_parts):
+            numbered_output.append(f"     {i + 1}  {line}")
+        return "\n".join(numbered_output)
+    else:
+        return "\n".join(output_parts)
 
 
 def man(args, flags, user_context, **kwargs):
     """Displays the manual page for the cat command."""
     return """
 NAME
-cat - concatenate files and print on the standard output
+    cat - concatenate files and print on the standard output
 
 SYNOPSIS
-cat [-n] [FILE]...
+    cat [-n] [FILE]...
 
 DESCRIPTION
-Concatenate FILE(s) to standard output.
+    The cat utility reads files sequentially, writing them to the standard output. The FILE operands are processed in command-line order. If FILE is a single dash ('-') or absent, cat reads from the standard input.
 
-With no FILE, or when FILE is -, read standard input.
+OPTIONS
+    -n, --number
+          Number all output lines, starting with 1.
 
--n, --number    number all output lines
+EXAMPLES
+    cat file1.txt
+        Display the content of file1.txt.
+
+    cat file1.txt file2.txt > newfile.txt
+        Concatenate two files and write the output to a new file.
+
+    ls | cat -n
+        Number the lines of the output from the ls command.
 """
 
 def help(args, flags, user_context, **kwargs):

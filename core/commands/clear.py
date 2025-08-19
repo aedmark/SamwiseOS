@@ -15,7 +15,7 @@ def run(args, flags, user_context, stdin_data=None):
 
     return {"effect": "clear_screen"}
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     """Displays the manual page for the clear command."""
     return """
 NAME
@@ -25,11 +25,12 @@ SYNOPSIS
     clear
 
 DESCRIPTION
-    The clear utility clears your screen if this is possible. It looks in
-    the environment for the terminal type and then in the terminfo database
-    to figure out how to clear the screen.
+    The clear utility clears the terminal screen of all previous output, moving the prompt to the top of the window.
+
+OPTIONS
+    This command takes no options.
 """
 
-def help(args, flags, user_context, stdin_data=None):
+def help(args, flags, user_context, **kwargs):
     """Provides help information for the clear command."""
     return "Usage: clear"

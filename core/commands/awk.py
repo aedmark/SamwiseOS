@@ -8,7 +8,7 @@ def define_flags():
     """Declares the flags that the awk command accepts."""
     return {
         'flags': [
-            {'name': 'field-separator', 'short': 'F', 'takes_value': True},
+            {'name': 'field-separator', 'short': 'F', 'long': 'field-separator', 'takes_value': True},
         ],
         'metadata': {}
     }
@@ -156,17 +156,20 @@ NAME
     awk - pattern scanning and processing language
 
 SYNOPSIS
-    awk [ -F fs ] 'program' [file ...]
+    awk [-F fs] 'program' [file ...]
 
 DESCRIPTION
-    The awk utility executes programs written in the awk programming
-    language, which is specialized for textual data manipulation.
+    The awk utility executes programs written in the awk programming language, which is specialized for textual data manipulation. A program consists of a series of patterns followed by actions. When input is read that matches a pattern, the corresponding action is executed.
 
-    -F fs      Define the input field separator to be the regular
-               expression fs.
+OPTIONS
+    -F fs
+        Define the input field separator to be the regular expression fs.
 
-    A simple program is '/regexp/' or '{ print $N }'
+EXAMPLES
+    ls -l | awk '{print $9}'
+    awk -F: '{print $1}' /etc/passwd
 """
 
 def help(args, flags, user_context, **kwargs):
+    """Provides help information for the awk command."""
     return "Usage: awk [-F fs] 'program' [file ...]"

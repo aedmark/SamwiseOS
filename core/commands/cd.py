@@ -48,8 +48,12 @@ SYNOPSIS
     cd [directory]
 
 DESCRIPTION
-    Changes the current working directory of the shell to the specified
-    directory. If no directory is given, it defaults to the user's home.
+    Changes the current working directory of the shell to the specified directory. If no directory is given, it defaults to the current user's home directory.
+
+EXAMPLES
+    cd /home/guest
+    cd ..
+    cd
 """
 
 def help(args, flags, user_context, **kwargs):

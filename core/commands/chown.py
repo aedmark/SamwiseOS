@@ -7,11 +7,9 @@ def define_flags():
     return {
         'flags': [
             {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
-            {'name': 'recursive', 'short': 'R', 'takes_value': False},
+            {'name': 'recursive', 'short': 'R', 'takes_value': False}, # Alias for recursive
         ],
-        'metadata': {
-            'root_required': True
-        }
+        'metadata': {}
     }
 
 
@@ -20,7 +18,7 @@ def run(args, flags, user_context, stdin_data=None, users=None, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": "chown: missing operand.",
+                "message": "chown: missing operand",
                 "suggestion": "Try 'chown <owner> <file_or_directory>'."
             }
         }
@@ -40,7 +38,16 @@ def run(args, flags, user_context, stdin_data=None, users=None, **kwargs):
 
     for path in paths:
         try:
+            # Security check is handled within fs_manager.chown
             fs_manager.chown(path, new_owner, recursive=is_recursive)
+        except PermissionError as e:
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chown: changing ownership of '{path}': {e}",
+                    "suggestion": "Only the root user can change the ownership of files."
+                }
+            }
         except FileNotFoundError:
             return {
                 "success": False,
@@ -69,10 +76,15 @@ SYNOPSIS
     chown [OPTION]... OWNER FILE...
 
 DESCRIPTION
-    Changes the user ownership of each given FILE to OWNER.
+    Changes the user ownership of each given FILE to OWNER. This command can only be run by the root user.
 
+OPTIONS
     -R, -r, --recursive
-          operate on files and directories recursively
+          Operate on files and directories recursively.
+
+EXAMPLES
+    chown guest /home/guest/data.txt
+    chown -R guest /home/guest/projects
 """
 
 def help(args, flags, user_context, **kwargs):

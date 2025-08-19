@@ -46,9 +46,21 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             return str(int(result))
         return str(result)
     except ZeroDivisionError:
-        return {"success": False, "error": "bc: division by zero"}
+        return {
+            "success": False,
+            "error": {
+                "message": "bc: division by zero",
+                "suggestion": "You cannot divide a number by zero."
+            }
+        }
     except Exception as e:
-        return {"success": False, "error": f"bc: error in expression: {repr(e)}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"bc: error in expression: {repr(e)}",
+                "suggestion": "Please check the syntax of your mathematical expression."
+            }
+        }
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -59,10 +71,13 @@ SYNOPSIS
     bc [expression]
 
 DESCRIPTION
-    bc is a basic calculator. It supports basic arithmetic operations.
-    If an expression is provided as an argument, it evaluates it.
-    Otherwise, it reads from standard input.
+    bc is a basic calculator that evaluates a mathematical expression provided as an argument or from standard input. It supports basic arithmetic operations (+, -, *, /) and parentheses for grouping. It also supports several mathematical functions like sqrt(), pow(), sin(), etc.
+
+EXAMPLES
+    bc "10 / 2"
+    echo "sqrt(16) * (2 + 2)" | bc
 """
 
 def help(args, flags, user_context, **kwargs):
+    """Provides help information for the bc command."""
     return "Usage: bc [expression]"

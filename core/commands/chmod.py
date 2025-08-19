@@ -8,10 +8,12 @@ from datetime import datetime
 
 def define_flags():
     """Declares the flags that the chmod command accepts."""
-    return [
-        {'name': 'recursive', 'short': 'R', 'long': 'recursive', 'takes_value': False},
-    ]
-
+    return {
+        'flags': [
+            {'name': 'recursive', 'short': 'R', 'long': 'recursive', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 def _chmod_recursive(path, mode_octal, user_context):
     """Recursively applies a mode to a directory and its contents."""
     node = fs_manager.get_node(path)
@@ -54,7 +56,7 @@ def run(args, flags, user_context, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": "chmod: missing operand.",
+                "message": "chmod: missing operand",
                 "suggestion": "Try 'chmod <mode> <file_or_directory>'."
             }
         }
@@ -120,12 +122,16 @@ SYNOPSIS
     chmod [-R] MODE FILE...
 
 DESCRIPTION
-    Changes the file mode bits of each given file according to mode,
-    which can be an octal number. Only the file owner or root may change
-    the mode.
+    Changes the file mode bits (permissions) of each given file according to mode, which must be an octal number (e.g., 755, 644). Only the file's owner or the root user may change the mode of a file.
 
+OPTIONS
     -R, --recursive
-          change files and directories recursively
+          Change files and directories recursively.
+
+EXAMPLES
+    chmod 755 my_script.sh
+    chmod 644 my_document.txt
+    chmod -R 775 /home/shared_project
 """
 
 def help(args, flags, user_context, **kwargs):
