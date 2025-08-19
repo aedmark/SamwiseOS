@@ -17,22 +17,46 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None, users=None, **kwargs):
     if len(args) < 2:
-        return {"success": False, "error": "chown: missing operand. Usage: chown [-R] <owner> <path>..."}
+        return {
+            "success": False,
+            "error": {
+                "message": "chown: missing operand.",
+                "suggestion": "Try 'chown <owner> <file_or_directory>'."
+            }
+        }
 
     new_owner = args[0]
     paths = args[1:]
     is_recursive = flags.get('recursive', False)
 
     if users and new_owner not in users:
-        return {"success": False, "error": f"chown: invalid user: '{new_owner}'"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"chown: invalid user: '{new_owner}'",
+                "suggestion": "You can see a list of all users with the 'listusers' command."
+            }
+        }
 
     for path in paths:
         try:
             fs_manager.chown(path, new_owner, recursive=is_recursive)
         except FileNotFoundError:
-            return {"success": False, "error": f"chown: cannot access '{path}': No such file or directory"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chown: cannot access '{path}': No such file or directory",
+                    "suggestion": "Please verify the file path is correct."
+                }
+            }
         except Exception as e:
-            return {"success": False, "error": f"chown: an unexpected error occurred on '{path}': {repr(e)}"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chown: an unexpected error occurred on '{path}': {repr(e)}",
+                    "suggestion": "Please check the file path and system permissions."
+                }
+            }
 
     return "" # Success
 
@@ -52,4 +76,5 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
+    """Provides help information for the chown command."""
     return "Usage: chown [-R] <owner> <path>..."

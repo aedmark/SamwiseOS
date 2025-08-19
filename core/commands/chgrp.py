@@ -17,22 +17,46 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if len(args) < 2:
-        return {"success": False, "error": "chgrp: missing operand. Usage: chgrp [-R] <group> <path>..."}
+        return {
+            "success": False,
+            "error": {
+                "message": "chgrp: missing operand.",
+                "suggestion": "Try 'chgrp <group> <file_or_directory>'."
+            }
+        }
 
     new_group = args[0]
     paths = args[1:]
     is_recursive = flags.get('recursive', False)
 
     if groups is None or new_group not in groups:
-        return {"success": False, "error": f"chgrp: invalid group: '{new_group}'"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"chgrp: invalid group: '{new_group}'",
+                "suggestion": "You can list all groups with the 'groups' command or create one with 'sudo groupadd'."
+            }
+        }
 
     for path in paths:
         try:
             fs_manager.chgrp(path, new_group, recursive=is_recursive)
         except FileNotFoundError:
-            return {"success": False, "error": f"chgrp: cannot access '{path}': No such file or directory"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chgrp: cannot access '{path}': No such file or directory",
+                    "suggestion": "Please verify the file path is correct."
+                }
+            }
         except Exception as e:
-            return {"success": False, "error": f"chgrp: an unexpected error occurred on '{path}': {repr(e)}"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chgrp: an unexpected error occurred on '{path}': {repr(e)}",
+                    "suggestion": "Please check the file path and system permissions."
+                }
+            }
 
     return "" # Success
 

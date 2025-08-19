@@ -30,14 +30,26 @@ def run(args, flags, user_context, stdin_data=None):
                 "aliases": alias_manager.get_all_aliases()
             }
         except ValueError:
-            return {"success": False, "error": f"alias: invalid format: {arg_string}"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"alias: invalid format: {arg_string}",
+                    "suggestion": "Use the format 'alias name=\"command\"'."
+                }
+            }
     else:
         alias_name = args[0]
         alias_value = alias_manager.get_alias(alias_name)
         if alias_value:
             return f"alias {alias_name}='{alias_value}'"
         else:
-            return {"success": False, "error": f"alias: {alias_name}: not found"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"alias: {alias_name}: not found",
+                    "suggestion": "To create this alias, use 'alias {alias_name}=\"your_command\"'."
+                }
+            }
 
 def man(args, flags, user_context, stdin_data=None):
     return """

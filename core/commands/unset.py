@@ -4,7 +4,13 @@ from session import env_manager
 
 def run(args, flags, user_context, stdin_data=None):
     if not args:
-        return {"success": False, "error": "unset: not enough arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "unset: not enough arguments",
+                "suggestion": "Try 'unset <variable_name>'."
+            }
+        }
 
     for var_name in args:
         env_manager.unset(var_name)

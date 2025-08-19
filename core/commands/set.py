@@ -19,7 +19,13 @@ def run(args, flags, user_context, stdin_data=None):
                 value = value[1:-1]
 
             if not name.isidentifier():
-                return f"set: invalid variable name: '{name}'"
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"set: invalid variable name: '{name}'",
+                        "suggestion": "Variable names must start with a letter or underscore and contain only letters, numbers, or underscores."
+                    }
+                }
 
             env_manager.set(name, value)
             return {
@@ -29,11 +35,23 @@ def run(args, flags, user_context, stdin_data=None):
                 "env": env_manager.get_all()
             }
         except ValueError:
-            return f"set: invalid format: {arg_string}"
+            return {
+                "success": False,
+                "error": {
+                    "message": f"set: invalid format: {arg_string}",
+                    "suggestion": "Use the format 'set VARIABLE=\"value\"'."
+                }
+            }
     else:
         name = arg_string
         if not name.isidentifier():
-            return f"set: invalid variable name: '{name}'"
+            return {
+                "success": False,
+                "error": {
+                    "message": f"set: invalid variable name: '{name}'",
+                    "suggestion": "Variable names must start with a letter or underscore and contain only letters, numbers, or underscores."
+                }
+            }
         env_manager.set(name, "")
         return {
             "success": True,

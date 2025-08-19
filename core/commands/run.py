@@ -4,7 +4,13 @@ from filesystem import fs_manager
 
 def run(args, flags, user_context, **kwargs):
     if not args:
-        return {"success": False, "error": "run: missing file operand"}
+        return {
+            "success": False,
+            "error": {
+                "message": "run: missing file operand",
+                "suggestion": "Try 'run <script_file>'."
+            }
+        }
 
     script_path = args[0]
     script_args = args[1:]
@@ -16,7 +22,13 @@ def run(args, flags, user_context, **kwargs):
     )
 
     if not validation_result.get("success"):
-        return {"success": False, "error": f"run: cannot access '{script_path}': {validation_result.get('error')}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"run: cannot access '{script_path}': {validation_result.get('error')}",
+                "suggestion": "Ensure the script file exists and you have read and execute permissions ('chmod 755 <script_file>')."
+            }
+        }
 
     script_node = validation_result.get("node")
     script_content = script_node.get('content', '')
