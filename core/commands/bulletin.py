@@ -6,6 +6,15 @@ from filesystem import fs_manager
 
 BULLETIN_PATH = "/var/log/bulletin.md"
 
+def define_flags():
+    """Declares the flags that this command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def _ensure_bulletin_exists(user_context):
     """Ensures the bulletin file and its parent directories exist."""
     log_dir_path = "/var/log"

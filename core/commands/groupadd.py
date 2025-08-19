@@ -3,6 +3,15 @@
 from groups import group_manager
 from audit import audit_manager
 
+def define_flags():
+    """Declares the flags that this command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def run(args, flags, user_context, **kwargs):
     if not args:
         return {

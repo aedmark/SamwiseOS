@@ -5,6 +5,15 @@ from filesystem import fs_manager
 
 PROJECTS_DIR = "/etc/projects"
 
+def define_flags():
+    """Declares the flags that this command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def _get_project_path(project_name):
     """Constructs the full path for a given project name."""
     return os.path.join(PROJECTS_DIR, f"{project_name}.json")
@@ -40,8 +49,6 @@ def run(args, flags, user_context, **kwargs):
 
     sub_command_or_project = args[0]
     if sub_command_or_project == 'create':
-        if user_context.get('name') != 'root':
-            return {"success": False, "error": "planner create: only root can create new projects."}
         if len(args) != 2:
             return {"success": False, "error": "Usage: sudo planner create <project_name>"}
 

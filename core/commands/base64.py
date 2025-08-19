@@ -7,9 +7,12 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the base64 command accepts."""
-    return [
-        {'name': 'decode', 'short': 'd', 'long': 'decode', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'decode', 'short': 'd', 'long': 'decode', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None):
     input_data = ""

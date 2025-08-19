@@ -5,6 +5,15 @@ from filesystem import fs_manager
 
 AGENDA_PATH = "/etc/agenda.json"
 
+def define_flags():
+    """Declares the flags that this command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def _read_schedule():
     """Reads and parses the agenda file."""
     node = fs_manager.get_node(AGENDA_PATH)

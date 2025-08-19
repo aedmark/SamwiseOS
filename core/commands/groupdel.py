@@ -2,16 +2,16 @@
 
 from groups import group_manager
 
-def run(args, flags, user_context, users=None, **kwargs):
-    if user_context.get('name') != 'root':
-        return {
-            "success": False,
-            "error": {
-                "message": "groupdel: only root can delete groups.",
-                "suggestion": "Try running this command with 'sudo'."
-            }
+def define_flags():
+    """Declares the flags that this command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
         }
+    }
 
+def run(args, flags, user_context, users=None, **kwargs):
     if not args:
         return {
             "success": False,

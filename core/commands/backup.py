@@ -7,13 +7,19 @@ from session import session_manager
 from users import user_manager
 from groups import group_manager
 
+def define_flags():
+    """Declares the flags that this command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def run(args, flags, user_context, **kwargs):
     """
     Gathers all system state and returns an effect to trigger a backup download.
     """
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "backup: you must be root to run this command."}
-
     if args:
         return {"success": False, "error": "backup: command takes no arguments"}
 

@@ -7,9 +7,12 @@ import shlex
 
 def define_flags():
     """Declares the flags that the binder command accepts."""
-    return [
-        {'name': 'section', 'short': 's', 'long': 'section', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'section', 'short': 's', 'long': 'section', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def _read_binder_file(binder_path):
     """Helper to read and parse a binder file."""
