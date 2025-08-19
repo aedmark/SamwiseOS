@@ -1433,6 +1433,8 @@ rm -f /small.log
 rm -f /old.ext
 rm -r -f /home/project_harvest_fest
 rm -r -f /home/project_harvest_festival
+rm -f /home/root/arg_test.sh
+rm -f /home/root/paradox.txt
 rm -r -f /home/plan_user1
 rm -r -f /home/plan_user2
 rm -r -f '/a dir with spaces'
@@ -1450,6 +1452,7 @@ echo "===== Planner Command Test Suite Complete! ====="
 
 listusers
 delay 200
+cd /home/root
 
 delay 400
 echo "---------------------------------------------------------------------"
