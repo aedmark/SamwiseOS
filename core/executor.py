@@ -1,5 +1,3 @@
-# gem/core/executor.py
-
 import shlex
 import json
 from importlib import import_module

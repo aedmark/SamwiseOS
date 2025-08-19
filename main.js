@@ -265,8 +265,6 @@ async function handleEffect(result, options) {
                         commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
                     }
 
-                    await OutputManager.appendToOutput(`(run)> ${commandText.trim()}`);
-
                     const execOptions = {
                         isInteractive: false,
                         scriptingContext: scriptingContext,
