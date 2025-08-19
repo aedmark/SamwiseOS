@@ -1,5 +1,6 @@
 # gem/core/commands/sudo.py
 from sudo import sudo_manager
+from audit import audit_manager
 import shlex
 
 def run(args, flags, user_context, user_groups=None, stdin_data=None, **kwargs):
@@ -14,10 +15,13 @@ def run(args, flags, user_context, user_groups=None, stdin_data=None, **kwargs):
     full_command_str = " ".join(command_to_run_parts)
     username = user_context.get('name')
 
+    audit_manager.log(username, 'SUDO_ATTEMPT', f"Command: {full_command_str}", user_context)
+
     groups_for_user = user_groups.get(username, []) if user_groups else []
     command_name = command_to_run_parts[0]
 
     if not sudo_manager.can_user_run_command(username, groups_for_user, command_name):
+        audit_manager.log(username, 'SUDO_FAILURE', f"Reason: Not in sudoers for '{command_name}'", user_context)
         return {"success": False, "error": f"sudo: user {username} is not allowed to execute '{full_command_str}' as root."}
 
     return {

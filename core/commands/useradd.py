@@ -4,6 +4,15 @@ from users import user_manager
 from filesystem import fs_manager
 from groups import group_manager
 
+def define_flags():
+    """Declares the flags that the useradd command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_context.get('name') != 'root':

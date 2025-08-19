@@ -65,8 +65,8 @@ class CommandExecutor:
                 return definitions
         except ImportError:
             pass
-        self._flag_def_cache[command_name] = []
-        return []
+        self._flag_def_cache[command_name] = {}
+        return {}
 
     def _parts_to_segment(self, segment_parts):
         if not segment_parts:
@@ -453,6 +453,13 @@ class CommandExecutor:
             return json.dumps({"success": False, "error": f"Execution Error: {str(e)}\n{tb_str}"})
 
     async def _execute_segment(self, segment, stdin_data):
+        command_name = segment['command']
+
+        definitions = self._get_command_flag_definitions(command_name)
+        metadata = definitions.get('metadata', {})
+        if metadata.get('root_required') and self.user_context.get('name') != 'root':
+            return json.dumps({"success": False, "error": f"{command_name}: permission denied. You must be root to run this command."})
+
         kwargs_for_run = {
             "users": self.users,
             "user_groups": self.user_groups,
@@ -466,7 +473,7 @@ class CommandExecutor:
             "commands": self.commands
         }
         result = await self.run_command_by_name(
-            command_name=segment['command'],
+            command_name=command_name,
             args=segment['args'],
             flags=segment['flags'],
             user_context=self.user_context,

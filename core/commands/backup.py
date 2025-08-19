@@ -11,6 +11,9 @@ def run(args, flags, user_context, **kwargs):
     """
     Gathers all system state and returns an effect to trigger a backup download.
     """
+    if user_context.get('name') != 'root':
+        return {"success": False, "error": "backup: you must be root to run this command."}
+
     if args:
         return {"success": False, "error": "backup: command takes no arguments"}
 
@@ -73,7 +76,8 @@ SYNOPSIS
 DESCRIPTION
     Creates a JSON file containing a snapshot of the current system state,
     including the filesystem, users, groups, and session data. The backup
-    includes a checksum for integrity verification.
+    includes a checksum for integrity verification. This command can only be
+    run by the 'root' user.
 """
 
 def help(args, flags, user_context, **kwargs):
