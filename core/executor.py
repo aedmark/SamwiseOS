@@ -99,7 +99,15 @@ class CommandExecutor:
                 expanded_parts.append(part)
 
         parts_to_process = [command_name] + expanded_parts
-        args, flags, flag_definitions = [], {}, self._get_command_flag_definitions(command_name)
+        raw_definitions = self._get_command_flag_definitions(command_name)
+
+        # This handles the two different return types for define_flags()
+        if isinstance(raw_definitions, dict):
+            flag_definitions = raw_definitions.get('flags', [])
+        else:
+            flag_definitions = raw_definitions
+
+        args, flags = [], {}
         flag_map = {}
         for flag_def in flag_definitions:
             canonical_name, takes_value = flag_def['name'], flag_def.get('takes_value', False)
@@ -456,7 +464,13 @@ class CommandExecutor:
         command_name = segment['command']
 
         definitions = self._get_command_flag_definitions(command_name)
-        metadata = definitions.get('metadata', {})
+
+        # This handles the two different return types for define_flags()
+        if isinstance(definitions, dict):
+            metadata = definitions.get('metadata', {})
+        else:
+            metadata = {}
+
         if metadata.get('root_required') and self.user_context.get('name') != 'root':
             return json.dumps({"success": False, "error": f"{command_name}: permission denied. You must be root to run this command."})
 

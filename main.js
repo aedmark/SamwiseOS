@@ -264,14 +264,25 @@ async function handleEffect(result, options) {
                     for (let i = 0; i < scriptArgs.length; i++) {
                         commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
                     }
+
+                    await OutputManager.appendToOutput(`(run)> ${commandText.trim()}`);
+
                     const execOptions = {
                         isInteractive: false,
                         scriptingContext: scriptingContext,
                         stdinContent: passwordPipe ? passwordPipe.join('\n') : null
                     };
                     const commandResult = await CommandExecutor.processSingleCommand(commandText, execOptions);
-                    if (!commandResult.success) {
-                        await OutputManager.appendToOutput(`run: error in script on line ${scriptingContext.currentLineIndex + 1}: ${commandText}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+
+                    if (commandResult.success) {
+                        if (commandResult.output) {
+                            await OutputManager.appendToOutput(commandResult.output);
+                        }
+                    } else {
+                        await OutputManager.appendToOutput(`run: error on line ${scriptingContext.currentLineIndex + 1}: ${commandText}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                        if(commandResult.error) {
+                            await OutputManager.appendToOutput(commandResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                        }
                         break;
                     }
                 }
