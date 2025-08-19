@@ -129,7 +129,7 @@ const OopisOS_Kernel = {
                 '/core/commands/ps.py': './core/commands/ps.py',
                 '/core/commands/kill.py': './core/commands/kill.py',
                 '/core/commands/sync.py': './core/commands/sync.py',
-                '/core/commands/sync.py': './core/commands/score.py',
+                '/core/commands/score.py': './core/commands/score.py',
                 '/core/commands/ocrypt.py': './core/commands/ocrypt.py',
                 '/core/commands/reset.py': './core/commands/reset.py',
                 '/core/commands/fsck.py': './core/commands/fsck.py',

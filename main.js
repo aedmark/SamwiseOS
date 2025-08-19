@@ -1,4 +1,4 @@
-// gemini/main.js
+// main.js
 
 // This global variable will be our session's birth certificate!
 window.sessionStartTime = new Date();
@@ -673,8 +673,10 @@ function sendSignalToJob(jobId, signal) {
 
 async function finalizeInteractiveModeUI(originalCommandText) {
     const { TerminalUI, AppLayerManager, HistoryManager } = dependencies;
-    TerminalUI.clearInput();
-    await TerminalUI.updatePrompt();
+    if (!TerminalUI.isSearchingHistory) {
+        TerminalUI.clearInput();
+        await TerminalUI.updatePrompt();
+    }
     if (!AppLayerManager.isActive()) {
         TerminalUI.showInputLine();
         TerminalUI.setInputState(true);
@@ -733,14 +735,34 @@ function initializeTerminalEventListeners(domElements, dependencies) {
             return;
         }
 
-        if (e.target !== domElements.editableInputDiv) return;
+        if (e.target !== domElements.editableInputDiv && !TerminalUI.isSearchingHistory) return;
+
+        // --- History Search Logic ---
+        if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            await TerminalUI.startHistorySearch();
+            return;
+        }
+
+        if (TerminalUI.isSearchingHistory) {
+            e.preventDefault();
+            if (e.key === 'Enter') {
+                await TerminalUI.endHistorySearch();
+                await executePythonCommand(TerminalUI.getCurrentInputValue(), { isInteractive: true });
+            } else if (e.key === 'Escape') {
+                await TerminalUI.cancelHistorySearch();
+            } else {
+                await TerminalUI.updateHistorySearch(e);
+            }
+            return;
+        }
+        // --- End History Search Logic ---
 
         switch (e.key) {
             case "Enter":
                 e.preventDefault();
                 if (!SoundManager.isInitialized) await SoundManager.initialize();
                 TabCompletionManager.resetCycle();
-                // --- Call the new Python executor function ---
                 await executePythonCommand(TerminalUI.getCurrentInputValue(), { isInteractive: true });
                 break;
             case "ArrowUp":

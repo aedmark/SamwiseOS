@@ -28,6 +28,7 @@ class HistoryManager {
         this.dependencies = {};
         this.historyIndex = 0;
         this.jsHistoryCache = [];
+        this.searchIndex = -1; // New: For reverse search
     }
     setDependencies(deps) { this.dependencies = deps; }
     async _syncCache() {
@@ -54,7 +55,7 @@ class HistoryManager {
             return "";
         }
     }
-    resetIndex() { this.historyIndex = this.jsHistoryCache.length; }
+    resetIndex() { this.historyIndex = this.jsHistoryCache.length; this.searchIndex = -1; }
     async getFullHistory() {
         const result = JSON.parse(await OopisOS_Kernel.syscall("history", "get_full_history"));
         return result.success ? result.data : [];
@@ -66,6 +67,23 @@ class HistoryManager {
     async setHistory(newHistory) {
         await OopisOS_Kernel.syscall("history", "set_history", [newHistory]);
         await this._syncCache();
+    }
+    search(query, startFromLast = false) {
+        if (startFromLast || this.searchIndex === -1) {
+            this.searchIndex = this.jsHistoryCache.length - 1;
+        } else {
+            this.searchIndex--;
+        }
+
+        for (let i = this.searchIndex; i >= 0; i--) {
+            if (this.jsHistoryCache[i].toLowerCase().includes(query.toLowerCase())) {
+                this.searchIndex = i;
+                return this.jsHistoryCache[i];
+            }
+        }
+        // If we reach the beginning without a match, reset for the next cycle
+        this.searchIndex = -1;
+        return null;
     }
 }
 

@@ -7,6 +7,10 @@ class TerminalUI {
         this.elements = {};
         this.originalInputForObscure = "";
         this.dependencies = {};
+        // New properties for reverse-i-search
+        this.isSearchingHistory = false;
+        this.historySearchQuery = "";
+        this.originalInputBeforeSearch = "";
     }
 
     initialize(dom) {
@@ -25,6 +29,12 @@ class TerminalUI {
         const ps1 = await EnvironmentManager.get("PS1");
 
         if (!this.elements.promptContainer) return;
+
+        // New logic for reverse-i-search prompt
+        if (this.isSearchingHistory) {
+            this.elements.promptContainer.textContent = `(reverse-i-search)\`${this.historySearchQuery}\`: `;
+            return;
+        }
 
         if (ps1) {
             const host =
@@ -288,6 +298,57 @@ class TerminalUI {
             selection.addRange(range);
         }
     }
+
+    // --- History Search Methods ---
+    async startHistorySearch() {
+        if (this.isSearchingHistory) {
+            // If already searching, cycle to next result
+            const { HistoryManager } = this.dependencies;
+            const found = HistoryManager.search(this.historySearchQuery);
+            if (found) {
+                this.setCurrentInputValue(found);
+            }
+            return;
+        }
+        this.isSearchingHistory = true;
+        this.originalInputBeforeSearch = this.getCurrentInputValue();
+        this.historySearchQuery = "";
+        this.setCurrentInputValue("");
+        await this.updatePrompt();
+    }
+
+    async updateHistorySearch(e) {
+        if (!this.isSearchingHistory) return;
+        if (e.key.length === 1) {
+            this.historySearchQuery += e.key;
+        } else if (e.key === 'Backspace' && this.historySearchQuery.length > 0) {
+            this.historySearchQuery = this.historySearchQuery.slice(0, -1);
+        }
+        const { HistoryManager } = this.dependencies;
+        const found = HistoryManager.search(this.historySearchQuery, true); // Start from last
+        this.setCurrentInputValue(found || "");
+        await this.updatePrompt();
+    }
+
+
+    async cancelHistorySearch() {
+        if (!this.isSearchingHistory) return;
+        this.isSearchingHistory = false;
+        this.historySearchQuery = "";
+        this.setCurrentInputValue(this.originalInputBeforeSearch);
+        this.originalInputBeforeSearch = "";
+        this.dependencies.HistoryManager.resetIndex();
+        await this.updatePrompt();
+    }
+
+    async endHistorySearch() {
+        if (!this.isSearchingHistory) return;
+        this.isSearchingHistory = false;
+        this.historySearchQuery = "";
+        this.originalInputBeforeSearch = "";
+        this.dependencies.HistoryManager.resetIndex();
+        await this.updatePrompt();
+    }
 }
 
 class TabCompletionManager {
@@ -369,14 +430,15 @@ class TabCompletionManager {
             currentWordLength: currentWordWithQuotes.length,
             isQuoted,
             quoteChar,
+            tokens
         };
     }
 
     async _getSuggestionsFromProvider(context) {
-        const { currentWordPrefix, isCompletingCommand, commandName } = context;
+        const { currentWordPrefix, isCompletingCommand, commandName, tokens } = context;
         let suggestions = [];
 
-        const { Config, StorageManager, FileSystemManager } = this.dependencies;
+        const { Config, StorageManager, FileSystemManager, UserManager, GroupManager } = this.dependencies;
 
         if (isCompletingCommand) {
             suggestions = Config.COMMANDS_MANIFEST.filter((cmd) =>
@@ -384,14 +446,15 @@ class TabCompletionManager {
             ).sort();
         } else {
             // NEW LOGIC: Infer completion type from command name
-            const pathCommands = ['ls', 'cd', 'cat', 'rm', 'mkdir', 'touch', 'edit', 'explore', 'mv', 'cp', 'chmod', 'chgrp', 'ln', 'tree', 'less', 'more', 'paint', 'basic', 'run', 'diff', 'comm', 'zip', 'unzip', 'ocrypt', 'patch', 'head', 'tail', 'sed', 'cut', 'find', 'chidi', 'remix', 'storyboard', 'log', 'adventure', 'rename', 'rmdir', 'csplit', 'binder', 'export'];
             const userCommands = ['su', 'chown', 'usermod', 'removeuser', 'groups', 'passwd', 'login'];
+            const groupCommands = ['chgrp'];
             const commandCompletingCommands = ['help', 'man', 'alias', 'unalias'];
-            // Group completion is not supported yet, so commands like `chgrp` and `usermod -aG` will fall back to path completion.
 
             let completionType = 'paths'; // Default to paths
             if (userCommands.includes(commandName)) {
                 completionType = 'users';
+            } else if (groupCommands.includes(commandName) || (commandName === 'usermod' && tokens.includes('-aG'))) {
+                completionType = 'groups';
             } else if (commandCompletingCommands.includes(commandName)) {
                 completionType = 'commands';
             }
@@ -414,8 +477,15 @@ class TabCompletionManager {
                         name.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
                     )
                     .sort();
-            } else if (completionType === "paths") {
-                // The rest of the original path completion logic stays the same
+            } else if (completionType === "groups") {
+                const groups = await GroupManager.getAllGroups();
+                const groupNames = Object.keys(groups);
+                suggestions = groupNames
+                    .filter((name) =>
+                        name.toLowerCase().startsWith(currentWordPrefix.toLowerCase())
+                    )
+                    .sort();
+            } else { // Fallback to 'paths'
                 const lastSlashIndex = currentWordPrefix.lastIndexOf(
                     Config.FILESYSTEM.PATH_SEPARATOR
                 );

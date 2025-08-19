@@ -1326,7 +1326,7 @@ echo "Test users created."
 
 # ----------------------------------------------------------------------
 echo "--- Phase 2: User-Level Planner Test (As plan_user1) ---"
-su plan_user1
+su plan_user1 testpass
 delay 200
 echo "Switched to plan_user1. Creating a personal planner..."
 planner create personal_goals
@@ -1358,7 +1358,7 @@ delay 500
 # ----------------------------------------------------------------------
 echo "--- Phase 4: Shared Planner & Permissions Test ---"
 echo "Switching to plan_user2 to test shared planner access..."
-su plan_user2
+su plan_user2 testpass
 delay 200
 echo "Adding a task to the shared 'harvest_fest' planner (should succeed)..."
 # We need to use the full path because plan_user2 isn't in the project dir yet
@@ -1371,7 +1371,7 @@ logout
 delay 200
 
 echo "Switching to plan_user1 to complete the assigned task..."
-su plan_user1
+su plan_user1 testpass
 delay 200
 planner /home/project_harvest_fest/harvest_fest.planner done 2
 delay 200
@@ -1408,7 +1408,7 @@ delay 500
 # ----------------------------------------------------------------------
 echo "--- Phase 7: Final Permission Checks (Negative Testing) ---"
 echo "Switching to plan_user2..."
-su plan_user2
+su plan_user2 testpass
 delay 200
 echo "Attempting to modify plan_user1's personal planner (should fail)..."
 check_fail "planner /home/plan_user1/.plans/personal_goals.planner add \"Snoop on plans\""
@@ -1424,10 +1424,20 @@ removeuser -f plan_user1
 removeuser -f plan_user2
 delay 200
 echo "Removing test project files and directories..."
-rm /etc/projects/operation_sparrow.json
-rm /etc/briefing.md
-rm -r /home/project_harvest_fest
-rm /var/log/scores.json
+rm -f /etc/projects/operation_sparrow.json
+rm -f /etc/briefing.md
+rm -f /*.txt
+rm -f /large.log
+rm -f /preserve_copy.sh
+rm -f /small.log
+rm -f /old.ext
+rm -r -f /home/project_harvest_fest
+rm -r -f /home/project_harvest_festival
+rm -r -f /home/plan_user1
+rm -r -f /home/plan_user2
+rm -r -f '/a dir with spaces'
+rm -r -f /mv_test_dir
+rm -f /var/log/scores.json
 # Clear the agenda entry we created
 agenda remove 1
 delay 300
