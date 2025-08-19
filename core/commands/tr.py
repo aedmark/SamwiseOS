@@ -4,11 +4,14 @@ import string
 
 def define_flags():
     """Declares the flags that the tr command accepts."""
-    return [
-        {'name': 'complement', 'short': 'c', 'long': 'complement', 'takes_value': False},
-        {'name': 'delete', 'short': 'd', 'long': 'delete', 'takes_value': False},
-        {'name': 'squeeze-repeats', 'short': 's', 'long': 'squeeze-repeats', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'complement', 'short': 'c', 'long': 'complement', 'takes_value': False},
+            {'name': 'delete', 'short': 'd', 'long': 'delete', 'takes_value': False},
+            {'name': 'squeeze-repeats', 'short': 's', 'long': 'squeeze-repeats', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def _expand_set(set_str):
     """Expands character sets like 'a-z' and '[:alpha:]' into a list of characters."""

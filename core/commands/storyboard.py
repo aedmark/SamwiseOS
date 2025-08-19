@@ -7,13 +7,16 @@ SUPPORTED_EXTENSIONS = {".md", ".txt", ".html", ".js", ".sh", ".css", ".json"}
 
 def define_flags():
     """Declares the flags that the storyboard command accepts."""
-    return [
-        {'name': 'mode', 'long': 'mode', 'takes_value': True},
-        {'name': 'summary', 'long': 'summary', 'takes_value': False},
-        {'name': 'ask', 'long': 'ask', 'takes_value': True},
-        {'name': 'provider', 'long': 'provider', 'takes_value': True},
-        {'name': 'model', 'long': 'model', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'mode', 'long': 'mode', 'takes_value': True},
+            {'name': 'summary', 'long': 'summary', 'takes_value': False},
+            {'name': 'ask', 'long': 'ask', 'takes_value': True},
+            {'name': 'provider', 'long': 'provider', 'takes_value': True},
+            {'name': 'model', 'long': 'model', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def _get_files_for_analysis(start_path, user_context):
     """

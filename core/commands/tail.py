@@ -4,11 +4,14 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the tail command accepts."""
-    return [
-        {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
-        {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': True},
-        {'name': 'follow', 'short': 'f', 'long': 'follow', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
+            {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': True},
+            {'name': 'follow', 'short': 'f', 'long': 'follow', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if flags.get('follow', False):

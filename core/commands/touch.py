@@ -6,10 +6,13 @@ from time_utils import time_utils # <-- IMPORT our new utility!
 
 def define_flags():
     """Declares the flags that the touch command accepts."""
-    return [
-        {'name': 'date', 'short': 'd', 'long': 'date', 'takes_value': True},
-        {'name': 'stamp', 'short': 't', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'date', 'short': 'd', 'long': 'date', 'takes_value': True},
+            {'name': 'stamp', 'short': 't', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 # The old _parse_date_string and _parse_stamp functions have been REMOVED!
 
