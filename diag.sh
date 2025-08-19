@@ -932,7 +932,6 @@ rm project_alpha.binder
 echo "Binder command suite test complete."
 delay 400
 echo "---------------------------------------------------------------------"
-
 echo ""
 echo "===== Phase 23: Testing Agenda Command (Non-Interactive) ====="
 delay 200
@@ -1313,10 +1312,15 @@ delay 500
 echo "===== OopisOS Planner Command Test Suite ====="
 delay 500
 
-echo "\n--- Phase 1: Setup and User Creation ---"
+echo "--- Phase 1: Setup and User Creation ---"
 echo "Creating test users 'plan_user1' and 'plan_user2'..."
-echo -e "testpass\ntestpass" | useradd plan_user1
-echo -e "testpass\ntestpass" | useradd plan_user2
+useradd plan_user1
+testpass
+testpass
+delay 200
+useradd plan_user2
+testpass
+testpass
 delay 200
 echo "Test users created."
 

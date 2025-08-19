@@ -7,18 +7,23 @@ AGENDA_PATH = "/etc/agenda.json"
 
 def define_flags():
     """Declares the flags that this command accepts."""
+    # [FIXED] Removed the global 'root_required' metadata.
+    # The permission logic is now handled correctly inside the run() function.
     return {
         'flags': [],
-        'metadata': {
-            'root_required': True
-        }
+        'metadata': {}
     }
 
 def _read_schedule():
     """Reads and parses the agenda file."""
     node = fs_manager.get_node(AGENDA_PATH)
     if not node:
-        return []
+        # If the file doesn't exist yet, create it as root
+        try:
+            fs_manager.write_file(AGENDA_PATH, "[]", {"name": "root", "group": "root"})
+            return []
+        except:
+            return [] # Return empty if creation fails
     try:
         return json.loads(node.get('content', '[]'))
     except json.JSONDecodeError:
@@ -42,6 +47,7 @@ def run(args, flags, user_context, **kwargs):
 
     sub_command = args[0].lower()
 
+    # This is the specific, correct permission check.
     if sub_command in ["add", "remove"] and user_context.get('name') != 'root':
         return {"success": False, "error": "agenda: modifying the schedule requires root privileges."}
 
@@ -98,6 +104,7 @@ def run(args, flags, user_context, **kwargs):
     else:
         return {"success": False, "error": f"agenda: unknown sub-command '{sub_command}'."}
 
+
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
@@ -112,7 +119,7 @@ DESCRIPTION
 
 SUB-COMMANDS:
     add "<cron>" "<cmd>"  - Schedules a new command. (Requires root)
-    list                 - Lists all scheduled commands.
+    list                 - Lists all scheduled commands. (Usable by all)
     remove <id>          - Removes a scheduled command by its ID. (Requires root)
 """
 

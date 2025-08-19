@@ -288,7 +288,12 @@ async function handleEffect(result, options) {
                     } else {
                         await OutputManager.appendToOutput(`run: error on line ${scriptingContext.currentLineIndex + 1}: ${commandText}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         if(commandResult.error) {
-                            await OutputManager.appendToOutput(commandResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+                            // [FIXED] Properly format the error object before printing.
+                            let errorMessage = commandResult.error.message || commandResult.error;
+                            if (commandResult.error.suggestion) {
+                                errorMessage += `\nSuggestion: ${commandResult.error.suggestion}`;
+                            }
+                            await OutputManager.appendToOutput(errorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         }
                         break;
                     }
