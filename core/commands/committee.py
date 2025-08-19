@@ -1,5 +1,7 @@
 # gem/core/commands/committee.py
 
+import json
+import os
 from filesystem import fs_manager
 from groups import group_manager
 from users import user_manager
@@ -16,11 +18,10 @@ def define_flags():
         }
     }
 
-
 def run(args, flags, user_context, **kwargs):
     """
     Automates the creation of a collaborative project space, including a user group,
-    a shared directory, and setting appropriate permissions.
+    a shared directory, and a project planner.
     """
     committee_name = flags.get("create")
     members_str = flags.get("members")
@@ -30,6 +31,9 @@ def run(args, flags, user_context, **kwargs):
 
     members = [m.strip() for m in members_str.split(',')]
     project_path = f"/home/project_{committee_name}"
+    # [NEW] Define the path for the new planner file
+    planner_path = os.path.join(project_path, f"{committee_name}.planner")
+
 
     for member in members:
         if not user_manager.user_exists(member):
@@ -42,16 +46,38 @@ def run(args, flags, user_context, **kwargs):
         return {"success": False, "error": f"committee: directory '{project_path}' already exists."}
 
     try:
+        # Create group and add members
         group_manager.create_group(committee_name)
         for member in members:
             group_manager.add_user_to_group(member, committee_name)
 
+        # Create project directory and set permissions
         fs_manager.create_directory(project_path, {"name": "root", "group": "root"})
         fs_manager.chown(project_path, "root")
         fs_manager.chgrp(project_path, committee_name)
         fs_manager.chmod(project_path, "770") # rwxrwx---
 
+        # [NEW] Create and pre-populate the planner file
+        initial_plan = {
+            "projectName": committee_name,
+            "tasks": [
+                {
+                    "id": 1,
+                    "description": "Define project goals and first steps.",
+                    "status": "open",
+                    "assignee": "none"
+                }
+            ]
+        }
+        planner_content = json.dumps(initial_plan, indent=2)
+        fs_manager.write_file(planner_path, planner_content, user_context)
+        # Ensure the new planner file also has the correct group permissions
+        fs_manager.chgrp(planner_path, committee_name)
+        fs_manager.chmod(planner_path, "660") # rw-rw----
+
+
     except Exception as e:
+        # Rollback on failure
         group_manager.delete_group(committee_name)
         if fs_manager.get_node(project_path):
             fs_manager.remove(project_path, recursive=True)
@@ -60,7 +86,8 @@ def run(args, flags, user_context, **kwargs):
     output = [
         f"Committee '{committee_name}' created successfully.",
         f"  - Group '{committee_name}' created with members: {', '.join(members)}",
-        f"  - Project directory created at '{project_path}'"
+        f"  - Project directory created at '{project_path}'",
+        f"  - Mission planner initialized at '{planner_path}'"
     ]
     return {
         "success": True,
@@ -81,6 +108,7 @@ SYNOPSIS
 DESCRIPTION
     Automates the creation of a user group, a shared project directory,
     and the assignment of appropriate permissions for collaborative work.
+    It also automatically creates a project planner file inside the new directory.
     This command can only be run by the root user.
 """
 

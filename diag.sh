@@ -1312,83 +1312,124 @@ delay 500
 echo "===== OopisOS Planner Command Test Suite ====="
 delay 500
 
-echo "--- Phase 1: Setup and User Creation ---"
+echo "\n--- Phase 1: Setup and User Creation ---"
 echo "Creating test users 'plan_user1' and 'plan_user2'..."
 echo -e "testpass\ntestpass" | useradd plan_user1
 echo -e "testpass\ntestpass" | useradd plan_user2
+delay 200
+echo "Test users created."
 
-echo "Users created. Proceeding with tests..."
+# ----------------------------------------------------------------------
+echo "\n--- Phase 2: User-Level Planner Test (As plan_user1) ---"
+su plan_user1
+delay 200
+echo "Switched to plan_user1. Creating a personal planner..."
+planner create personal_goals
+delay 200
+echo "Verifying personal planner file was created in ~/.plans/..."
+ls /home/plan_user1/.plans/
 delay 300
-su Guest
-echo ""
-echo "--- Phase 2: 'planner create' Tests ---"
-echo "Attempting to create project as non-root (should fail)..."
-check_fail "planner create my_secret_project"
+
+echo "Adding and completing a personal task..."
+planner personal_goals add "Organize all my binders"
+planner personal_goals done 1
 delay 200
 logout
 delay 200
-echo "Attempting to create project as root (should succeed)..."
-planner create city_mural
+echo "Logged out from plan_user1."
+
+# ----------------------------------------------------------------------
+echo "\n--- Phase 3: Committee Integration Test (As root) ---"
+echo "Creating a new committee with our test users..."
+committee --create harvest_fest --members plan_user1,plan_user2
+delay 300
+echo "Verifying that a planner was automatically created..."
+ls /home/project_harvest_fest/
 delay 200
-
-echo "Verifying project file was created in /etc/projects/..."
-ls /etc/projects/
-delay 300
-
-echo ""
-echo "--- Phase 3: Task Management Tests ---"
-echo "Adding initial tasks to 'city_mural' project..."
-planner city_mural add "Scout locations for the mural"
-planner city_mural add "Hold public design submissions"
-planner city_mural add "Purchase 50 gallons of paint"
-planner city_mural add "Hire a qualified artist"
-delay 300
-
-echo "Displaying initial project board:"
-planner city_mural
+echo "Checking contents of the auto-generated planner..."
+cat /home/project_harvest_fest/harvest_fest.planner
 delay 500
 
-echo "--- Assigning tasks ---"
-planner city_mural assign plan_user1 1
-planner city_mural assign plan_user2 3
+# ----------------------------------------------------------------------
+echo "\n--- Phase 4: Shared Planner & Permissions Test ---"
+echo "Switching to plan_user2 to test shared planner access..."
+su plan_user2
+delay 200
+echo "Adding a task to the shared 'harvest_fest' planner (should succeed)..."
+# We need to use the full path because plan_user2 isn't in the project dir yet
+planner /home/project_harvest_fest/harvest_fest.planner add "Book Lil' Sebastian"
+delay 200
+echo "Assigning a task to plan_user1..."
+planner /home/project_harvest_fest/harvest_fest.planner assign plan_user1 2
+delay 200
+logout
 delay 200
 
-echo "Displaying board after assignments:"
-planner city_mural
+echo "Switching to plan_user1 to complete the assigned task..."
+su plan_user1
+delay 200
+planner /home/project_harvest_fest/harvest_fest.planner done 2
+delay 200
+logout
+delay 200
+echo "Logged out from both users."
+
+# ----------------------------------------------------------------------
+echo "\n--- Phase 5: Gamification and Scoring Test (As root) ---"
+echo "Checking the productivity scores..."
+score
 delay 500
+echo "Verified scores. plan_user1 should have 2 points."
 
-echo "--- Marking a task as complete ---"
-planner city_mural done 1
+# ----------------------------------------------------------------------
+echo "\n--- Phase 6: Linking & Scheduling Test (As root)---"
+echo "Creating a system-wide project for linking/scheduling tests..."
+planner create operation_sparrow
 delay 200
-
-echo "Displaying final project board:"
-planner city_mural
-delay 500
-
-echo ""
-echo "--- Phase 4: Edge Case and Error Handling ---"
-echo "Attempting to assign task to non-existent user (should fail)..."
-check_fail "planner city_mural assign nonexistent_user 2"
+echo "Creating a dummy file to link to a task..."
+touch /etc/briefing.md
 delay 200
-
-echo "Attempting to complete a non-existent task (should fail)..."
-check_fail "planner city_mural done 99"
-delay 200
-
-echo "Attempting to view a non-existent project (should fail)..."
-check_fail "planner nonexistent_project"
+planner operation_sparrow add "Review briefing document"
+planner operation_sparrow link 1 /etc/briefing.md
+planner operation_sparrow schedule 1 "* * * * *"
 delay 300
+echo "Displaying project to verify link and schedule annotations:"
+planner operation_sparrow
+delay 500
+echo "Verifying that the task was added to the main agenda..."
+cat /etc/agenda.json
+delay 500
 
-echo ""
-echo "--- Phase 5: Cleanup ---"
-echo "Removing test users and project file..."
+# ----------------------------------------------------------------------
+echo "\n--- Phase 7: Final Permission Checks (Negative Testing) ---"
+echo "Switching to plan_user2..."
+su plan_user2
+delay 200
+echo "Attempting to modify plan_user1's personal planner (should fail)..."
+check_fail "planner /home/plan_user1/.plans/personal_goals.planner add \"Snoop on plans\""
+delay 300
+logout
+delay 200
+echo "Logged out from plan_user2."
+
+# ----------------------------------------------------------------------
+echo "\n--- Phase 8: Comprehensive Cleanup ---"
+echo "Removing test users..."
 removeuser -f plan_user1
 removeuser -f plan_user2
-rm /etc/projects/city_mural.json
 delay 200
-
+echo "Removing test project files and directories..."
+rm /etc/projects/operation_sparrow.json
+rm /etc/briefing.md
+rm -r /home/project_harvest_fest
+rm /var/log/scores.json
+# Clear the agenda entry we created
+agenda remove 1
+delay 300
 echo "Verifying cleanup..."
-check_fail "ls /etc/projects/city_mural.json"
+check_fail "ls /etc/projects/operation_sparrow.json"
+check_fail "ls /home/project_harvest_fest"
+check_fail "cat /var/log/scores.json"
 echo ""
 echo "===== Planner Command Test Suite Complete! ====="
 
