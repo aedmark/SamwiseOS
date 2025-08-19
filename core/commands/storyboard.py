@@ -48,7 +48,13 @@ def _get_files_for_analysis(start_path, user_context):
 
 async def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_key=None, **kwargs):
     if not ai_manager:
-        return {"success": False, "error": "AI Manager is not available."}
+        return {
+            "success": False,
+            "error": {
+                "message": "storyboard: AI Manager is not available.",
+                "suggestion": "This is an internal system error. Please check the system configuration."
+            }
+        }
 
     files_to_analyze = []
     if stdin_data:
@@ -84,6 +90,7 @@ async def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_k
             "content": result.get("data")
         }
     else:
+        # Propagate the already-formatted error from the AI Manager
         return result
 
 def man(args, flags, user_context, **kwargs):

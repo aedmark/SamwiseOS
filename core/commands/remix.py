@@ -11,25 +11,55 @@ def define_flags():
 
 async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     if not ai_manager:
-        return {"success": False, "error": "AI Manager is not available."}
+        return {
+            "success": False,
+            "error": {
+                "message": "remix: AI Manager is not available.",
+                "suggestion": "This is an internal system error. Please check the system configuration."
+            }
+        }
 
     if len(args) != 2:
-        return {"success": False, "error": "Usage: remix <file1> <file2>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "remix: incorrect number of arguments.",
+                "suggestion": "Try 'remix <file1> <file2>'."
+            }
+        }
 
     path1, path2 = args
     node1 = fs_manager.get_node(path1)
     node2 = fs_manager.get_node(path2)
 
     if not node1:
-        return {"success": False, "error": f"remix: {path1}: No such file or directory"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"remix: {path1}: No such file or directory",
+                "suggestion": "Please check the path to the first file."
+            }
+        }
     if not node2:
-        return {"success": False, "error": f"remix: {path2}: No such file or directory"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"remix: {path2}: No such file or directory",
+                "suggestion": "Please check the path to the second file."
+            }
+        }
 
     content1 = node1.get('content', '')
     content2 = node2.get('content', '')
 
     if not content1.strip() or not content2.strip():
-        return {"success": False, "error": "remix: One or both input files are empty."}
+        return {
+            "success": False,
+            "error": {
+                "message": "remix: One or both input files are empty.",
+                "suggestion": "Please provide two files with content to remix."
+            }
+        }
 
     provider = flags.get("provider") or "ollama"
     model = flags.get("model")
@@ -43,7 +73,7 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
             "content": result["data"]
         }
     else:
-        return result
+        return result # Propagate the already-formatted error from the AI Manager
 
 def man(args, flags, user_context, **kwargs):
     return """

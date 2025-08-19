@@ -10,10 +10,22 @@ def define_flags():
 
 def run(args, flags, user_context, **kwargs):
     if not flags.get('symbolic'):
-        return {"success": False, "error": "ln: only symbolic links (-s) are supported in this version."}
+        return {
+            "success": False,
+            "error": {
+                "message": "ln: only symbolic links (-s) are supported in this version.",
+                "suggestion": "Try using the '-s' flag to create a symbolic link."
+            }
+        }
 
     if len(args) != 2:
-        return {"success": False, "error": "ln: missing file operand. Usage: ln -s <target> <link_name>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "ln: missing file operand.",
+                "suggestion": "Try 'ln -s <target> <link_name>'."
+            }
+        }
 
     target, link_name = args[0], args[1]
 
@@ -21,11 +33,29 @@ def run(args, flags, user_context, **kwargs):
         fs_manager.ln(target, link_name, user_context)
         return "" # Success
     except FileExistsError as e:
-        return {"success": False, "error": f"ln: {e}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"ln: failed to create symbolic link '{link_name}'",
+                "suggestion": f"A file or directory already exists at that location. Details: {e}"
+            }
+        }
     except FileNotFoundError as e:
-        return {"success": False, "error": f"ln: {e}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"ln: failed to create symbolic link '{link_name}'",
+                "suggestion": f"The target directory does not exist. Details: {e}"
+            }
+        }
     except Exception as e:
-        return {"success": False, "error": f"ln: an unexpected error occurred: {repr(e)}"}
+        return {
+            "success": False,
+            "error": {
+                "message": "ln: an unexpected error occurred.",
+                "suggestion": f"Details: {repr(e)}"
+            }
+        }
 
 def man(args, flags, user_context, **kwargs):
     return """

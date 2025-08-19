@@ -6,7 +6,13 @@ def run(args, flags, user_context, **kwargs):
     Dynamically retrieves and displays the manual page for a given command.
     """
     if not args:
-        return {"success": False, "error": "man: what manual page do you want?"}
+        return {
+            "success": False,
+            "error": {
+                "message": "man: what manual page do you want?",
+                "suggestion": "Try 'man ls' to see the manual for the 'ls' command."
+            }
+        }
 
     cmd_name = args[0]
 
@@ -17,10 +23,21 @@ def run(args, flags, user_context, **kwargs):
         if man_func and callable(man_func):
             return man_func(args, flags, user_context, **kwargs)
         else:
-            return {"success": False, "error": f"man: no manual entry for {cmd_name}"}
-
+            return {
+                "success": False,
+                "error": {
+                    "message": f"man: no manual entry for {cmd_name}",
+                    "suggestion": "Not all commands have a manual page yet."
+                }
+            }
     except ImportError:
-        return {"success": False, "error": f"man: command '{cmd_name}' not found"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"man: command '{cmd_name}' not found",
+                "suggestion": "Check the spelling of the command."
+            }
+        }
 
 def man(args, flags, user_context, **kwargs):
     """Displays the manual page for the man command itself."""

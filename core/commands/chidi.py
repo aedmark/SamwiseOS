@@ -77,7 +77,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         start_path = fs_manager.get_absolute_path(start_path_arg)
 
         if not fs_manager.get_node(start_path):
-            return {"success": False, "error": f"chidi: {start_path_arg}: No such file or directory"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"chidi: {start_path_arg}: No such file or directory",
+                    "suggestion": "Please check the path and try again."
+                }
+            }
 
         files = _get_files_for_analysis(start_path, user_context)
 

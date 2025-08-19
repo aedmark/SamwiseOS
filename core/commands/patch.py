@@ -51,17 +51,35 @@ def _apply_patch(original_content, hunks):
 
 def run(args, flags, user_context, **kwargs):
     if len(args) != 2:
-        return {"success": False, "error": "patch: missing operand. Usage: patch <target_file> <patch_file>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "patch: missing operand",
+                "suggestion": "Try 'patch <target_file> <patch_file>'."
+            }
+        }
 
     target_file_path, patch_file_path = args[0], args[1]
 
     target_node = fs_manager.get_node(target_file_path)
     if not target_node:
-        return {"success": False, "error": f"patch: {target_file_path}: No such file or directory"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"patch: {target_file_path}: No such file or directory",
+                "suggestion": "Please verify the target file path is correct."
+            }
+        }
 
     patch_node = fs_manager.get_node(patch_file_path)
     if not patch_node:
-        return {"success": False, "error": f"patch: {patch_file_path}: No such file or directory"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"patch: {patch_file_path}: No such file or directory",
+                "suggestion": "Please verify the patch file path is correct."
+            }
+        }
 
     target_content = target_node.get('content', '')
     patch_content = patch_node.get('content', '')
@@ -69,7 +87,13 @@ def run(args, flags, user_context, **kwargs):
     try:
         hunks = _parse_patch(patch_content)
         if not hunks and patch_content.strip():
-            return {"success": False, "error": "patch: unrecognized patch format"}
+            return {
+                "success": False,
+                "error": {
+                    "message": "patch: unrecognized patch format",
+                    "suggestion": "Ensure the patch file is in a standard unified diff format."
+                }
+            }
 
         if not hunks:
             return f"File '{target_file_path}' is already up to date."
@@ -79,7 +103,13 @@ def run(args, flags, user_context, **kwargs):
         fs_manager.write_file(target_file_path, new_content, user_context)
         return f"patching file {target_file_path}"
     except Exception as e:
-        return {"success": False, "error": f"patch: an error occurred: {repr(e)}"}
+        return {
+            "success": False,
+            "error": {
+                "message": "patch: an unexpected error occurred while applying the patch.",
+                "suggestion": f"Details: {repr(e)}"
+            }
+        }
 
 def man(args, flags, user_context, **kwargs):
     return """

@@ -5,7 +5,13 @@ def run(args, flags, user_context, stdin_data=None):
     Returns a special dictionary to signal a clear screen effect.
     """
     if args:
-        return {"success": False, "error": "clear: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "clear: command takes no arguments",
+                "suggestion": "Simply run 'clear' by itself."
+            }
+        }
 
     return {"effect": "clear_screen"}
 

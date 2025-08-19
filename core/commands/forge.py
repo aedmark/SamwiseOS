@@ -12,10 +12,22 @@ def define_flags():
 
 async def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
     if not ai_manager:
-        return {"success": False, "error": "AI Manager is not available."}
+        return {
+            "success": False,
+            "error": {
+                "message": "forge: AI Manager is not available.",
+                "suggestion": "This is an internal system error. Please check the system configuration."
+            }
+        }
 
     if not 1 <= len(args) <= 2:
-        return {"success": False, "error": "Usage: forge \"<description>\" [output_file]"}
+        return {
+            "success": False,
+            "error": {
+                "message": "forge: incorrect number of arguments.",
+                "suggestion": "Try 'forge \"<description>\" [output_file]'."
+            }
+        }
 
     description = args[0]
     output_file = args[1] if len(args) > 1 else None
@@ -26,7 +38,13 @@ async def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs
     result = await ai_manager.perform_forge(description, provider, model, api_key)
 
     if not result.get("success"):
-        return {"success": False, "error": f"forge: The AI failed to generate the file. Reason: {result.get('error')}"}
+        return {
+            "success": False,
+            "error": {
+                "message": "forge: The AI failed to generate the file.",
+                "suggestion": f"Reason: {result.get('error', 'Unknown AI error')}"
+            }
+        }
 
     generated_content = result.get("data", "").strip()
 
@@ -44,7 +62,13 @@ async def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs
 
             return {"success": True, "output": f"File '{output_file}' forged successfully."}
         except Exception as e:
-            return {"success": False, "error": f"forge: Failed to write file: {repr(e)}"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"forge: Failed to write to file '{output_file}'.",
+                    "suggestion": f"Please check your permissions. Details: {repr(e)}"
+                }
+            }
     else:
         return {"success": True, "output": generated_content}
 

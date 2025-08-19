@@ -15,27 +15,31 @@ def run(args, flags, user_context, stdin_data=None, commands=None, **kwargs):
             if help_func and callable(help_func):
                 return help_func(args[1:], flags, user_context, **kwargs)
             else:
-                return {"success": False, "error": f"help: no help entry for {cmd_name}"}
-
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"help: no help entry for {cmd_name}",
+                        "suggestion": "For more detailed information, try 'man {cmd_name}'."
+                    }
+                }
         except ImportError:
-            return {"success": False, "error": f"help: command '{cmd_name}' not found"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"help: command '{cmd_name}' not found",
+                    "suggestion": "Check the spelling or run 'help' to see all available commands."
+                }
+            }
 
-    # If no args, display the list of all available commands
-    if commands:
-        available_commands = commands
-    else:
-        # Fallback to a hardcoded list if the dynamic list isn't provided
-        available_commands = [
-            "cat", "clear", "date", "echo", "help", "ls", "man",
-            "mkdir", "mv", "pwd", "rm", "touch", "whoami", "ERROR"
-        ]
+    if not commands:
+        commands = [] # Fallback
 
     output = [
         "SamwiseOS - Powered by Python",
         "Welcome to the official command reference.",
         "The following commands are available:",
         "",
-        _format_in_columns(available_commands),
+        _format_in_columns(commands),
         "",
         "Use 'help [command]' for more information on a specific command."
     ]

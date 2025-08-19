@@ -64,7 +64,13 @@ def run(args, flags, user_context, **kwargs):
     Searches for files in a directory hierarchy with advanced expressions.
     """
     if not args:
-        return {"success": False, "error": "find: missing path specification"}
+        return {
+            "success": False,
+            "error": {
+                "message": "find: missing path specification",
+                "suggestion": "Try 'find . -name \"*.txt\"'."
+            }
+        }
 
     paths = []
     expression_args = []
@@ -79,7 +85,13 @@ def run(args, flags, user_context, **kwargs):
     try:
         predicate_groups, actions = _parse_expression(expression_args)
     except ValueError as e:
-        return {"success": False, "error": f"find: {e}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"find: invalid expression: {e}",
+                "suggestion": "Check the syntax of your expression. See 'man find' for help."
+            }
+        }
 
     output_lines = []
     commands_to_exec = []
