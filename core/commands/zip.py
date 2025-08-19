@@ -9,7 +9,10 @@ import base64
 
 def define_flags():
     """Declares the flags that the zip command accepts."""
-    return []
+    return {
+        'flags': [],
+        'metadata': {}
+    }
 
 def _add_to_zip(zip_buffer, path, archive_path=""):
     """Recursively adds a file or directory to the zip buffer."""

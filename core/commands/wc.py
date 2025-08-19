@@ -4,11 +4,14 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the wc command accepts."""
-    return [
-        {'name': 'lines', 'short': 'l', 'long': 'lines', 'takes_value': False},
-        {'name': 'words', 'short': 'w', 'long': 'words', 'takes_value': False},
-        {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'lines', 'short': 'l', 'long': 'lines', 'takes_value': False},
+            {'name': 'words', 'short': 'w', 'long': 'words', 'takes_value': False},
+            {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def _count_content(content):
     """Calculates lines, words, and bytes for a string."""
