@@ -2,9 +2,12 @@
 
 def define_flags():
     """Declares the flags that the kill command accepts."""
-    return [
-        {'name': 'signal', 'short': 's', 'long': 'signal', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'signal', 'short': 's', 'long': 'signal', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     """

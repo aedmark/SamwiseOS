@@ -4,9 +4,12 @@ from session import history_manager
 
 def define_flags():
     """Declares the flags that the history command accepts."""
-    return [
-        {'name': 'clear', 'short': 'c', 'long': 'clear', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'clear', 'short': 'c', 'long': 'clear', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     """

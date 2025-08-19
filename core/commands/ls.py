@@ -6,17 +6,20 @@ import os
 
 def define_flags():
     """Declares the flags that the ls command accepts."""
-    return [
-        {'name': 'long', 'short': 'l', 'long': 'long', 'takes_value': False},
-        {'name': 'all', 'short': 'a', 'long': 'all', 'takes_value': False},
-        {'name': 'recursive', 'short': 'R', 'long': 'recursive', 'takes_value': False},
-        {'name': 'sort-time', 'short': 't', 'takes_value': False},
-        {'name': 'sort-size', 'short': 'S', 'takes_value': False},
-        {'name': 'sort-extension', 'short': 'X', 'takes_value': False},
-        {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
-        {'name': 'directory', 'short': 'd', 'long': 'directory', 'takes_value': False},
-        {'name': 'one-per-line', 'short': '1', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'long', 'short': 'l', 'long': 'long', 'takes_value': False},
+            {'name': 'all', 'short': 'a', 'long': 'all', 'takes_value': False},
+            {'name': 'recursive', 'short': 'R', 'long': 'recursive', 'takes_value': False},
+            {'name': 'sort-time', 'short': 't', 'takes_value': False},
+            {'name': 'sort-size', 'short': 'S', 'takes_value': False},
+            {'name': 'sort-extension', 'short': 'X', 'takes_value': False},
+            {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
+            {'name': 'directory', 'short': 'd', 'long': 'directory', 'takes_value': False},
+            {'name': 'one-per-line', 'short': '1', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def _format_long(path, name, node):
     """Formats a single line for the long listing format."""

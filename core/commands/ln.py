@@ -4,9 +4,12 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the ln command accepts."""
-    return [
-        {'name': 'symbolic', 'short': 's', 'long': 'symbolic', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'symbolic', 'short': 's', 'long': 'symbolic', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     if not flags.get('symbolic'):

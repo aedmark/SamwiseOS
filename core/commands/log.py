@@ -7,9 +7,12 @@ import shlex
 
 def define_flags():
     """Declares the flags that the log command accepts."""
-    return [
-        {'name': 'new', 'short': 'n', 'long': 'new', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'new', 'short': 'n', 'long': 'new', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     """
