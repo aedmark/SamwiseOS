@@ -1,14 +1,21 @@
 # gem/core/commands/passwd.py
+from audit import audit_manager
 
 def run(args, flags, user_context, **kwargs):
     if len(args) > 1:
         return {"success": False, "error": "Usage: passwd [username]"}
 
     target_username = args[0] if args else user_context.get('name')
+    actor = user_context.get('name')
 
-    if user_context.get('name') != 'root' and target_username != user_context.get('name'):
-        return {"success": False, "error": "passwd: you may only change your own password."}
+    audit_manager.log(actor, 'PASSWD_ATTEMPT', f"Attempting to change password for '{target_username}'", user_context)
 
+    if actor != 'root' and target_username != actor:
+        error_msg = "passwd: you may only change your own password."
+        audit_manager.log(actor, 'PASSWD_FAILURE', f"Reason: {error_msg} (target: {target_username})", user_context)
+        return {"success": False, "error": error_msg}
+
+    # The actual success/failure is handled on the JS side, which will log the outcome.
     return {
         "effect": "passwd",
         "username": target_username

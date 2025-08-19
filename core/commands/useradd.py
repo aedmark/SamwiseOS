@@ -3,6 +3,7 @@
 from users import user_manager
 from filesystem import fs_manager
 from groups import group_manager
+from audit import audit_manager
 
 def define_flags():
     """Declares the flags that the useradd command accepts."""
@@ -15,64 +16,65 @@ def define_flags():
 
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "useradd: only root can add users."}
-
     if not args:
         return {"success": False, "error": "Usage: useradd <username>"}
 
     username = args[0]
+    actor = user_context.get('name')
+
+    audit_manager.log(actor, 'USERADD_ATTEMPT', f"Attempting to add user '{username}'", user_context)
 
     if user_manager.user_exists(username):
-        return {"success": False, "error": f"useradd: user '{username}' already exists"}
+        error_msg = f"useradd: user '{username}' already exists"
+        audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg}", user_context)
+        return {"success": False, "error": error_msg}
 
     if stdin_data:
         try:
             lines = stdin_data.strip().split('\n')
             if len(lines) < 2:
-                return {"success": False, "error": "useradd: insufficient password lines from stdin"}
+                error_msg = "useradd: insufficient password lines from stdin"
+                audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
+                return {"success": False, "error": error_msg}
 
-            password = lines[0]
-            confirm_password = lines[1]
+            password, confirm_password = lines[0], lines[1]
 
             if password != confirm_password:
-                return {"success": False, "error": "passwd: passwords do not match."}
+                error_msg = "passwd: passwords do not match."
+                audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
+                return {"success": False, "error": error_msg}
 
-            # Create the primary group for the user if it doesn't exist
             if not group_manager.group_exists(username):
                 if not group_manager.create_group(username):
-                    return {"success": False, "error": f"useradd: failed to create group '{username}'"}
+                    error_msg = f"useradd: failed to create group '{username}'"
+                    audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg}", user_context)
+                    return {"success": False, "error": error_msg}
 
-            # Add the user to their own primary group
             group_manager.add_user_to_group(username, username)
-
             registration_result = user_manager.register_user(username, password, username)
+
             if registration_result["success"]:
                 home_path = f"/home/{username}"
-                # Create directory as root
                 fs_manager.create_directory(home_path, {"name": "root", "group": "root"})
-                # Change ownership to the new user
                 fs_manager.chown(home_path, username)
                 fs_manager.chgrp(home_path, username)
-
-                # We need to sync both user AND group state now
+                audit_manager.log(actor, 'USERADD_SUCCESS', f"Successfully added user '{username}'", user_context)
                 return {
                     "success": True,
                     "output": f"User '{username}' registered. Home directory created at /home/{username}.",
-                    "effect": "sync_user_and_group_state", # A conceptual effect name
+                    "effect": "sync_user_and_group_state",
                     "users": user_manager.get_all_users(),
                     "groups": group_manager.get_all_groups()
                 }
             else:
+                audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {registration_result.get('error')}", user_context)
                 return registration_result
         except IndexError:
-            return {"success": False, "error": "useradd: malformed password lines from stdin"}
+            error_msg = "useradd: malformed password lines from stdin"
+            audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
+            return {"success": False, "error": error_msg}
     else:
-        # If no piped password, trigger the interactive flow
-        return {
-            "effect": "useradd",
-            "username": username
-        }
+        return {"effect": "useradd", "username": username}
 
 
 def man(args, flags, user_context, **kwargs):

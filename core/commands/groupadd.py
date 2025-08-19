@@ -1,23 +1,28 @@
 # gem/core/commands/groupadd.py
 
 from groups import group_manager
+from audit import audit_manager
 
 def run(args, flags, user_context, **kwargs):
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "groupadd: only root can add groups."}
-
     if not args:
         return {"success": False, "error": "groupadd: missing group name"}
 
     group_name = " ".join(args)
+    actor = user_context.get('name')
+    audit_manager.log(actor, 'GROUPADD_ATTEMPT', f"Attempting to add group '{group_name}'", user_context)
 
     if ' ' in group_name:
-        return {"success": False, "error": "groupadd: group names cannot contain spaces."}
+        error_msg = "groupadd: group names cannot contain spaces."
+        audit_manager.log(actor, 'GROUPADD_FAILURE', f"Reason: {error_msg}", user_context)
+        return {"success": False, "error": error_msg}
 
     if group_manager.group_exists(group_name):
-        return {"success": False, "error": f"groupadd: group '{group_name}' already exists."}
+        error_msg = f"groupadd: group '{group_name}' already exists."
+        audit_manager.log(actor, 'GROUPADD_FAILURE', f"Reason: {error_msg}", user_context)
+        return {"success": False, "error": error_msg}
 
     if group_manager.create_group(group_name):
+        audit_manager.log(actor, 'GROUPADD_SUCCESS', f"Successfully added group '{group_name}'", user_context)
         return {
             "success": True,
             "output": "",
@@ -25,8 +30,9 @@ def run(args, flags, user_context, **kwargs):
             "groups": group_manager.get_all_groups()
         }
     else:
-        # This case should be rare, but we'll handle it.
-        return {"success": False, "error": f"groupadd: failed to create group '{group_name}'."}
+        error_msg = f"groupadd: failed to create group '{group_name}'."
+        audit_manager.log(actor, 'GROUPADD_FAILURE', f"Reason: {error_msg}", user_context)
+        return {"success": False, "error": error_msg}
 
 def man(args, flags, user_context, **kwargs):
     return """

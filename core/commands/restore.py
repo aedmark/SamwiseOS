@@ -1,4 +1,5 @@
 # gem/core/commands/restore.py
+from audit import audit_manager
 
 def define_flags():
     """Declares the flags that the restore command accepts."""
@@ -16,6 +17,9 @@ def run(args, flags, user_context, **kwargs):
     if args:
         return {"success": False, "error": "restore: command takes no arguments"}
 
+    actor = user_context.get('name')
+    audit_manager.log(actor, 'RESTORE_ATTEMPT', "User initiated a system restore.", user_context)
+    # The actual success/failure will be logged by the JS handler.
     return {
         "effect": "trigger_restore_flow"
     }
