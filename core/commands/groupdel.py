@@ -4,21 +4,45 @@ from groups import group_manager
 
 def run(args, flags, user_context, users=None, **kwargs):
     if user_context.get('name') != 'root':
-        return {"success": False, "error": "groupdel: only root can delete groups."}
+        return {
+            "success": False,
+            "error": {
+                "message": "groupdel: only root can delete groups.",
+                "suggestion": "Try running this command with 'sudo'."
+            }
+        }
 
     if not args:
-        return {"success": False, "error": "groupdel: missing group name"}
+        return {
+            "success": False,
+            "error": {
+                "message": "groupdel: missing group name",
+                "suggestion": "Try 'groupdel <group_to_delete>'."
+            }
+        }
 
     group_name = args[0]
 
     if not group_manager.group_exists(group_name):
-        return {"success": False, "error": f"groupdel: group '{group_name}' does not exist."}
+        return {
+            "success": False,
+            "error": {
+                "message": f"groupdel: group '{group_name}' does not exist.",
+                "suggestion": "You can list all available groups with the 'groups' command."
+            }
+        }
 
     # Check if it's a primary group for any user
     if users:
         for user, details in users.items():
             if details.get('primaryGroup') == group_name:
-                return {"success": False, "error": f"groupdel: cannot remove group '{group_name}': it is the primary group of user '{user}'"}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"groupdel: cannot remove group '{group_name}': it is the primary group of user '{user}'",
+                        "suggestion": f"Change the primary group for user '{user}' before deleting this group."
+                    }
+                }
 
     if group_manager.delete_group(group_name):
         return {
@@ -29,7 +53,13 @@ def run(args, flags, user_context, users=None, **kwargs):
         }
     else:
         # This case is unlikely if the existence check passed, but we handle it.
-        return {"success": False, "error": f"groupdel: failed to delete group '{group_name}'."}
+        return {
+            "success": False,
+            "error": {
+                "message": f"groupdel: failed to delete group '{group_name}'.",
+                "suggestion": "This may be an internal system error. Please try again."
+            }
+        }
 
 def man(args, flags, user_context, **kwargs):
     return """

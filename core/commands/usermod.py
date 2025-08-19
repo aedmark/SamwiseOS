@@ -28,16 +28,34 @@ def run(args, flags, user_context, **kwargs):
     primary_group_to_set = flags.get('primary-group')
 
     if not args or not (group_to_add or primary_group_to_set):
-        return {"success": False, "error": "Usage: usermod [-aG groupname] [-g primarygroup] <username>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "usermod: invalid command usage.",
+                "suggestion": "Try 'usermod -aG <groupname> <username>' or 'usermod -g <primarygroup> <username>'."
+            }
+        }
 
     username = args[0]
 
     if not user_manager.user_exists(username):
-        return {"success": False, "error": f"usermod: user '{username}' does not exist."}
+        return {
+            "success": False,
+            "error": {
+                "message": f"usermod: user '{username}' does not exist.",
+                "suggestion": "You can list all users with the 'listusers' command."
+            }
+        }
 
     if group_to_add:
         if not group_manager.group_exists(group_to_add):
-            return {"success": False, "error": f"usermod: group '{group_to_add}' does not exist."}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"usermod: group '{group_to_add}' does not exist.",
+                    "suggestion": "You can create it first with 'sudo groupadd <groupname>'."
+                }
+            }
         if group_manager.add_user_to_group(username, group_to_add):
             return {
                 "success": True,
@@ -50,12 +68,24 @@ def run(args, flags, user_context, **kwargs):
 
     if primary_group_to_set:
         if not group_manager.group_exists(primary_group_to_set):
-            return {"success": False, "error": f"usermod: group '{primary_group_to_set}' does not exist."}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"usermod: group '{primary_group_to_set}' does not exist.",
+                    "suggestion": "You can create it first with 'sudo groupadd <groupname>'."
+                }
+            }
 
         user_manager.get_user(username)['primaryGroup'] = primary_group_to_set
         return {"success": True, "output": f"Set primary group for '{username}' to '{primary_group_to_set}'."}
 
-    return {"success": False, "error": "usermod: no action specified."}
+    return {
+        "success": False,
+        "error": {
+            "message": "usermod: no action specified.",
+            "suggestion": "You must provide an option like '-aG' or '-g'."
+        }
+    }
 
 def man(args, flags, user_context, **kwargs):
     return """

@@ -17,7 +17,13 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not args:
-        return {"success": False, "error": "Usage: useradd <username>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "useradd: missing username operand.",
+                "suggestion": "Try 'useradd <new_username>'."
+            }
+        }
 
     username = args[0]
     actor = user_context.get('name')
@@ -27,7 +33,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     if user_manager.user_exists(username):
         error_msg = f"useradd: user '{username}' already exists"
         audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg}", user_context)
-        return {"success": False, "error": error_msg}
+        return {
+            "success": False,
+            "error": {
+                "message": error_msg,
+                "suggestion": "Please choose a different username."
+            }
+        }
 
     if stdin_data:
         try:
@@ -35,20 +47,32 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             if len(lines) < 2:
                 error_msg = "useradd: insufficient password lines from stdin"
                 audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
-                return {"success": False, "error": error_msg}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": error_msg,
+                        "suggestion": "When scripting, provide the password and confirmation on two separate lines after the useradd command."
+                    }
+                }
 
             password, confirm_password = lines[0], lines[1]
 
             if password != confirm_password:
                 error_msg = "passwd: passwords do not match."
                 audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
-                return {"success": False, "error": error_msg}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": error_msg,
+                        "suggestion": "Ensure the password and confirmation password match exactly."
+                    }
+                }
 
             if not group_manager.group_exists(username):
                 if not group_manager.create_group(username):
                     error_msg = f"useradd: failed to create group '{username}'"
                     audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg}", user_context)
-                    return {"success": False, "error": error_msg}
+                    return {"success": False, "error": {"message": error_msg}}
 
             group_manager.add_user_to_group(username, username)
             registration_result = user_manager.register_user(username, password, username)
@@ -68,11 +92,18 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 }
             else:
                 audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {registration_result.get('error')}", user_context)
-                return registration_result
+                # Pass the structured error from the user_manager through
+                return {"success": False, "error": registration_result.get('error')}
         except IndexError:
             error_msg = "useradd: malformed password lines from stdin"
             audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
-            return {"success": False, "error": error_msg}
+            return {
+                "success": False,
+                "error": {
+                    "message": error_msg,
+                    "suggestion": "Check the script for empty lines after the command."
+                }
+            }
     else:
         return {"effect": "useradd", "username": username}
 
