@@ -4,7 +4,10 @@ import os
 
 def define_flags():
     """Declares the flags that the rename command accepts."""
-    return []
+    return {
+        'flags': [],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     """

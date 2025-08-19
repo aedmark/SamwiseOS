@@ -5,7 +5,10 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the sed command accepts."""
-    return []
+    return {
+        'flags': [],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not args:

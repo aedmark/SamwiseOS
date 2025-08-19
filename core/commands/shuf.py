@@ -6,11 +6,14 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the shuf command accepts."""
-    return [
-        {'name': 'echo', 'short': 'e', 'long': 'echo', 'takes_value': False},
-        {'name': 'input-range', 'short': 'i', 'long': 'input-range', 'takes_value': True},
-        {'name': 'head-count', 'short': 'n', 'long': 'head-count', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'echo', 'short': 'e', 'long': 'echo', 'takes_value': False},
+            {'name': 'input-range', 'short': 'i', 'long': 'input-range', 'takes_value': True},
+            {'name': 'head-count', 'short': 'n', 'long': 'head-count', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     lines = []

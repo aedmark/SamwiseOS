@@ -4,11 +4,14 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the sort command accepts."""
-    return [
-        {'name': 'numeric-sort', 'short': 'n', 'long': 'numeric-sort', 'takes_value': False},
-        {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
-        {'name': 'unique', 'short': 'u', 'long': 'unique', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'numeric-sort', 'short': 'n', 'long': 'numeric-sort', 'takes_value': False},
+            {'name': 'reverse', 'short': 'r', 'long': 'reverse', 'takes_value': False},
+            {'name': 'unique', 'short': 'u', 'long': 'unique', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     """
