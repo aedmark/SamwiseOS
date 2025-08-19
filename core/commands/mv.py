@@ -5,8 +5,10 @@ import os
 
 def define_flags():
     """Declares the flags that the mv command accepts."""
-    # Reserved for future flags like -i (interactive) or -f (force)
-    return []
+    return {
+        'flags': [],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     """

@@ -2,10 +2,13 @@
 
 def define_flags():
     """Declares the flags that the nc command accepts."""
-    return [
-        {'name': 'listen', 'long': 'listen', 'takes_value': False},
-        {'name': 'exec', 'long': 'exec', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'listen', 'long': 'listen', 'takes_value': False},
+            {'name': 'exec', 'long': 'exec', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, config=None, **kwargs):
     """

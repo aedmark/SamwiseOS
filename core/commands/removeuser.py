@@ -4,10 +4,13 @@ from users import user_manager
 
 def define_flags():
     """Declares the flags that the removeuser command accepts."""
-    return [
-        {'name': 'remove-home', 'short': 'r', 'long': 'remove-home', 'takes_value': False},
-        {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'remove-home', 'short': 'r', 'long': 'remove-home', 'takes_value': False},
+            {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
