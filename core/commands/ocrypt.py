@@ -46,7 +46,8 @@ def run(args, flags, user_context, **kwargs):
             "error": { "message": f"ocrypt: input file not found or is a directory: {input_path}" }
         }
 
-    input_content_bytes = input_node.get('content', '').encode('utf-8')
+    # [FIXED] Use 'latin-1' to correctly read the raw bytes back
+    input_content_bytes = input_node.get('content', '').encode('latin-1')
 
     try:
         if is_decrypt:
@@ -66,7 +67,9 @@ def run(args, flags, user_context, **kwargs):
             salt = os.urandom(16)
             key = _derive_key(password, salt)
             f = Fernet(key)
-            encrypted_content = f.encrypt(input_content_bytes)
+            # The content to be encrypted must be bytes
+            content_to_encrypt_bytes = input_node.get('content', '').encode('utf-8')
+            encrypted_content = f.encrypt(content_to_encrypt_bytes)
 
             # Prepend the salt to the encrypted data for storage.
             content_to_write = salt + encrypted_content

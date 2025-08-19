@@ -430,10 +430,11 @@ echo "A truly secure message." > ocrypt_test.txt
 echo "Encrypting with correct key..."
 ocrypt diag_secure_pass ocrypt_test.txt ocrypt_encrypted.txt
 echo "Verifying successful decryption with correct key..."
-ocrypt -d diag_secure_pass ocrypt_encrypted.txt | grep "A truly secure message."
+ocrypt -d diag_secure_pass ocrypt_encrypted.txt ocrypt_decrypted.txt
+grep "A truly secure message." ocrypt_decrypted.txt
 echo "Verifying decryption failure with WRONG key (this should succeed)..."
 check_fail "ocrypt -d wrong_password ocrypt_encrypted.txt"
-rm ocrypt_test.txt ocrypt_encrypted.txt
+rm ocrypt_test.txt ocrypt_encrypted.txt ocrypt_decrypted.txt
 echo "ocrypt secure tests complete."
 delay 200
 echo "--- Test: cksum and sync ---"
