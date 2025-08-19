@@ -6,14 +6,17 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the grep command accepts."""
-    return [
-        {'name': 'ignore-case', 'short': 'i', 'long': 'ignore-case', 'takes_value': False},
-        {'name': 'invert-match', 'short': 'v', 'long': 'invert-match', 'takes_value': False},
-        {'name': 'line-number', 'short': 'n', 'long': 'line-number', 'takes_value': False},
-        {'name': 'count', 'short': 'c', 'long': 'count', 'takes_value': False},
-        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
-        {'name': 'recursive', 'short': 'R', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'ignore-case', 'short': 'i', 'long': 'ignore-case', 'takes_value': False},
+            {'name': 'invert-match', 'short': 'v', 'long': 'invert-match', 'takes_value': False},
+            {'name': 'line-number', 'short': 'n', 'long': 'line-number', 'takes_value': False},
+            {'name': 'count', 'short': 'c', 'long': 'count', 'takes_value': False},
+            {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+            {'name': 'recursive', 'short': 'R', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def _process_content(content, pattern, flags, file_path_for_display, display_file_name):
     """Processes a string of content, finds matching lines, and returns formatted output."""

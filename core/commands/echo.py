@@ -4,9 +4,12 @@ import codecs
 
 def define_flags():
     """Declares the flags that the echo command accepts."""
-    return [
-        {'name': 'enable-backslash-escapes', 'short': 'e', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'enable-backslash-escapes', 'short': 'e', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None):
     """

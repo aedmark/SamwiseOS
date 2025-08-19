@@ -4,9 +4,12 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the df command accepts."""
-    return [
-        {'name': 'human-readable', 'short': 'h', 'long': 'human-readable', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'human-readable', 'short': 'h', 'long': 'human-readable', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def _format_bytes(byte_count):
     if byte_count is None:

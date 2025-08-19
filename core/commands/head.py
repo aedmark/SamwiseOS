@@ -4,10 +4,13 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the head command accepts."""
-    return [
-        {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
-        {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'lines', 'short': 'n', 'long': 'lines', 'takes_value': True},
+            {'name': 'bytes', 'short': 'c', 'long': 'bytes', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None):
     lines = []

@@ -5,9 +5,12 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the diff command accepts."""
-    return [
-        {'name': 'unified', 'short': 'u', 'long': 'unified', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'unified', 'short': 'u', 'long': 'unified', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if len(args) != 2:

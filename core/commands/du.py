@@ -5,10 +5,13 @@ import os
 
 def define_flags():
     """Declares the flags that the du command accepts."""
-    return [
-        {'name': 'summarize', 'short': 's', 'long': 'summarize', 'takes_value': False},
-        {'name': 'human-readable', 'short': 'h', 'long': 'human-readable', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'summarize', 'short': 's', 'long': 'summarize', 'takes_value': False},
+            {'name': 'human-readable', 'short': 'h', 'long': 'human-readable', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def _format_bytes(byte_count):
     if byte_count is None: return "0B"

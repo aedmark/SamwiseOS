@@ -5,12 +5,15 @@ import json
 
 def define_flags():
     """Declares the flags that the gemini command accepts."""
-    return [
-        {'name': 'chat', 'short': 'c', 'long': 'chat', 'takes_value': False},
-        {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
-        {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
-        {'name': 'chat-internal', 'long': 'chat-internal', 'takes_value': True, 'hidden': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'chat', 'short': 'c', 'long': 'chat', 'takes_value': False},
+            {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
+            {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
+            {'name': 'chat-internal', 'long': 'chat-internal', 'takes_value': True, 'hidden': True},
+        ],
+        'metadata': {}
+    }
 
 async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manager=None, **kwargs):
     """

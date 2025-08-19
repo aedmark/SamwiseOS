@@ -5,10 +5,13 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the forge command accepts."""
-    return [
-        {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
-        {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'provider', 'short': 'p', 'long': 'provider', 'takes_value': True},
+            {'name': 'model', 'short': 'm', 'long': 'model', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 async def run(args, flags, user_context, api_key=None, ai_manager=None, **kwargs):
     if not ai_manager:

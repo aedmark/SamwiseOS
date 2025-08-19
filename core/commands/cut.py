@@ -4,11 +4,14 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the cut command accepts."""
-    return [
-        {'name': 'characters', 'short': 'c', 'takes_value': True},
-        {'name': 'fields', 'short': 'f', 'takes_value': True},
-        {'name': 'delimiter', 'short': 'd', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'characters', 'short': 'c', 'takes_value': True},
+            {'name': 'fields', 'short': 'f', 'takes_value': True},
+            {'name': 'delimiter', 'short': 'd', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
 
 def _parse_range(list_str):
     """Parses a comma-separated list of numbers and ranges into a sorted list of zero-based indices."""
