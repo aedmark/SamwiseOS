@@ -1,9 +1,15 @@
 # gem/core/commands/visudo.py
 
-def run(args, flags, user_context):
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "visudo: you must be root to run this command."}
+def define_flags():
+    """Declares the flags that the visudo command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
 
+def run(args, flags, user_context):
     if args:
         return {"success": False, "error": "visudo: command takes no arguments."}
 

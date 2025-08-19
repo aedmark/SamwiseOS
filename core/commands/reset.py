@@ -1,18 +1,22 @@
 # gem/core/commands/reset.py
 
+def define_flags():
+    """Declares the flags that the reset command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def run(args, flags, user_context, **kwargs):
     """
     Signals the JavaScript front end to perform a full factory reset,
     after a confirmation prompt.
     """
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "reset: you must be root to run this command."}
-
     if args:
         return {"success": False, "error": "reset: command takes no arguments"}
 
-    # Instead of a direct effect, we now return a 'confirm' effect.
-    # If the user confirms in the UI, the 'on_confirm' effect will be executed.
     return {
         "effect": "confirm",
         "message": [

@@ -1,12 +1,18 @@
 # gem/core/commands/restore.py
 
+def define_flags():
+    """Declares the flags that the restore command accepts."""
+    return {
+        'flags': [],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 def run(args, flags, user_context, **kwargs):
     """
     Returns an effect to trigger the browser's file restore workflow.
     """
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "restore: you must be root to run this command."}
-
     if args:
         return {"success": False, "error": "restore: command takes no arguments"}
 

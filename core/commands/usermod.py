@@ -5,10 +5,16 @@ from groups import group_manager
 
 def define_flags():
     """Declares the flags that the usermod command accepts."""
-    return [
-        {'name': 'append-groups', 'short': 'aG', 'takes_value': True},
-        {'name': 'primary-group', 'short': 'g', 'long': 'gid', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'append-groups', 'short': 'aG', 'takes_value': True},
+            {'name': 'primary-group', 'short': 'g', 'long': 'gid', 'takes_value': True},
+        ],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 
 def run(args, flags, user_context, **kwargs):
     # Determine the current user from the session stack if available; fallback to user_context
@@ -17,9 +23,6 @@ def run(args, flags, user_context, **kwargs):
         current_user = session_stack[-1]
     else:
         current_user = user_context.get('name')
-
-    if current_user != 'root':
-        return {"success": False, "error": "usermod: only root can modify users."}
 
     group_to_add = flags.get('append-groups')
     primary_group_to_set = flags.get('primary-group')

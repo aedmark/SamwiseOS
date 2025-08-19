@@ -4,17 +4,20 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the chgrp command accepts."""
-    return [
-        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
-        {'name': 'recursive', 'short': 'R', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+            {'name': 'recursive', 'short': 'R', 'takes_value': False},
+        ],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 
 def run(args, flags, user_context, stdin_data=None, users=None, user_groups=None, config=None, groups=None):
     if len(args) < 2:
         return {"success": False, "error": "chgrp: missing operand. Usage: chgrp [-R] <group> <path>..."}
-
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "chgrp: you must be root to change group ownership."}
 
     new_group = args[0]
     paths = args[1:]
@@ -43,7 +46,7 @@ SYNOPSIS
 
 DESCRIPTION
     Changes the group ownership of each given FILE to GROUP.
-    
+
     -R, -r, --recursive
           operate on files and directories recursively
 """

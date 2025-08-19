@@ -6,19 +6,22 @@ from users import user_manager
 
 def define_flags():
     """Declares the flags that the committee command accepts."""
-    return [
-        {'name': 'create', 'short': 'c', 'long': 'create', 'takes_value': True},
-        {'name': 'members', 'short': 'm', 'long': 'members', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'create', 'short': 'c', 'long': 'create', 'takes_value': True},
+            {'name': 'members', 'short': 'm', 'long': 'members', 'takes_value': True},
+        ],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 
 def run(args, flags, user_context, **kwargs):
     """
     Automates the creation of a collaborative project space, including a user group,
     a shared directory, and setting appropriate permissions.
     """
-    if user_context.get('name') != 'root':
-        return {"success": False, "error": "committee: only root can create a committee."}
-
     committee_name = flags.get("create")
     members_str = flags.get("members")
 

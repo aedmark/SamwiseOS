@@ -5,9 +5,15 @@ from datetime import datetime
 
 def define_flags():
     """Declares the flags that the clearfs command accepts."""
-    return [
-        {'name': 'confirmed', 'long': 'confirmed', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'confirmed', 'long': 'confirmed', 'takes_value': False},
+        ],
+        'metadata': {
+            'root_required': True
+        }
+    }
+
 
 def run(args, flags, user_context, **kwargs):
     """
