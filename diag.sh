@@ -1320,7 +1320,7 @@ delay 200
 echo "Test users created."
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 2: User-Level Planner Test (As plan_user1) ---"
+echo "--- Phase 2: User-Level Planner Test (As plan_user1) ---"
 su plan_user1
 delay 200
 echo "Switched to plan_user1. Creating a personal planner..."
@@ -1339,7 +1339,7 @@ delay 200
 echo "Logged out from plan_user1."
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 3: Committee Integration Test (As root) ---"
+echo "--- Phase 3: Committee Integration Test (As root) ---"
 echo "Creating a new committee with our test users..."
 committee --create harvest_fest --members plan_user1,plan_user2
 delay 300
@@ -1351,7 +1351,7 @@ cat /home/project_harvest_fest/harvest_fest.planner
 delay 500
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 4: Shared Planner & Permissions Test ---"
+echo "--- Phase 4: Shared Planner & Permissions Test ---"
 echo "Switching to plan_user2 to test shared planner access..."
 su plan_user2
 delay 200
@@ -1375,14 +1375,14 @@ delay 200
 echo "Logged out from both users."
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 5: Gamification and Scoring Test (As root) ---"
+echo "--- Phase 5: Gamification and Scoring Test (As root) ---"
 echo "Checking the productivity scores..."
 score
 delay 500
 echo "Verified scores. plan_user1 should have 2 points."
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 6: Linking & Scheduling Test (As root)---"
+echo "--- Phase 6: Linking & Scheduling Test (As root)---"
 echo "Creating a system-wide project for linking/scheduling tests..."
 planner create operation_sparrow
 delay 200
@@ -1401,7 +1401,7 @@ cat /etc/agenda.json
 delay 500
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 7: Final Permission Checks (Negative Testing) ---"
+echo "--- Phase 7: Final Permission Checks (Negative Testing) ---"
 echo "Switching to plan_user2..."
 su plan_user2
 delay 200
@@ -1413,7 +1413,7 @@ delay 200
 echo "Logged out from plan_user2."
 
 # ----------------------------------------------------------------------
-echo "\n--- Phase 8: Comprehensive Cleanup ---"
+echo "--- Phase 8: Comprehensive Cleanup ---"
 echo "Removing test users..."
 removeuser -f plan_user1
 removeuser -f plan_user2

@@ -1,129 +1,104 @@
-# gem/core/commands/patch.py
+# gem/core/commands/ocrypt.py
 
-import re
+import base64
+import os
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from filesystem import fs_manager
 
-def _parse_patch(patch_content):
-    """Parses a unified diff string into a list of hunk objects."""
-    hunks = []
-    current_hunk = None
-    hunk_header_re = re.compile(r'^@@\s+-(\d+)(,(\d+))?\s+\+(\d+)(,(\d+))?\s+@@')
+def define_flags():
+    """Declares the flags that the ocrypt command accepts."""
+    return {
+        'flags': [
+            {'name': 'decode', 'short': 'd', 'long': 'decode', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
-    for line in patch_content.splitlines():
-        if line.startswith('---') or line.startswith('+++'):
-            continue
-
-        match = hunk_header_re.match(line)
-        if match:
-            if current_hunk:
-                hunks.append(current_hunk)
-
-            current_hunk = {
-                'old_start': int(match.group(1)),
-                'old_lines': int(match.group(3)) if match.group(3) else 1,
-                'new_start': int(match.group(4)),
-                'new_lines': int(match.group(6)) if match.group(6) else 1,
-                'lines': []
-            }
-        elif current_hunk and (line.startswith('+') or line.startswith('-') or line.startswith(' ')):
-            current_hunk['lines'].append(line)
-
-    if current_hunk:
-        hunks.append(current_hunk)
-    return hunks
-
-def _apply_patch(original_content, hunks):
-    """Applies parsed hunks to the original content."""
-    original_lines = original_content.splitlines()
-    new_lines = list(original_lines)
-    offset = 0
-
-    for hunk in hunks:
-        start_index = hunk['old_start'] - 1 + offset
-        hunk_original_lines = [line[1:] for line in hunk['lines'] if not line.startswith('+')]
-        lines_to_add = [line[1:] for line in hunk['lines'] if not line.startswith('-')]
-
-        new_lines[start_index : start_index + len(hunk_original_lines)] = lines_to_add
-        offset += len(lines_to_add) - len(hunk_original_lines)
-
-    return '\n'.join(new_lines)
-
+def _derive_key(password: str, salt: bytes) -> bytes:
+    """Derives a cryptographic key from a password and salt."""
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+    return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
 def run(args, flags, user_context, **kwargs):
-    if len(args) != 2:
+    if len(args) != 3:
         return {
             "success": False,
             "error": {
-                "message": "patch: missing operand",
-                "suggestion": "Try 'patch <target_file> <patch_file>'."
+                "message": "ocrypt: incorrect number of arguments.",
+                "suggestion": "Try 'ocrypt <password> <input_file> <output_file>' or 'ocrypt -d ...'."
             }
         }
 
-    target_file_path, patch_file_path = args[0], args[1]
+    is_decrypt = flags.get('decode', False)
+    password, input_path, output_path = args[0], args[1], args[2]
 
-    target_node = fs_manager.get_node(target_file_path)
-    if not target_node:
+    input_node = fs_manager.get_node(input_path)
+    if not input_node or input_node.get('type') != 'file':
         return {
             "success": False,
-            "error": {
-                "message": f"patch: {target_file_path}: No such file or directory",
-                "suggestion": "Please verify the target file path is correct."
-            }
+            "error": { "message": f"ocrypt: input file not found or is a directory: {input_path}" }
         }
 
-    patch_node = fs_manager.get_node(patch_file_path)
-    if not patch_node:
-        return {
-            "success": False,
-            "error": {
-                "message": f"patch: {patch_file_path}: No such file or directory",
-                "suggestion": "Please verify the patch file path is correct."
-            }
-        }
-
-    target_content = target_node.get('content', '')
-    patch_content = patch_node.get('content', '')
+    input_content_bytes = input_node.get('content', '').encode('utf-8')
 
     try:
-        hunks = _parse_patch(patch_content)
-        if not hunks and patch_content.strip():
-            return {
-                "success": False,
-                "error": {
-                    "message": "patch: unrecognized patch format",
-                    "suggestion": "Ensure the patch file is in a standard unified diff format."
-                }
-            }
+        if is_decrypt:
+            # For decryption, the first 16 bytes are the salt.
+            salt = input_content_bytes[:16]
+            encrypted_data = input_content_bytes[16:]
+            if not salt or not encrypted_data:
+                raise ValueError("Invalid encrypted file format.")
 
-        if not hunks:
-            return f"File '{target_file_path}' is already up to date."
+            key = _derive_key(password, salt)
+            f = Fernet(key)
+            decrypted_content = f.decrypt(encrypted_data)
+            fs_manager.write_file(output_path, decrypted_content.decode('utf-8'), user_context)
+            return "" # Success
+        else:
+            # For encryption, generate a new salt.
+            salt = os.urandom(16)
+            key = _derive_key(password, salt)
+            f = Fernet(key)
+            encrypted_content = f.encrypt(input_content_bytes)
 
-        new_content = _apply_patch(target_content, hunks)
+            # Prepend the salt to the encrypted data for storage.
+            content_to_write = salt + encrypted_content
+            fs_manager.write_file(output_path, content_to_write.decode('latin-1'), user_context)
+            return "" # Success
 
-        fs_manager.write_file(target_file_path, new_content, user_context)
-        return f"patching file {target_file_path}"
+    except InvalidToken:
+        return {
+            "success": False,
+            "error": { "message": "ocrypt: decryption failed. Incorrect password or corrupted file." }
+        }
     except Exception as e:
         return {
             "success": False,
-            "error": {
-                "message": "patch: an unexpected error occurred while applying the patch.",
-                "suggestion": f"Details: {repr(e)}"
-            }
+            "error": { "message": f"ocrypt: an unexpected error occurred: {repr(e)}" }
         }
 
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-patch - apply a diff file to an original
+    ocrypt - securely encrypt and decrypt files.
 
 SYNOPSIS
-patch [ORIGINALFILE] [PATCHFILE]
+    ocrypt [-d] password infile outfile
 
 DESCRIPTION
-patch takes a patch file containing a difference listing produced
-by the diff program and applies those differences to an original
-file, producing a patched version.
+    Encrypts or decrypts a file using a password. It uses a robust,
+    salt-based key derivation function to protect against simple attacks.
+
+    -d, --decode
+          Decrypt the infile.
 """
 
 def help(args, flags, user_context, **kwargs):
-    return "Usage: patch <target_file> <patch_file>"
+    return "Usage: ocrypt [-d] <password> <input_file> <output_file>"
