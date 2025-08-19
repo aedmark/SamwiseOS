@@ -11,6 +11,8 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None):
     lines = []
+    has_errors = False
+    error_output = []
     # Logic to handle both piped data and file arguments
     if stdin_data:
         lines.extend(stdin_data.splitlines())
@@ -18,12 +20,26 @@ def run(args, flags, user_context, stdin_data=None):
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return {"success": False, "error": f"head: {path}: No such file or directory"}
+                error_output.append(f"head: {path}: No such file or directory")
+                has_errors = True
+                continue
             if node.get('type') != 'file':
-                return {"success": False, "error": f"head: error reading '{path}': Is a directory"}
+                error_output.append(f"head: error reading '{path}': Is a directory")
+                has_errors = True
+                continue
             lines.extend(node.get('content', '').splitlines())
     else:
         return "" # No input, no output
+
+    if has_errors and not lines:
+        return {
+            "success": False,
+            "error": {
+                "message": "\n".join(error_output),
+                "suggestion": "Check the file paths and try again."
+            }
+        }
+
 
     line_count_str = flags.get('lines')
     byte_count_str = flags.get('bytes')
@@ -35,7 +51,13 @@ def run(args, flags, user_context, stdin_data=None):
             full_content = "\n".join(lines)
             return full_content[:byte_count]
         except (ValueError, TypeError):
-            return {"success": False, "error": f"head: invalid number of bytes: '{byte_count_str}'"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"head: invalid number of bytes: '{byte_count_str}'",
+                    "suggestion": "Please provide a non-negative integer for the byte count."
+                }
+            }
     else:
         line_count = 10
         if line_count_str is not None:
@@ -43,7 +65,13 @@ def run(args, flags, user_context, stdin_data=None):
                 line_count = int(line_count_str)
                 if line_count < 0: raise ValueError
             except (ValueError, TypeError):
-                return {"success": False, "error": f"head: invalid number of lines: '{line_count_str}'"}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"head: invalid number of lines: '{line_count_str}'",
+                        "suggestion": "Please provide a non-negative integer for the line count."
+                    }
+                }
         return "\n".join(lines[:line_count])
 
 

@@ -17,7 +17,13 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
     Engages in a context-aware conversation with a configured AI model.
     """
     if not ai_manager:
-        return {"success": False, "error": "AI Manager is not available."}
+        return {
+            "success": False,
+            "error": {
+                "message": "gemini: AI Manager is not available.",
+                "suggestion": "This is an internal system error. Please try again later."
+            }
+        }
 
     provider = flags.get('provider', 'ollama')
     model = flags.get('model')
@@ -48,21 +54,32 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
             return {"success": False, "error": result["error"]}
 
     if not args:
-        return {"success": False, "error": 'Insufficient arguments. Usage: gemini "<prompt>"'}
+        return {
+            "success": False,
+            "error": {
+                "message": "gemini: insufficient arguments.",
+                "suggestion": "Try 'gemini \"<prompt>\"'."
+            }
+        }
 
     user_prompt = " ".join(args)
 
     result = await ai_manager.perform_agentic_search(user_prompt, [], provider, model, {"apiKey": api_key})
 
     if result["success"]:
-        # The data from agentic search is already formatted Markdown
         return {
             "effect": "display_prose",
             "header": "Gemini Response",
             "content": result.get("data")
         }
     else:
-        return {"success": False, "error": result["error"]}
+        return {
+            "success": False,
+            "error": {
+                "message": "gemini: The AI agent failed to complete the request.",
+                "suggestion": f"Reason: {result.get('error', 'Unknown error')}"
+            }
+        }
 
 def man(args, flags, user_context, **kwargs):
     return """

@@ -18,9 +18,21 @@ def run(args, flags, user_context, stdin_data=None):
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return {"success": False, "error": f"uniq: {path}: No such file or directory"}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"uniq: {path}: No such file or directory",
+                        "suggestion": "Check that the file path is correct."
+                    }
+                }
             if node.get('type') != 'file':
-                return {"success": False, "error": f"uniq: {path}: Is a directory"}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"uniq: {path}: Is a directory",
+                        "suggestion": "Uniq can only process files, not directories."
+                    }
+                }
             lines.extend(node.get('content', '').splitlines())
     else:
         return ""
@@ -33,7 +45,13 @@ def run(args, flags, user_context, stdin_data=None):
     is_unique = flags.get('unique', False)
 
     if is_repeated and is_unique:
-        return {"success": False, "error": "uniq: printing only unique and repeated lines is mutually exclusive"}
+        return {
+            "success": False,
+            "error": {
+                "message": "uniq: printing only unique and repeated lines is mutually exclusive",
+                "suggestion": "Please use either -d (for repeated) or -u (for unique), but not both."
+            }
+        }
 
     output_lines = []
     if len(lines) > 0:
@@ -77,5 +95,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the uniq command."""
     return "Usage: uniq [-cdu] [FILE]..."

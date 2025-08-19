@@ -71,7 +71,13 @@ def _search_directory(directory_path, pattern, flags, user_context, output_lines
 
 def run(args, flags, user_context, stdin_data=None):
     if not args and stdin_data is None:
-        return {"success": False, "error": "grep: (pattern) regular expression is required"}
+        return {
+            "success": False,
+            "error": {
+                "message": "grep: missing pattern",
+                "suggestion": "Try 'grep \"pattern\" <file>' or pipe some data into it."
+            }
+        }
 
     pattern_str = args[0]
     file_paths = args[1:]
@@ -80,14 +86,28 @@ def run(args, flags, user_context, stdin_data=None):
         re_flags = re.IGNORECASE if flags.get('ignore-case', False) else 0
         pattern = re.compile(pattern_str, re_flags)
     except re.error as e:
-        return {"success": False, "error": f"grep: invalid regular expression: {e}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"grep: invalid regular expression: {e}",
+                "suggestion": "Check your pattern for syntax errors."
+            }
+        }
 
     output_lines = []
+    has_errors = False
 
     if stdin_data is not None:
         output_lines.extend(_process_content(stdin_data, pattern, flags, "(stdin)", False))
     elif not file_paths:
-        return {"success": False, "error": "grep: requires file paths to search when not used with a pipe."}
+        # This case is now handled by the initial check, but we keep it for safety.
+        return {
+            "success": False,
+            "error": {
+                "message": "grep: requires file paths when not used with a pipe",
+                "suggestion": "Provide one or more file names to search."
+            }
+        }
     else:
         is_recursive = flags.get('recursive', False)
         display_file_names = len(file_paths) > 1 or is_recursive
@@ -96,6 +116,7 @@ def run(args, flags, user_context, stdin_data=None):
             node = fs_manager.get_node(path)
             if not node:
                 output_lines.append(f"grep: {path}: No such file or directory")
+                has_errors = True
                 continue
 
             if node.get('type') == 'directory':
@@ -103,9 +124,20 @@ def run(args, flags, user_context, stdin_data=None):
                     _search_directory(path, pattern, flags, user_context, output_lines)
                 else:
                     output_lines.append(f"grep: {path}: is a directory")
+                    has_errors = True
             else:
                 content = node.get('content', '')
                 output_lines.extend(_process_content(content, pattern, flags, path, display_file_names))
+
+    if has_errors and not output_lines:
+        return {
+            "success": False,
+            "error": {
+                "message": "\n".join(output_lines),
+                "suggestion": "Check the file paths and ensure they are correct."
+            }
+        }
+
 
     return "\n".join(output_lines)
 

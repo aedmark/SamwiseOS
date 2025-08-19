@@ -12,7 +12,13 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if not args:
-        return {"success": False, "error": "awk: missing program"}
+        return {
+            "success": False,
+            "error": {
+                "message": "awk: missing program",
+                "suggestion": "Try 'awk '{print $1}' <file>'."
+            }
+        }
 
     program_arg = args[0]
     file_path = args[1] if len(args) > 1 else None
@@ -32,8 +38,22 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         lines = str(stdin_data or "").splitlines()
     elif file_path:
         node = fs_manager.get_node(file_path)
-        if not node: return {"success": False, "error": f"awk: {file_path}: No such file or directory"}
-        if node['type'] != 'file': return {"success": False, "error": f"awk: {file_path}: Is a directory"}
+        if not node:
+            return {
+                "success": False,
+                "error": {
+                    "message": f"awk: {file_path}: No such file or directory",
+                    "suggestion": "Check the file path to make sure it's correct."
+                }
+            }
+        if node['type'] != 'file':
+            return {
+                "success": False,
+                "error": {
+                    "message": f"awk: {file_path}: Is a directory",
+                    "suggestion": "Awk operates on files, not directories."
+                }
+            }
         lines = node.get('content', '').splitlines()
 
     output_lines = []
@@ -98,7 +118,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                     pattern_part = regex_only_match.group(1)
                     action_part = 'print $0'
                 else:
-                    return {"success": False, "error": f"awk: syntax error in program: {main_program}"}
+                    return {
+                        "success": False,
+                        "error": {
+                            "message": f"awk: syntax error in program: {main_program}",
+                            "suggestion": "Ensure your program is in a valid format like '{print $1}' or '/pattern/ {print}'."
+                        }
+                    }
 
         for line_num, line in enumerate(lines, 1):
             if pattern_part:
@@ -106,7 +132,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                     if not re.search(pattern_part, line):
                         continue
                 except re.error as e:
-                    return {"success": False, "error": f"awk: invalid regex: {e}"}
+                    return {
+                        "success": False,
+                        "error": {
+                            "message": f"awk: invalid regex in pattern: {e}",
+                            "suggestion": "Check the regular expression for syntax errors."
+                        }
+                    }
 
             execute_action_block(action_part, line_num, line)
 

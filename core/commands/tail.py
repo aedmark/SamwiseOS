@@ -12,7 +12,13 @@ def define_flags():
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if flags.get('follow', False):
-        return {"success": False, "error": "tail: -f is handled by the JavaScript layer and should not reach the Python kernel."}
+        return {
+            "success": False,
+            "error": {
+                "message": "tail: -f is handled by the JavaScript layer and should not reach the Python kernel.",
+                "suggestion": "The '-f' flag is a special case. It works as intended, this is an internal message."
+            }
+        }
 
     content = ""
     # Logic to handle both piped data and file arguments
@@ -27,10 +33,28 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             # Check if an argument that looks like a flag was misinterpreted as a file
             for arg in args:
                 if arg.startswith('-'):
-                    return {"success": False, "error": f"tail: invalid option -- '{arg.lstrip('-')}'"}
-            return {"success": False, "error": f"tail: cannot open '{file_path}' for reading: No such file or directory"}
+                    return {
+                        "success": False,
+                        "error": {
+                            "message": f"tail: invalid option -- '{arg.lstrip('-')}'",
+                            "suggestion": "Ensure flags are placed before the filename."
+                        }
+                    }
+            return {
+                "success": False,
+                "error": {
+                    "message": f"tail: cannot open '{file_path}' for reading: No such file or directory",
+                    "suggestion": "Please check the file path is correct."
+                }
+            }
         if node.get('type') != 'file':
-            return {"success": False, "error": f"tail: error reading '{file_path}': Is a directory"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"tail: error reading '{file_path}': Is a directory",
+                    "suggestion": "The tail command can only process files."
+                }
+            }
         content = node.get('content', '')
     else:
         return "" # No input, no output
@@ -45,7 +69,13 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
             # Slicing from the end for bytes
             return content[-byte_count:]
         except (ValueError, TypeError):
-            return {"success": False, "error": f"tail: invalid number of bytes: '{byte_count_str}'"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"tail: invalid number of bytes: '{byte_count_str}'",
+                    "suggestion": "Please provide a non-negative integer for the byte count."
+                }
+            }
     else:
         line_count = 10
         if line_count_str is not None:
@@ -53,10 +83,16 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 line_count = int(line_count_str)
                 if line_count < 0: raise ValueError
             except (ValueError, TypeError):
-                return {"success": False, "error": f"tail: invalid number of lines: '{line_count_str}'"}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"tail: invalid number of lines: '{line_count_str}'",
+                        "suggestion": "Please provide a non-negative integer for the line count."
+                    }
+                }
 
         lines = content.splitlines()
-        return "\\n".join(lines[-line_count:])
+        return "\n".join(lines[-line_count:])
 
 
 def man(args, flags, user_context, **kwargs):

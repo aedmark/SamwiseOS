@@ -15,6 +15,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     Sorts lines of text from files or standard input.
     """
     lines = []
+    has_errors = False
+    error_output = []
+
 
     if stdin_data:
         lines.extend(stdin_data.splitlines())
@@ -22,12 +25,26 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return f"sort: {path}: No such file or directory"
+                error_output.append(f"sort: {path}: No such file or directory")
+                has_errors = True
+                continue
             if node.get('type') != 'file':
-                return f"sort: {path}: Is a directory"
+                error_output.append(f"sort: {path}: Is a directory")
+                has_errors = True
+                continue
             lines.extend(node.get('content', '').splitlines())
     else:
         return "" # No input, no output
+
+    if has_errors and not lines:
+        return {
+            "success": False,
+            "error": {
+                "message": "\n".join(error_output),
+                "suggestion": "Please check the file paths provided."
+            }
+        }
+
 
     is_numeric = flags.get('numeric-sort', False)
     is_reverse = flags.get('reverse', False)
@@ -54,7 +71,11 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 seen.add(line)
         lines = unique_lines
 
-    return "\n".join(lines)
+    final_output = "\n".join(lines)
+    if error_output:
+        return "\n".join(error_output) + "\n" + final_output
+
+    return final_output
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -72,3 +93,6 @@ DESCRIPTION
     -n, --numeric-sort      compare according to string numerical value
     -u, --unique            output only the first of an equal run
 """
+
+def help(args, flags, user_context, **kwargs):
+    return "Usage: sort [-ru] [-n] [FILE]..."

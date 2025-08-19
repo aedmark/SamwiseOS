@@ -20,37 +20,55 @@ def run(args, flags, user_context, stdin_data=None):
         path = args[0]
         node = fs_manager.get_node(path)
         if not node:
-            return {"success": False, "error": f"base64: {path}: No such file or directory"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"base64: {path}: No such file or directory",
+                    "suggestion": "Please check the file path."
+                }
+            }
         if node.get('type') != 'file':
-            return {"success": False, "error": f"base64: {path}: Is a directory"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"base64: {path}: Is a directory",
+                    "suggestion": "Base64 can only operate on files."
+                }
+            }
         input_data = node.get('content', '')
     else:
-        # If there's no file and no piped data, we should output nothing and succeed.
         return ""
 
     is_decode = flags.get('decode', False)
 
     try:
-        # This prevents errors when input_data is None (JsNull).
         string_input = str(input_data or "")
 
         if is_decode:
-            # Remove whitespace to handle potential formatting issues from various sources.
             cleaned_input = re.sub(r'\s+', '', string_input)
             input_bytes = cleaned_input.encode('utf-8')
             decoded_bytes = base64.b64decode(input_bytes)
             return decoded_bytes.decode('utf-8')
         else:
-            # Encode the data
             input_bytes = string_input.encode('utf-8')
             encoded_bytes = base64.b64encode(input_bytes)
             return encoded_bytes.decode('utf-8')
     except (binascii.Error, UnicodeDecodeError) as e:
-        # This catches errors specifically related to bad base64 data during decode.
-        return {"success": False, "error": f"base64: invalid input: {e}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"base64: invalid input",
+                "suggestion": "The input data is not valid base64. Check for corruption or incorrect format."
+            }
+        }
     except Exception as e:
-        # This is a general catch-all for any other unexpected issues.
-        return {"success": False, "error": f"base64: an unexpected error occurred: {e}"}
+        return {
+            "success": False,
+            "error": {
+                "message": "base64: an unexpected error occurred",
+                "suggestion": f"Details: {repr(e)}"
+            }
+        }
 
 
 def man(args, flags, user_context, stdin_data=None):

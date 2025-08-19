@@ -4,19 +4,34 @@ from filesystem import fs_manager
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     lines = []
+    has_errors = False
+    error_output = []
 
     if args:
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
-                return {"success": False, "error": f"nl: {path}: No such file or directory"}
+                error_output.append(f"nl: {path}: No such file or directory")
+                has_errors = True
+                continue
             if node.get('type') != 'file':
-                return {"success": False, "error": f"nl: {path}: Is a directory"}
+                error_output.append(f"nl: {path}: Is a directory")
+                has_errors = True
+                continue
             lines.extend(node.get('content', '').splitlines())
     elif stdin_data is not None:
         lines.extend(str(stdin_data or "").splitlines())
     else:
         return "" # No input, no output
+
+    if has_errors and not lines:
+        return {
+            "success": False,
+            "error": {
+                "message": "\n".join(error_output),
+                "suggestion": "Please check the file paths."
+            }
+        }
 
     output_lines = []
     line_number = 1
@@ -27,7 +42,11 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         else:
             output_lines.append("")
 
-    return "\n".join(output_lines)
+    final_output = "\n".join(output_lines)
+    if error_output:
+        return "\n".join(error_output) + "\n" + final_output
+
+    return final_output
 
 def man(args, flags, user_context, **kwargs):
     return """

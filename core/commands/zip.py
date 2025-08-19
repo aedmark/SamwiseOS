@@ -30,7 +30,13 @@ def _add_to_zip(zip_buffer, path, archive_path=""):
 
 def run(args, flags, user_context, **kwargs):
     if len(args) < 2:
-        return {"success": False, "error": "zip: missing operand. Usage: zip <archive.zip> <file_or_dir>..."}
+        return {
+            "success": False,
+            "error": {
+                "message": "zip: missing operand",
+                "suggestion": "Try 'zip <archive.zip> <file_or_dir>...'"
+            }
+        }
 
     archive_name, source_paths = args[0], args[1:]
     in_memory_zip = io.BytesIO()
@@ -41,12 +47,17 @@ def run(args, flags, user_context, **kwargs):
 
     zip_content_b64 = base64.b64encode(in_memory_zip.getvalue()).decode('utf-8')
 
-    # This effect was never properly implemented on the JS side, so we'll do it here!
     try:
         fs_manager.write_file(archive_name, zip_content_b64, user_context)
         return f"adding: {', '.join(source_paths)} (deflated 0%)" # Simplified output
     except Exception as e:
-        return {"success": False, "error": f"zip: failed to write archive: {repr(e)}"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"zip: failed to write archive",
+                "suggestion": f"An unexpected error occurred: {repr(e)}"
+            }
+        }
 
 
 def man(args, flags, user_context, **kwargs):

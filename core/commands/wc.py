@@ -27,6 +27,7 @@ def run(args, flags, user_context, stdin_data=None):
 
     output_lines = []
     total_counts = {'lines': 0, 'words': 0, 'bytes': 0}
+    has_errors = False
 
     def format_output(lines, words, bytes_count, name=""):
         parts = []
@@ -47,9 +48,11 @@ def run(args, flags, user_context, stdin_data=None):
             node = fs_manager.get_node(source)
             if not node:
                 output_lines.append(f"wc: {source}: No such file or directory")
+                has_errors = True
                 continue
             if node.get('type') == 'directory':
                 output_lines.append(f"wc: {source}: Is a directory")
+                has_errors = True
             else:
                 content = node.get('content', '')
                 lines, words, bytes_count = _count_content(content)
@@ -61,6 +64,15 @@ def run(args, flags, user_context, stdin_data=None):
 
     if len(sources) > 1 and 'stdin' not in sources:
         output_lines.append(format_output(total_counts['lines'], total_counts['words'], total_counts['bytes'], "total"))
+
+    if has_errors and not any(line for line in output_lines if not line.startswith("wc:")):
+        return {
+            "success": False,
+            "error": {
+                "message": "\n".join(output_lines),
+                "suggestion": "Please check the file paths."
+            }
+        }
 
     return "\n".join(output_lines)
 

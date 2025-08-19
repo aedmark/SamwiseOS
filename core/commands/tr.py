@@ -35,7 +35,14 @@ def _expand_set(set_str):
 
 def run(args, flags, user_context, stdin_data=None):
     if stdin_data is None: return ""
-    if not args: return {"success": False, "error": "tr: missing operand"}
+    if not args:
+        return {
+            "success": False,
+            "error": {
+                "message": "tr: missing operand",
+                "suggestion": "Try 'tr 'a-z' 'A-Z'' to translate to uppercase, for example."
+            }
+        }
 
     set1_str = args[0]
     set2_str = args[1] if len(args) > 1 else None
@@ -50,7 +57,13 @@ def run(args, flags, user_context, stdin_data=None):
     content = stdin_data
     if is_delete:
         if len(args) > 2 or (len(args) == 2 and not is_squeeze):
-            return {"success": False, "error": "tr: extra operand with -d"}
+            return {
+                "success": False,
+                "error": {
+                    "message": "tr: extra operand with -d",
+                    "suggestion": "The -d flag only takes one set of characters to delete."
+                }
+            }
         delete_set = set(_expand_set(set1_str))
         content = "".join([c for c in content if c not in delete_set])
     elif set2_str:
@@ -60,7 +73,14 @@ def run(args, flags, user_context, stdin_data=None):
 
     if is_squeeze:
         squeeze_str = set2_str if is_delete and set2_str else (set2_str or set1_str)
-        if not squeeze_str: return {"success": False, "error": "tr: missing operand for -s"}
+        if not squeeze_str:
+            return {
+                "success": False,
+                "error": {
+                    "message": "tr: missing operand for -s",
+                    "suggestion": "The -s flag requires a set of characters to squeeze."
+                }
+            }
         squeeze_set, squeezed_result, last_char = set(_expand_set(squeeze_str)), "", None
         for char in content:
             if not (char in squeeze_set and char == last_char):
