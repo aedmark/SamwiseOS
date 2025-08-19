@@ -19,7 +19,7 @@ def run(args, flags, user_context, **kwargs):
     """
     stdin_data = kwargs.get('stdin_data')
     if not args:
-        return {"success": False, "error": "rm: missing operand"}
+        return {"success": False, "error": {"message": "rm: missing operand", "suggestion": "Try 'rm <file_name>'."}}
 
     is_recursive = flags.get('recursive', False)
     is_force = flags.get('force', False)
@@ -59,7 +59,7 @@ def run(args, flags, user_context, **kwargs):
                 output_messages.append(f"rm: cannot remove '{path}': {repr(e)}")
 
     if output_messages:
-        return {"success": False, "error": "\n".join(output_messages)}
+        return {"success": False, "error": {"message": "\n".join(output_messages)}}
 
     return "" # Success
 
@@ -83,4 +83,5 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
+    """Provides help information for the rm command."""
     return "Usage: rm [OPTION]... [FILE]..."

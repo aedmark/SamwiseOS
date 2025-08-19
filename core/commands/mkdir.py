@@ -13,7 +13,7 @@ def run(args, flags, user_context, **kwargs):
     Creates new directories.
     """
     if not args:
-        return {"success": False, "error": "mkdir: missing operand"}
+        return {"success": False, "error": {"message": "mkdir: missing operand", "suggestion": "Try 'mkdir <directory_name>'."}}
 
     is_parents = flags.get('parents', False)
 
@@ -22,11 +22,29 @@ def run(args, flags, user_context, **kwargs):
             fs_manager.create_directory(path, user_context)
         except FileExistsError:
             if not is_parents:
-                return {"success": False, "error": f"mkdir: cannot create directory ‘{path}’: File exists"}
+                return {
+                    "success": False,
+                    "error": {
+                        "message": f"mkdir: cannot create directory ‘{path}’: File exists.",
+                        "suggestion": "If you meant to create parent directories, try using the '-p' flag."
+                    }
+                }
         except FileNotFoundError as e:
-            return {"success": False, "error": f"mkdir: cannot create directory ‘{path}’: {e}"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"mkdir: cannot create directory ‘{path}’: {e}",
+                    "suggestion": "Ensure the parent directory exists or use the '-p' flag."
+                }
+            }
         except Exception as e:
-            return {"success": False, "error": f"mkdir: an unexpected error occurred with '{path}': {repr(e)}"}
+            return {
+                "success": False,
+                "error": {
+                    "message": f"mkdir: an unexpected error occurred with '{path}': {repr(e)}",
+                    "suggestion": "Please check the path and your permissions."
+                }
+            }
 
     return "" # Success
 

@@ -13,7 +13,7 @@ def run(args, flags, user_context, **kwargs):
     Moves or renames a source file/directory to a destination.
     """
     if len(args) < 2:
-        return {"success": False, "error": "mv: missing file operand"}
+        return {"success": False, "error": {"message": "mv: missing file operand", "suggestion": "Try 'mv <source> <destination>'."}}
 
     source_paths = args[:-1]
     destination_path = args[-1]
@@ -21,7 +21,7 @@ def run(args, flags, user_context, **kwargs):
     dest_node = fs_manager.get_node(destination_path)
 
     if len(source_paths) > 1 and (not dest_node or dest_node.get('type') != 'directory'):
-        return {"success": False, "error": f"mv: target '{destination_path}' is not a directory"}
+        return {"success": False, "error": {"message": f"mv: target '{destination_path}' is not a directory", "suggestion": "When moving multiple files, the destination must be a directory."}}
 
     for source_path in source_paths:
         try:
@@ -33,11 +33,11 @@ def run(args, flags, user_context, **kwargs):
 
             fs_manager.rename_node(source_path, final_destination_path)
         except FileNotFoundError:
-            return {"success": False, "error": f"mv: cannot move '{source_path}': No such file or directory"}
+            return {"success": False, "error": {"message": f"mv: cannot move '{source_path}': No such file or directory", "suggestion": "Check the spelling and path of the source file."}}
         except FileExistsError:
-            return {"success": False, "error": f"mv: cannot move to '{destination_path}': Destination exists"}
+            return {"success": False, "error": {"message": f"mv: cannot move to '{destination_path}': Destination exists", "suggestion": "Choose a different name for the destination or remove the existing file first."}}
         except Exception as e:
-            return {"success": False, "error": f"mv: an unexpected error occurred: {repr(e)}"}
+            return {"success": False, "error": {"message": f"mv: an unexpected error occurred: {repr(e)}", "suggestion": "Please verify the source and destination paths."}}
 
     return ""  # Success!
 

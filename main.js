@@ -81,8 +81,17 @@ async function executePythonCommand(rawCommandText, options = {}) {
                 }
             }
         } else {
-            await OutputManager.appendToOutput(pyResult.error, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
-            result = { success: false, error: pyResult.error };
+            // The ErrorHandler will create a standardized error object for us.
+            const errorObject = ErrorHandler.createError(pyResult.error);
+
+            // Pass the structured message to the OutputManager.
+            let fullErrorMessage = errorObject.error.message;
+            if (errorObject.error.suggestion) {
+                fullErrorMessage += `\nSuggestion: ${errorObject.error.suggestion}`;
+            }
+
+            await OutputManager.appendToOutput(fullErrorMessage, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
+            result = errorObject; // Store the standardized object.
         }
     } catch (e) {
         const errorMsg = e.message || "An unknown JavaScript error occurred.";

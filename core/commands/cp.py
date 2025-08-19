@@ -42,7 +42,7 @@ def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, 
 def run(args, flags, user_context, **kwargs):
     stdin_data = kwargs.get('stdin_data')
     if len(args) < 2:
-        return {"success": False, "error": "cp: missing destination file operand"}
+        return {"success": False, "error": {"message": "cp: missing destination file operand", "suggestion": "Try 'cp <source> <destination>'."}}
 
     source_paths = args[:-1]
     dest_path_arg = args[-1]
@@ -58,15 +58,15 @@ def run(args, flags, user_context, **kwargs):
     dest_is_dir = dest_node and dest_node.get('type') == 'directory'
 
     if len(source_paths) > 1 and not dest_is_dir:
-        return {"success": False, "error": f"cp: target '{dest_path_arg}' is not a directory"}
+        return {"success": False, "error": {"message": f"cp: target '{dest_path_arg}' is not a directory", "suggestion": "When copying multiple files, the destination must be a directory."}}
 
     for source_path in source_paths:
         source_node = fs_manager.get_node(source_path)
         if not source_node:
-            return {"success": False, "error": f"cp: cannot stat '{source_path}': No such file or directory"}
+            return {"success": False, "error": {"message": f"cp: cannot stat '{source_path}': No such file or directory", "suggestion": "Please check the spelling and path of the source file."}}
 
         if source_node.get('type') == 'directory' and not is_recursive:
-            return {"success": False, "error": f"cp: -r not specified; omitting directory '{source_path}'"}
+            return {"success": False, "error": {"message": f"cp: -r not specified; omitting directory '{source_path}'", "suggestion": "Use the '-r' or '-R' flag to copy directories."}}
 
         final_dest_path = os.path.join(dest_path_arg, os.path.basename(source_path)) if dest_is_dir else dest_path_arg
         final_dest_abs_path = fs_manager.get_absolute_path(final_dest_path)
@@ -83,7 +83,7 @@ def run(args, flags, user_context, **kwargs):
             try:
                 fs_manager.remove(final_dest_path, recursive=True)
             except Exception as e:
-                return {"success": False, "error": f"cp: failed to remove existing destination: {repr(e)}"}
+                return {"success": False, "error": {"message": f"cp: failed to remove existing destination: {repr(e)}", "suggestion": "Check permissions of the destination file or directory."}}
 
         try:
             if dest_is_dir:
@@ -100,12 +100,12 @@ def run(args, flags, user_context, **kwargs):
                 fs_manager.create_directory(dest_parent_path, user_context)
                 dest_parent_node = fs_manager.get_node(dest_parent_path) # Re-fetch after creation
                 if not dest_parent_node:
-                    return {"success": False, "error": f"cp: cannot create directory for '{dest_path_arg}'"}
+                    return {"success": False, "error": {"message": f"cp: cannot create directory for '{dest_path_arg}'", "suggestion": "Check permissions for the parent directory."}}
 
 
             _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, is_preserve)
         except Exception as e:
-            return {"success": False, "error": f"cp: an unexpected error occurred: {repr(e)}"}
+            return {"success": False, "error": {"message": f"cp: an unexpected error occurred: {repr(e)}", "suggestion": "Please verify all paths and permissions."}}
 
     fs_manager._save_state()
     return ""
