@@ -65,10 +65,16 @@ DESCRIPTION
     - With a name and value (e.g., `alias ll='ls -l'`), it creates or redefines an alias.
     - With only a name, it prints the value of that specific alias.
 
+OPTIONS
+    This command takes no options.
+
 EXAMPLES
     alias
+        Display all current aliases.
     alias ll='ls -la'
+        Create a new alias named 'll'.
     alias myhome='cd /home/guest'
+        Create an alias to change to a specific directory.
 """
 
 def help(args, flags, user_context, **kwargs):

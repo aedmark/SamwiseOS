@@ -167,7 +167,9 @@ OPTIONS
 
 EXAMPLES
     ls -l | awk '{print $9}'
+        Prints the 9th column (filename) from the output of ls -l.
     awk -F: '{print $1}' /etc/passwd
+        Prints the first column (username) from the /etc/passwd file, using ':' as a delimiter.
 """
 
 def help(args, flags, user_context, **kwargs):

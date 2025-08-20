@@ -90,7 +90,9 @@ OPTIONS
 
 EXAMPLES
     echo "hello world" | base64
+        Encodes the string "hello world" to "aGVsbG8gd29ybGQ=".
     echo "aGVsbG8gd29ybGQ=" | base64 -d
+        Decodes the base64 string back to "hello world".
 """
 
 def help(args, flags, user_context, **kwargs):

@@ -43,13 +43,13 @@ def run(args, flags, user_context, **kwargs):
         file_path = args[0]
         node = fs_manager.get_node(file_path)
         if not node:
-            return {"success": False, "error": f"adventure: {file_path}: No such file or directory"}
+            return {"success": False, "error": {"message": f"adventure: {file_path}: No such file or directory", "suggestion": "Ensure the adventure file exists and the path is correct."}}
         if node.get('type') != 'file':
-            return {"success": False, "error": "adventure: That's a directory, not an adventure file."}
+            return {"success": False, "error": {"message": "adventure: That's a directory, not an adventure file.", "suggestion": "Please provide a path to a valid .json adventure file."}}
         try:
             adventure_to_load = json.loads(node.get('content', '{}'))
         except json.JSONDecodeError:
-            return {"success": False, "error": f"adventure: The adventure file appears to be corrupted or not formatted correctly."}
+            return {"success": False, "error": {"message": "adventure: The adventure file appears to be corrupted.", "suggestion": "Please ensure the file is correctly formatted JSON."}}
     else:
         adventure_to_load = default_adventure_data
 
@@ -64,13 +64,27 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    adventure - Starts an interactive text adventure game or creation tool.
+    adventure - an interactive text adventure game engine
 
 SYNOPSIS
-    adventure [--create] [path_to_game.json]
+    adventure [path_to_game.json]
+    adventure --create [filename.json]
 
 DESCRIPTION
-    Launches the SamwiseOS interactive fiction engine. If no file is
-    provided, starts the default adventure. Use 'adventure --create' to
-    enter the interactive adventure creation tool.
+    Launches the SamwiseOS interactive fiction engine. When run without arguments, it starts the default built-in adventure. If a path to a valid JSON game file is provided, it will load that adventure instead.
+
+OPTIONS
+    --create
+        Launches the interactive adventure creation tool to build a new game file.
+
+EXAMPLES
+    adventure
+        Starts the default game.
+    adventure /home/guest/my_game.json
+        Loads and starts a custom adventure.
+    adventure --create my_new_epic.json
+        Starts the creation tool for a new adventure.
 """
+
+def help(args, flags, user_context, **kwargs):
+    return "Usage: adventure [--create] [path_to_game.json]"
