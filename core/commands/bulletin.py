@@ -125,5 +125,4 @@ EXAMPLES:
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the bulletin command."""
     return "Usage: bulletin <post|list|clear> [options]"

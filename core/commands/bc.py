@@ -79,5 +79,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the bc command."""
     return "Usage: bc [expression]"

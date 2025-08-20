@@ -171,5 +171,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the awk command."""
     return "Usage: awk [-F fs] 'program' [file ...]"

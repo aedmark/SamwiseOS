@@ -7,22 +7,37 @@ def run(args, flags, user_context, **kwargs):
     Signals the JavaScript front end to perform a delay.
     """
     if len(args) != 1:
-        return {"success": False, "error": "delay: Invalid number of arguments. Usage: delay <milliseconds>"}
-
+        return {
+            "success": False,
+            "error": {
+                "message": "delay: invalid number of arguments",
+                "suggestion": "Try 'delay <milliseconds>'."
+            }
+        }
     try:
         milliseconds = int(args[0])
         if milliseconds < 0:
-            return {"success": False, "error": "delay: Invalid delay time. Must be a non-negative integer."}
-
+            return {
+                "success": False,
+                "error": {
+                    "message": "delay: invalid delay time",
+                    "suggestion": "The delay must be a non-negative integer."
+                }
+            }
         return {
             "effect": "delay",
             "milliseconds": milliseconds
         }
-
     except ValueError:
-        return {"success": False, "error": f"delay: Invalid delay time '{args[0]}'. Must be an integer."}
+        return {
+            "success": False,
+            "error": {
+                "message": f"delay: invalid delay time '{args[0]}'",
+                "suggestion": "The delay must be an integer representing milliseconds."
+            }
+        }
     except Exception as e:
-        return {"success": False, "error": f"delay: An unexpected error occurred: {repr(e)}"}
+        return {"success": False, "error": {"message": f"delay: an unexpected error occurred: {repr(e)}", "suggestion": "Please check your input and try again."}}
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -33,11 +48,15 @@ SYNOPSIS
     delay <milliseconds>
 
 DESCRIPTION
-    The delay command pauses execution for the specified number of
-    milliseconds. It is primarily used within scripts ('run' command)
-    to create timed sequences or demonstrations.
+    The delay command pauses execution for the specified number of milliseconds. It is primarily used within scripts (executed via the 'run' command) to create timed sequences, demonstrations, or to wait for a background process.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    delay 1000
+        Pauses execution for 1 second (1000 milliseconds).
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the delay command."""
     return "Usage: delay <milliseconds>"

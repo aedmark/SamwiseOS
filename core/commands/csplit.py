@@ -4,22 +4,26 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the csplit command accepts."""
-    return [
-        {'name': 'prefix', 'short': 'f', 'long': 'prefix', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'prefix', 'short': 'f', 'long': 'prefix', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
+
 
 def run(args, flags, user_context, **kwargs):
     if len(args) < 2:
-        return {"success": False, "error": "csplit: missing operand"}
+        return {"success": False, "error": {"message": "csplit: missing operand", "suggestion": "Try 'csplit <file> <line_number>'."}}
 
     file_path = args[0]
     pattern = args[1]
 
     node = fs_manager.get_node(file_path)
     if not node:
-        return {"success": False, "error": f"csplit: {file_path}: No such file or directory"}
+        return {"success": False, "error": {"message": f"csplit: {file_path}: No such file or directory", "suggestion": "Please check the file path."}}
     if node.get('type') != 'file':
-        return {"success": False, "error": f"csplit: {file_path}: Is not a regular file"}
+        return {"success": False, "error": {"message": f"csplit: {file_path}: Is not a regular file", "suggestion": "This command can only operate on files."}}
 
     content = node.get('content', '')
     lines = content.splitlines()
@@ -27,9 +31,9 @@ def run(args, flags, user_context, **kwargs):
     try:
         line_num = int(pattern)
         if line_num <= 0 or line_num > len(lines):
-            return {"success": False, "error": f"csplit: {file_path}: line {line_num} is out of range"}
+            return {"success": False, "error": {"message": f"csplit: {file_path}: line {line_num} is out of range", "suggestion": f"The file only has {len(lines)} lines."}}
     except ValueError:
-        return {"success": False, "error": f"csplit: '{pattern}' is not a valid line number"}
+        return {"success": False, "error": {"message": f"csplit: '{pattern}' is not a valid line number", "suggestion": "The pattern must be an integer representing a line number."}}
 
     prefix = flags.get('prefix') or 'xx'
 
@@ -52,13 +56,16 @@ SYNOPSIS
     csplit [OPTION]... FILE PATTERN...
 
 DESCRIPTION
-    Output pieces of FILE separated by PATTERN(s) to files 'xx00', 'xx01', ...,
-    and output the size of each piece in bytes.
+    Output pieces of FILE separated by PATTERN(s) to files 'xx00', 'xx01', etc. In this version, PATTERN must be a line number.
 
+OPTIONS
     -f, --prefix=PREFIX
-          use PREFIX instead of 'xx'
+          Use PREFIX instead of 'xx' for the output file names.
+
+EXAMPLES
+    csplit my_large_file.txt 100
+    csplit -f part_ my_log.log 500
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the csplit command."""
     return "Usage: csplit [OPTION]... FILE PATTERN..."

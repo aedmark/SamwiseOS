@@ -63,5 +63,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the bg command."""
     return "Usage: bg [%job_id | pid]..."

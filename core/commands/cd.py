@@ -57,5 +57,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the cd command."""
     return "Usage: cd [directory]"

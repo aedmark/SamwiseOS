@@ -100,10 +100,15 @@ SYNOPSIS
     diff [OPTION]... FILE1 FILE2
 
 DESCRIPTION
-    Compare files line by line.
+    Compare files line by line. By default, it produces output in a context format.
 
+OPTIONS
     -u, --unified
-          Output 3 lines of unified context, the most common format.
+          Output 3 lines of unified context. This is the most common format for creating patch files.
+
+EXAMPLES
+    diff original.txt updated.txt
+    diff -u original.txt updated.txt > changes.patch
 """
 
 def help(args, flags, user_context, **kwargs):

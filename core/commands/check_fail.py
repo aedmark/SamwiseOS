@@ -83,5 +83,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the check_fail command."""
     return "Usage: check_fail [-z] \"<command>\""

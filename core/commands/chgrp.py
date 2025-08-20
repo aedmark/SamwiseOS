@@ -88,5 +88,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the chgrp command."""
     return "Usage: chgrp [-R] <group> <path>..."

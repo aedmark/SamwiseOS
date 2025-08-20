@@ -123,14 +123,20 @@ SYNOPSIS
     cut OPTION... [FILE]...
 
 DESCRIPTION
-    Print selected parts of lines from each FILE to standard output.
+    Print selected parts of lines from each FILE to standard output. With no FILE, or when FILE is -, read standard input.
 
+OPTIONS
     -c, --characters=LIST
-          select only these characters
-    -d, --delimiter=DELIM
-          use DELIM instead of TAB for field delimiter
+        Select only these characters. LIST is a comma-separated list of numbers and ranges (e.g., 1,3,5-7).
     -f, --fields=LIST
-          select only these fields
+        Select only these fields. LIST is a comma-separated list of numbers and ranges.
+    -d, --delimiter=DELIM
+        Use DELIM instead of TAB for the field delimiter.
+
+EXAMPLES
+    cut -c 1-10 my_file.txt
+    ls -l | cut -c 1-10
+    cut -d ':' -f 1,3 /etc/passwd
 """
 
 def help(args, flags, user_context, **kwargs):

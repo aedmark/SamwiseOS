@@ -87,5 +87,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the backup command."""
     return "Usage: backup"

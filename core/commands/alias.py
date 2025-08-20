@@ -72,5 +72,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the alias command."""
     return "Usage: alias [name='command']..."

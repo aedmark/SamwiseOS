@@ -94,5 +94,4 @@ EXAMPLES
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the base64 command."""
     return "Usage: base64 [-d] [FILE]"

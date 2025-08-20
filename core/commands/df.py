@@ -16,18 +16,31 @@ def _format_bytes(byte_count):
         return "0B"
     power = 1024
     n = 0
-    power_labels = {0: '', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
+    power_labels = {0: 'B', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
     while byte_count >= power and n < len(power_labels) -1 :
         byte_count /= power
         n += 1
-    return f"{byte_count:.1f}{power_labels[n]}"
+    # Use f-string formatting for cleaner output
+    return f"{byte_count:.1f}{power_labels[n]}".replace(".0", "")
+
 
 def run(args, flags, user_context, config=None, **kwargs):
     if args:
-        return {"success": False, "error": "df: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "df: command takes no arguments",
+                "suggestion": "Try running 'df' or 'df -h'."
+            }
+        }
     if config is None:
-        return {"success": False, "error": "df: Configuration data not available."}
-
+        return {
+            "success": False,
+            "error": {
+                "message": "df: configuration data not available",
+                "suggestion": "This indicates a system-level issue."
+            }
+        }
     total_size = config.get('MAX_VFS_SIZE', 0)
     used_size = fs_manager.calculate_node_size('/')
     available_size = total_size - used_size
@@ -40,6 +53,7 @@ def run(args, flags, user_context, config=None, **kwargs):
         used_str = _format_bytes(used_size).rjust(8)
         avail_str = _format_bytes(available_size).rjust(8)
     else:
+        # 1K-blocks
         total_str = str(total_size // 1024).rjust(8)
         used_str = str(used_size // 1024).rjust(8)
         avail_str = str(available_size // 1024).rjust(8)
@@ -62,12 +76,16 @@ SYNOPSIS
     df [OPTION]...
 
 DESCRIPTION
-    Show information about the file system.
+    Show information about the virtual file system, including total size, used space, available space, and the percentage of space used.
 
+OPTIONS
     -h, --human-readable
-          print sizes in powers of 1024 (e.g., 1023M)
+          Print sizes in powers of 1024 (e.g., 1K, 234M, 2G).
+
+EXAMPLES
+    df
+    df -h
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the df command."""
     return "Usage: df [-h]"

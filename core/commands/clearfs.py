@@ -81,5 +81,4 @@ OPTIONS
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the clearfs command."""
     return "Usage: clearfs"

@@ -19,11 +19,12 @@ def run(args, flags, user_context, stdin_data=None):
     output_string = " ".join(args)
 
     if enable_escapes:
+        # Using codecs.decode with 'unicode_escape' is a robust way to handle this
         output_string = codecs.decode(output_string, 'unicode_escape')
 
     return output_string
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     """
     Displays the manual page for the echo command.
     """
@@ -35,13 +36,16 @@ SYNOPSIS
     echo [-e] [STRING]...
 
 DESCRIPTION
-    Echo the STRING(s) to standard output.
+    Echo the STRING(s) to standard output, followed by a newline.
 
-    -e    enable interpretation of backslash escapes
+OPTIONS
+    -e
+        Enable interpretation of backslash escapes (e.g., \\n for newline, \\t for tab).
+
+EXAMPLES
+    echo "Hello, world!"
+    echo -e "First line\\nSecond line"
 """
 
-def help(args, flags, user_context, stdin_data=None):
-    """
-    Provides help information for the echo command.
-    """
+def help(args, flags, user_context, **kwargs):
     return "Usage: echo [-e] [STRING]..."

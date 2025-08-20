@@ -31,5 +31,4 @@ OPTIONS
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the beep command."""
     return "Usage: beep"

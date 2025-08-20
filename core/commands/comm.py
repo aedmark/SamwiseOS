@@ -4,25 +4,46 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the comm command accepts."""
-    return [
-        {'name': 'suppress-col1', 'short': '1', 'takes_value': False},
-        {'name': 'suppress-col2', 'short': '2', 'takes_value': False},
-        {'name': 'suppress-col3', 'short': '3', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'suppress-col1', 'short': '1', 'takes_value': False},
+            {'name': 'suppress-col2', 'short': '2', 'takes_value': False},
+            {'name': 'suppress-col3', 'short': '3', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     if len(args) != 2:
-        return {"success": False, "error": "comm: missing operand. Usage: comm FILE1 FILE2"}
+        return {
+            "success": False,
+            "error": {
+                "message": "comm: missing operand",
+                "suggestion": "Try 'comm FILE1 FILE2'."
+            }
+        }
 
     file1_path, file2_path = args
 
     node1 = fs_manager.get_node(file1_path)
     if not node1:
-        return {"success": False, "error": f"comm: {file1_path}: No such file or directory"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"comm: {file1_path}: No such file or directory",
+                "suggestion": "Please check the path to the first file."
+            }
+        }
 
     node2 = fs_manager.get_node(file2_path)
     if not node2:
-        return {"success": False, "error": f"comm: {file2_path}: No such file or directory"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"comm: {file2_path}: No such file or directory",
+                "suggestion": "Please check the path to the second file."
+            }
+        }
 
     lines1 = node1.get('content', '').splitlines()
     lines2 = node2.get('content', '').splitlines()
@@ -76,17 +97,23 @@ SYNOPSIS
     comm [OPTION]... FILE1 FILE2
 
 DESCRIPTION
-    Compare sorted files FILE1 and FILE2 line by line.
+    Compare sorted files FILE1 and FILE2 line by line. With no options, produce three-column output. Column one contains lines unique to FILE1, column two contains lines unique to FILE2, and column three contains lines common to both files.
 
-    With no options, produce three-column output.  Column one contains
-    lines unique to FILE1, column two contains lines unique to FILE2,
-    and column three contains lines common to both files.
+OPTIONS
+    -1
+        Suppress column 1 (lines unique to FILE1).
+    -2
+        Suppress column 2 (lines unique to FILE2).
+    -3
+        Suppress column 3 (lines that appear in both files).
 
-    -1     suppress column 1 (lines unique to FILE1)
-    -2     suppress column 2 (lines unique to FILE2)
-    -3     suppress column 3 (lines that appear in both files)
+EXAMPLES
+    comm file1.txt file2.txt
+        Show a three-column comparison of the two files.
+
+    comm -12 file1.txt file2.txt
+        Show only the lines that appear in both files.
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the comm command."""
     return "Usage: comm [OPTION]... FILE1 FILE2"

@@ -7,14 +7,18 @@ import shlex
 
 def define_flags():
     """Declares the flags that the cp command accepts."""
-    return [
-        {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
-        {'name': 'recursive', 'short': 'R', 'takes_value': False},
-        {'name': 'preserve', 'short': 'p', 'long': 'preserve', 'takes_value': False},
-        {'name': 'interactive', 'short': 'i', 'long': 'interactive', 'takes_value': False},
-        {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
-        {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, "hidden": True},
-    ]
+    return {
+        'flags': [
+            {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
+            {'name': 'recursive', 'short': 'R', 'takes_value': False}, # Alias for recursive
+            {'name': 'preserve', 'short': 'p', 'long': 'preserve', 'takes_value': False},
+            {'name': 'interactive', 'short': 'i', 'long': 'interactive', 'takes_value': False},
+            {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
+            {'name': 'confirmed', 'long': 'confirmed', 'takes_value': True, "hidden": True},
+        ],
+        'metadata': {}
+    }
+
 
 def _copy_node_recursive(source_node, dest_parent_node, new_name, user_context, preserve=False):
     """Recursively copies a node. A deep copy is made to prevent reference issues."""
@@ -96,7 +100,6 @@ def run(args, flags, user_context, **kwargs):
 
             if not dest_parent_node or dest_parent_node.get('type') != 'directory':
                 # If the parent directory doesn't exist, we create it.
-                # This is the proactive step that prevents our file/directory mixup.
                 fs_manager.create_directory(dest_parent_path, user_context)
                 dest_parent_node = fs_manager.get_node(dest_parent_path) # Re-fetch after creation
                 if not dest_parent_node:
@@ -120,16 +123,22 @@ SYNOPSIS
     cp [OPTION]... SOURCE... DEST
 
 DESCRIPTION
-    Copy SOURCE to DEST, or multiple SOURCE(s) to DIRECTORY.
+    Copy SOURCE to DEST, or multiple SOURCE(s) to a DIRECTORY.
 
+OPTIONS
     -f, --force
-            if destination file cannot be opened, remove it and try again
+        If a destination file cannot be opened, remove it and try again.
     -i, --interactive
-           prompt before overwrite
+        Prompt before overwriting an existing file.
     -p, --preserve
-           same as --preserve=mode,ownership,timestamps
+        Preserve the original file's mode, ownership, and timestamps.
     -r, -R, --recursive
-           copy directories recursively
+        Copy directories and their contents recursively.
+
+EXAMPLES
+    cp file1.txt file2.txt
+    cp -i my_script.sh /home/guest/
+    cp -r project_a/ project_b/
 """
 
 def help(args, flags, user_context, **kwargs):

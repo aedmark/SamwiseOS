@@ -123,5 +123,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the chidi command."""
     return "Usage: chidi [-n] [-p provider] [-m model] [path]"

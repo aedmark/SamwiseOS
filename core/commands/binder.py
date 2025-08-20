@@ -213,5 +213,4 @@ EXAMPLES:
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the binder command."""
     return "Usage: binder <create|add|list|remove|exec> [options]"
