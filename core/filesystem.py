@@ -186,8 +186,22 @@ class FileSystemManager:
         file_name = os.path.basename(abs_path)
         parent_node = self.get_node(parent_path)
 
-        if not parent_node or parent_node.get('type') != 'directory':
-            raise FileNotFoundError(f"Cannot create file in '{parent_path}': No such directory.")
+        if not parent_node:
+            # --- START OF THE FIX ---
+            # If the parent directory doesn't exist, create it. This makes
+            # commands like 'unzip' much more robust.
+            try:
+                self.create_directory(parent_path, user_context, parents=True)
+                parent_node = self.get_node(parent_path) # Re-fetch the node after creation
+                if not parent_node: # If it still fails, then it's a real issue.
+                    raise FileNotFoundError(f"Cannot create parent directory for '{path}'")
+            except Exception as e:
+                # Re-raise with a more specific error message
+                raise FileNotFoundError(f"Cannot create file in '{parent_path}': {repr(e)}")
+
+        if parent_node.get('type') != 'directory':
+            raise FileNotFoundError(f"Cannot create file in '{parent_path}': A component of the path is not a directory.")
+        # --- END OF THE FIX ---
 
         existing_node = parent_node['children'].get(file_name)
 
@@ -205,14 +219,11 @@ class FileSystemManager:
             existing_node['content'] = content
             existing_node['mtime'] = now_iso
         else:
-            # --- START OF THE FIX ---
-            # Check if the parent directory is a collaborative space
             parent_mode = parent_node.get('mode', 0)
             is_collaborative = (parent_mode & 0o070) and not (parent_mode & 0o007)
 
             new_file_group = parent_node.get('group') if is_collaborative else user_context.get('group', 'guest')
             new_file_mode = 0o660 if is_collaborative else 0o644
-            # --- END OF THE FIX ---
 
             new_file = {
                 "type": "file", "content": content, "owner": str(user_context.get('name', 'guest')),

@@ -54,9 +54,12 @@ def run(args, flags, user_context, **kwargs):
                 if member.is_dir():
                     fs_manager.create_directory(dest_path, user_context, parents=True)
                 else:
+                    # --- START OF THE FIX ---
+                    # Ensure the parent directory for the file exists before writing.
                     parent_dir = os.path.dirname(dest_path)
                     if not fs_manager.get_node(parent_dir):
                         fs_manager.create_directory(parent_dir, user_context, parents=True)
+                    # --- END OF THE FIX ---
 
                     content_bytes = zipf.read(member)
                     content_str = content_bytes.decode('utf-8', 'replace')
