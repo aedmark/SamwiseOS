@@ -205,19 +205,30 @@ class FileSystemManager:
             existing_node['content'] = content
             existing_node['mtime'] = now_iso
         else:
+            # --- START OF THE FIX ---
+            # Check if the parent directory is a collaborative space
+            parent_mode = parent_node.get('mode', 0)
+            is_collaborative = (parent_mode & 0o070) and not (parent_mode & 0o007)
+
+            new_file_group = parent_node.get('group') if is_collaborative else user_context.get('group', 'guest')
+            new_file_mode = 0o660 if is_collaborative else 0o644
+            # --- END OF THE FIX ---
+
             new_file = {
                 "type": "file", "content": content, "owner": str(user_context.get('name', 'guest')),
-                "group": str(user_context.get('group', 'guest')), "mode": 0o644, "mtime": now_iso
+                "group": str(new_file_group), "mode": new_file_mode, "mtime": now_iso
             }
             parent_node['children'][file_name] = new_file
 
         parent_node['mtime'] = now_iso
         self._save_state()
 
-    def create_directory(self, path, user_context):
+    def create_directory(self, path, user_context, parents=False):
         abs_path = self.get_absolute_path(path)
         if self.get_node(abs_path):
-            return
+            if parents:
+                return # If it exists and -p is used, it's not an error
+            raise FileExistsError(f"'{path}' already exists.")
 
         parts = [part for part in abs_path.split('/') if part]
         current_node = self.fs_data.get('/')
@@ -225,12 +236,14 @@ class FileSystemManager:
         now_iso = datetime.utcnow().isoformat() + "Z"
 
         for i, part in enumerate(parts):
+            is_last_part = i == len(parts) - 1
             current_path_so_far = os.path.join(current_path_so_far, part)
-            if part not in current_node.get('children', {}):
-                is_creating_own_home_dir = (os.path.dirname(current_path_so_far) == '/home' and
-                                            part == user_context.get('name'))
 
-                if not self._check_permission(current_node, user_context, 'write') and not is_creating_own_home_dir:
+            if part not in current_node.get('children', {}):
+                if not parents and not is_last_part:
+                    raise FileNotFoundError(f"Cannot create directory '{path}': No such file or directory")
+
+                if not self._check_permission(current_node, user_context, 'write'):
                     raise PermissionError(f"Permission denied to create directory in '{os.path.dirname(current_path_so_far)}'")
 
                 new_dir = {

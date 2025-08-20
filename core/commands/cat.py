@@ -15,59 +15,60 @@ def run(args, flags, user_context, stdin_data=None):
     """
     Concatenates files and prints them to the standard output, with permission checks.
     """
-    output_parts = []
-    files = args if args else []
+    output_content = []
     error_messages = []
 
-    # If there's data from a pipe, process it first.
-    if stdin_data is not None:
-        output_parts.extend(stdin_data.splitlines())
+    # If no args and there is stdin, treat it as if '-' was passed.
+    files_to_process = args if args else ['-'] if stdin_data is not None else []
 
-    # Process each file argument.
-    for file_path in files:
-        node = fs_manager.get_node(file_path)
+    if not files_to_process:
+        return "" # True cat behavior: no input, no output
 
-        if not node:
-            error_messages.append(f"cat: {file_path}: No such file or directory")
-            continue
+    for file_path in files_to_process:
+        content_to_add = None
+        if file_path == '-':
+            # Only process stdin if it was actually provided
+            if stdin_data is not None:
+                content_to_add = stdin_data
+        else:
+            node = fs_manager.get_node(file_path)
+            if not node:
+                error_messages.append(f"cat: {file_path}: No such file or directory")
+                continue
+            if not fs_manager.has_permission(file_path, user_context, 'read'):
+                error_messages.append(f"cat: {file_path}: Permission denied")
+                continue
+            if node.get('type') != 'file':
+                error_messages.append(f"cat: {file_path}: Is a directory")
+                continue
 
-        if not fs_manager.has_permission(file_path, user_context, 'read'):
-            error_messages.append(f"cat: {file_path}: Permission denied")
-            continue
+            content_to_add = node.get('content', '')
 
-        if node.get('type') != 'file':
-            error_messages.append(f"cat: {file_path}: Is a directory")
-            continue
+        if content_to_add is not None:
+            output_content.append(content_to_add)
 
-        try:
-            content = node.get('content', '')
-            output_parts.extend(content.splitlines())
-        except Exception as e:
-            error_messages.append(f"cat: {file_path}: An unexpected error occurred - {repr(e)}")
+    final_output = "".join(output_content)
 
-    # If there were any errors at all, return a structured error.
-    # This is more consistent than mixing output and errors.
+    # Standard cat behavior is to print successful content to stdout and errors to stderr.
+    # We can simulate this by returning a structured error that also contains the partial output.
     if error_messages:
         return {
             "success": False,
+            "output": final_output, # Still return partial output
             "error": {
                 "message": "\n".join(error_messages),
                 "suggestion": "Verify the file paths and ensure you have read permissions."
             }
         }
 
-    # Handle the case of `cat` with no arguments and no stdin.
-    if not files and stdin_data is None:
-        return ""
-
-    # Format the final output if there were no errors.
     if flags.get('number'):
-        numbered_output = []
-        for i, line in enumerate(output_parts):
-            numbered_output.append(f"     {i + 1}  {line}")
-        return "\n".join(numbered_output)
+        # Only split into lines when numbering is needed
+        lines = final_output.splitlines()
+        numbered_lines = [f"     {i+1}  {line}" for i, line in enumerate(lines)]
+        return "\n".join(numbered_lines)
     else:
-        return "\n".join(output_parts)
+        # Return the raw, unaltered content
+        return final_output
 
 
 def man(args, flags, user_context, **kwargs):
