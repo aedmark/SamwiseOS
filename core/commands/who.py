@@ -7,7 +7,13 @@ def run(args, flags, user_context, session_stack=None, **kwargs):
     Lists the users currently logged into the system.
     """
     if args:
-        return {"success": False, "error": "who: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "who: command takes no arguments",
+                "suggestion": "Simply run 'who' by itself."
+            }
+        }
 
     if session_stack is None:
         session_stack = [user_context.get('name', 'Guest')]
@@ -29,10 +35,16 @@ SYNOPSIS
     who
 
 DESCRIPTION
-    Print information about users who are currently logged in.
-    This command lists all active sessions in the current stack.
+    Print information about users who are currently logged in. This command
+    lists all active sessions in the current user's stack, showing the
+    order in which users were switched using the 'su' command.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    who
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the who command."""
     return "Usage: who"

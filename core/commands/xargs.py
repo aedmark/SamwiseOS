@@ -4,9 +4,13 @@ import shlex
 
 def define_flags():
     """Declares the flags that the xargs command accepts."""
-    return [
-        {'name': 'replace-str', 'short': 'I', 'long': 'replace-str', 'takes_value': True},
-    ]
+    return {
+        'flags': [
+            {'name': 'replace-str', 'short': 'I', 'long': 'replace-str', 'takes_value': True},
+        ],
+        'metadata': {}
+    }
+
 
 def run(args, flags, user_context, stdin_data=None, **kwargs):
     if stdin_data is None:
@@ -54,10 +58,15 @@ DESCRIPTION
     The xargs utility reads space or newline delimited strings from standard
     input and executes the specified utility with the strings as arguments.
 
+OPTIONS
     -I replace-str
           Replace occurrences of replace-str in the utility and arguments
           with names read from standard input. This executes the utility
           once for each input line.
+
+EXAMPLES
+    ls | xargs rm
+    find . -name "*.tmp" | xargs -I {} rm {}
 """
 
 def help(args, flags, user_context, **kwargs):

@@ -31,6 +31,7 @@ def run(args, flags, user_context, stdin_data=None):
     output_lines = []
     total_counts = {'lines': 0, 'words': 0, 'bytes': 0}
     has_errors = False
+    error_list = []
 
     def format_output(lines, words, bytes_count, name=""):
         parts = []
@@ -50,11 +51,11 @@ def run(args, flags, user_context, stdin_data=None):
         else:
             node = fs_manager.get_node(source)
             if not node:
-                output_lines.append(f"wc: {source}: No such file or directory")
+                error_list.append(f"wc: {source}: No such file or directory")
                 has_errors = True
                 continue
             if node.get('type') == 'directory':
-                output_lines.append(f"wc: {source}: Is a directory")
+                error_list.append(f"wc: {source}: Is a directory")
                 has_errors = True
             else:
                 content = node.get('content', '')
@@ -65,17 +66,17 @@ def run(args, flags, user_context, stdin_data=None):
             total_counts['words'] += words
             total_counts['bytes'] += bytes_count
 
-    if len(sources) > 1 and 'stdin' not in sources:
-        output_lines.append(format_output(total_counts['lines'], total_counts['words'], total_counts['bytes'], "total"))
-
-    if has_errors and not any(line for line in output_lines if not line.startswith("wc:")):
+    if has_errors:
         return {
             "success": False,
             "error": {
-                "message": "\n".join(output_lines),
-                "suggestion": "Please check the file paths."
+                "message": "\n".join(error_list),
+                "suggestion": "Please check the file paths provided."
             }
         }
+
+    if len(sources) > 1 and 'stdin' not in sources:
+        output_lines.append(format_output(total_counts['lines'], total_counts['words'], total_counts['bytes'], "total"))
 
     return "\n".join(output_lines)
 
@@ -92,14 +93,19 @@ DESCRIPTION
     more than one FILE is specified. With no FILE, or when FILE is -,
     read standard input.
 
+OPTIONS
     -c, --bytes
-          print the byte counts
+          Print the byte counts.
     -l, --lines
-          print the newline counts
+          Print the newline counts.
     -w, --words
-          print the word counts
+          Print the word counts.
+
+EXAMPLES
+    wc my_document.txt
+    wc -l my_document.txt
+    ls | wc -w
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the wc command."""
-    return "Usage: wc [-clw] [FILE]..."
+    return "Usage: wc [OPTION]... [FILE]..."

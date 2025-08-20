@@ -5,7 +5,13 @@ def run(args, flags, user_context, stdin_data=None):
     Returns the current user's name.
     """
     if args:
-        return {"success": False, "error": "whoami: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "whoami: command takes no arguments",
+                "suggestion": "Simply run 'whoami' by itself."
+            }
+        }
     return user_context.get('name', 'guest')
 
 def man(args, flags, user_context, stdin_data=None):
@@ -20,11 +26,14 @@ SYNOPSIS
     whoami
 
 DESCRIPTION
-    Print the user name associated with the current effective user ID.
+    Prints the user name associated with the current effective user ID.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    whoami
 """
 
 def help(args, flags, user_context, stdin_data=None):
-    """
-    Provides help information for the whoami command.
-    """
     return "Usage: whoami"

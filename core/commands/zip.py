@@ -26,6 +26,10 @@ def _add_to_zip(zip_buffer, path, archive_path=""):
         zip_info.compress_type = zipfile.ZIP_DEFLATED
         zip_buffer.writestr(zip_info, node.get('content', '').encode('utf-8'))
     elif node['type'] == 'directory':
+        # Add the directory entry itself
+        zip_info.external_attr = 0o40755 << 16 # drwxr-xr-x
+        zip_buffer.writestr(zip_info, '')
+
         new_archive_path = os.path.join(archive_path, os.path.basename(path))
         for child_name in node.get('children', {}):
             child_path = fs_manager.get_absolute_path(os.path.join(path, child_name))
@@ -52,12 +56,12 @@ def run(args, flags, user_context, **kwargs):
 
     try:
         fs_manager.write_file(archive_name, zip_content_b64, user_context)
-        return f"adding: {', '.join(source_paths)} (deflated 0%)" # Simplified output
+        return f"  adding: {', '.join(source_paths)} (deflated 0%)" # Simplified output
     except Exception as e:
         return {
             "success": False,
             "error": {
-                "message": f"zip: failed to write archive",
+                "message": "zip: failed to write archive",
                 "suggestion": f"An unexpected error occurred: {repr(e)}"
             }
         }
@@ -74,6 +78,14 @@ SYNOPSIS
 DESCRIPTION
     zip is a compression and file packaging utility. It puts one or more
     files into a single zip archive. Directories are archived recursively.
+    The resulting archive is base64-encoded to be stored as a text file.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    zip my_project.zip README.md src/
+    zip backup.zip /home/guest
 """
 
 def help(args, flags, user_context, **kwargs):
