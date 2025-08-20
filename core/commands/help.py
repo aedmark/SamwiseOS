@@ -43,7 +43,7 @@ def run(args, flags, user_context, stdin_data=None, commands=None, **kwargs):
         "",
         "Use 'help [command]' for more information on a specific command."
     ]
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def _format_in_columns(items, columns=4, width=80):
     """Helper function to format a list of strings into neat columns."""
@@ -54,7 +54,7 @@ def _format_in_columns(items, columns=4, width=80):
     for i in range(0, len(items), columns):
         line_items = [item.ljust(col_width) for item in items[i:i+columns]]
         formatted_lines.append("  ".join(line_items))
-    return "\\n".join(formatted_lines)
+    return "\n".join(formatted_lines)
 
 
 def man(args, flags, user_context, **kwargs):

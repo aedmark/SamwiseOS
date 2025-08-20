@@ -29,7 +29,7 @@ def run(args, flags, user_context, jobs=None, **kwargs):
 
         output.append(f"{pid_str} {status.ljust(4)} {tty_str}{time_str} {cmd_str}")
 
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """

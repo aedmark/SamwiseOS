@@ -277,6 +277,9 @@ async function handleEffect(result, options) {
                         commandText = item.command;
                         passwordPipe = item.password_pipe;
                     }
+
+                    commandText = commandText.replace(/\$@/g, scriptArgs.map(arg => `'${arg.replace(/'/g, "'\\''")}'`).join(' '));
+                    commandText = commandText.replace(/\$#/g, scriptArgs.length);
                     for (let i = 0; i < scriptArgs.length; i++) {
                         commandText = commandText.replace(new RegExp(`\\$${i + 1}`, 'g'), scriptArgs[i]);
                     }
@@ -295,7 +298,6 @@ async function handleEffect(result, options) {
                     } else {
                         await OutputManager.appendToOutput(`run: error on line ${scriptingContext.currentLineIndex + 1}: ${commandText}`, { typeClass: Config.CSS_CLASSES.ERROR_MSG });
                         if(commandResult.error) {
-                            // [FIXED] Properly format the error object before printing.
                             let errorMessage = commandResult.error.message || commandResult.error;
                             if (commandResult.error.suggestion) {
                                 errorMessage += `\nSuggestion: ${commandResult.error.suggestion}`;

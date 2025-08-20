@@ -25,11 +25,11 @@ def run(args, flags, user_context, users=None, groups=None, **kwargs):
     output.extend([f" - {item}" for item in report])
 
     if changes_made:
-        output.append("\\nRepairs were made. It is recommended to review the changes.")
+        output.append("\n Repairs were made. It is recommended to review the changes.")
     else:
-        output.append("\\nNo repairs were made. Run with '--repair' to fix issues.")
+        output.append("\n No repairs were made. Run with '--repair' to fix issues.")
 
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """

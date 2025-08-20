@@ -57,7 +57,7 @@ def run(args, flags, user_context, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": "\\n".join(output_messages),
+                "message": "\n".join(output_messages),
                 "suggestion": "Check the file paths and permissions."
             }
         }

@@ -136,13 +136,13 @@ def run(args, flags, user_context, stdin_data=None):
         return {
             "success": False,
             "error": {
-                "message": "\\n".join(output_lines),
+                "message": "\n".join(output_lines),
                 "suggestion": "Check the file paths and ensure they are correct."
             }
         }
 
 
-    return "\\n".join(output_lines)
+    return "\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return '''

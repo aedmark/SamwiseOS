@@ -11,7 +11,7 @@ def run(args, flags, user_context, stdin_data=None):
         }
 
     username = args[0]
-    password = args[1] if len(args) > 1 else (stdin_data.strip().split('\\n')[0] if stdin_data else None)
+    password = args[1] if len(args) > 1 else (stdin_data.strip().split('\n')[0] if stdin_data else None)
 
     return {
         "effect": "login",

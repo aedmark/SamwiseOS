@@ -38,7 +38,7 @@ def run(args, flags, user_context, stdin_data=None):
         return {
             "success": False,
             "error": {
-                "message": "\\n".join(error_output),
+                "message": "\n".join(error_output),
                 "suggestion": "Check the file paths and try again."
             }
         }
@@ -51,7 +51,7 @@ def run(args, flags, user_context, stdin_data=None):
         try:
             byte_count = int(byte_count_str)
             if byte_count < 0: raise ValueError
-            full_content = "\\n".join(lines)
+            full_content = "\n".join(lines)
             return full_content[:byte_count]
         except (ValueError, TypeError):
             return {
@@ -75,7 +75,7 @@ def run(args, flags, user_context, stdin_data=None):
                         "suggestion": "Please provide a non-negative integer for the line count."
                     }
                 }
-        return "\\n".join(lines[:line_count])
+        return "\n".join(lines[:line_count])
 
 
 def man(args, flags, user_context, **kwargs):

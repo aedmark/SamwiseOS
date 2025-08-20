@@ -43,7 +43,7 @@ def run(args, flags, user_context, **kwargs):
     for user, score in sorted_scores:
         output.append(f"  {user.ljust(20)} {score} tasks completed")
 
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """

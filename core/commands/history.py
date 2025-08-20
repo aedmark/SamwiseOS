@@ -36,7 +36,7 @@ def run(args, flags, user_context, **kwargs):
     for i, cmd in enumerate(history):
         output.append(f"  {str(i + 1).rjust(4)}  {cmd}")
 
-    return "\\n".join(output)
+    return "\n".join(output)
 
 def man(args, flags, user_context, **kwargs):
     return """
