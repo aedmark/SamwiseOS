@@ -140,23 +140,39 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    find - searches for files in a directory hierarchy.
+    find - search for files in a directory hierarchy
 
 SYNOPSIS
     find [path...] [expression]
 
 DESCRIPTION
-    Recursively searches a directory tree for files that match a given expression.
+    The find utility recursively descends the directory tree for each path, evaluating an expression for each file.
 
-EXPRESSIONS:
-    -name <pattern>     File name matches shell pattern (e.g., "*.txt").
-    -type <f|d>         File is of type f (file) or d (directory).
-    -perm <mode>        File's permission bits are exactly mode (octal).
-    -o                  OR operator to combine expressions.
-    -delete             Delete found files and directories.
-    -exec <cmd> {} ;    Execute command on found file ({} is replaced by file path).
+OPTIONS
+    -name <pattern>
+        File name matches shell pattern (e.g., "*.txt").
+
+    -type <f|d>
+        File is of type f (file) or d (directory).
+
+    -perm <mode>
+        File's permission bits are exactly mode (octal).
+
+    -o
+        OR; the preceding expression is logically OR'd with the following one.
+
+    -delete
+        Delete found files and directories. This is an action and implies printing.
+
+    -exec <cmd> {} ;
+        Execute command on found file. The '{}' is replaced by the current file path. The command must end with a ';'. This is an action.
+
+EXAMPLES
+    find . -name "*.log"
+    find /home -type d
+    find . -name "*.tmp" -delete
+    find . -name "*.txt" -exec cat {} ;
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the find command."""
     return "Usage: find [path...] [expression]"

@@ -34,7 +34,7 @@ def run(args, flags, user_context, **kwargs):
 
     try:
         fs_manager.ln(target, link_name, user_context)
-        return "" # Success
+        return ""
     except FileExistsError as e:
         return {
             "success": False,
@@ -69,9 +69,15 @@ SYNOPSIS
     ln -s TARGET LINK_NAME
 
 DESCRIPTION
-    Create a symbolic link named LINK_NAME which points to TARGET.
+    Create a symbolic link named LINK_NAME which points to TARGET. Hard links are not supported.
+
+OPTIONS
+    -s, --symbolic
+        Make a symbolic link instead of a hard link. This is currently the only supported mode.
+
+EXAMPLES
+    ln -s /home/guest/file.txt /home/guest/link_to_file
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the ln command."""
     return "Usage: ln -s <target> <link_name>"

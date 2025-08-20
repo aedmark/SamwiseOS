@@ -28,10 +28,15 @@ SYNOPSIS
     login <username> [password]
 
 DESCRIPTION
-    The login utility logs a new user into the system. If a password
-    is not provided on the command line, the user will be prompted for one.
+    The login utility logs a new user into the system. If a password is not provided on the command line, the user will be prompted for one.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    login guest
+    login root "my_secret_password"
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the login command."""
     return "Usage: login <username> [password]"

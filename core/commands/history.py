@@ -16,11 +16,17 @@ def run(args, flags, user_context, **kwargs):
     Handles displaying and clearing the command history.
     """
     if args:
-        return {"success": False, "error": "history: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "history: command takes no arguments",
+                "suggestion": "Try 'history' or 'history -c'."
+            }
+        }
 
     if flags.get('clear', False):
         history_manager.clear_history()
-        return "" # Successful clear has no output
+        return ""
 
     history = history_manager.get_full_history()
     if not history:
@@ -43,9 +49,14 @@ SYNOPSIS
 DESCRIPTION
     Displays the command history list with line numbers.
 
-    -c, --clear     clear the history list by deleting all entries.
+OPTIONS
+    -c, --clear
+        Clear the history list by deleting all entries.
+
+EXAMPLES
+    history
+    history -c
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the history command."""
     return "Usage: history [-c]"

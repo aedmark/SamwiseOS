@@ -14,7 +14,13 @@ def run(args, flags, user_context, **kwargs):
     Sends a signal to one or more specified jobs or processes.
     """
     if not args:
-        return {"success": False, "error": "kill: usage: kill [-s sigspec] pid | %job ..."}
+        return {
+            "success": False,
+            "error": {
+                "message": "kill: usage: kill [-s sigspec] pid | %job ...",
+                "suggestion": "You must specify a job ID (e.g., %1) or process ID to signal."
+            }
+        }
 
     signal = flags.get('signal', 'TERM').upper()
     pid_args = list(args)
@@ -24,7 +30,13 @@ def run(args, flags, user_context, **kwargs):
         pid_args = pid_args[1:]
 
     if not pid_args:
-        return {"success": False, "error": "kill: missing pid"}
+        return {
+            "success": False,
+            "error": {
+                "message": "kill: missing pid",
+                "suggestion": "Please specify one or more job or process IDs."
+            }
+        }
 
     effects = []
     for pid_arg in pid_args:
@@ -33,12 +45,12 @@ def run(args, flags, user_context, **kwargs):
             try:
                 job_id = int(pid_arg[1:])
             except (ValueError, IndexError):
-                return {"success": False, "error": f"kill: invalid job spec: {pid_arg}"}
+                return {"success": False, "error": {"message": f"kill: invalid job spec: {pid_arg}", "suggestion": "Job IDs must be numbers, like '%1'."}}
         else:
             try:
                 job_id = int(pid_arg)
             except ValueError:
-                return {"success": False, "error": f"kill: invalid pid: {pid_arg}"}
+                return {"success": False, "error": {"message": f"kill: invalid pid: {pid_arg}", "suggestion": "Process IDs must be numbers."}}
 
         effects.append({
             "effect": "signal_job",
@@ -46,7 +58,6 @@ def run(args, flags, user_context, **kwargs):
             "signal": signal
         })
 
-    # Return multiple effects
     return {"effects": effects}
 
 
@@ -60,11 +71,17 @@ SYNOPSIS
     kill -SIGNAME [pid | %job]...
 
 DESCRIPTION
-    The kill utility sends a signal to the specified processes or jobs.
-    If no signal is specified, the TERM signal is sent. Multiple job IDs
-    or PIDs can be specified.
+    The kill utility sends a signal to the specified processes or jobs. If no signal is specified, the TERM signal is sent, which requests a clean termination.
+
+OPTIONS
+    -s, --signal <sigspec>
+        Specify the signal to be sent. Common signals include TERM, KILL, and STOP.
+
+EXAMPLES
+    kill %1
+    kill -s KILL 12345
+    kill -STOP %2
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the kill command."""
     return "Usage: kill [-s sigspec | -sigspec] [pid | %job]..."

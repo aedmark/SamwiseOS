@@ -84,11 +84,18 @@ SYNOPSIS
     forge [OPTIONS] "<description>" [output_file]
 
 DESCRIPTION
-    Generate file content using an AI model based on a description. If an
-    output_file is specified, the content is saved. If no output file is
-    provided, the content is printed to standard output.
+    Generate file content using an AI model based on a detailed description. If an output_file is specified, the content is saved to that file. If no output file is provided, the generated content is printed to standard output.
+
+OPTIONS
+    -p, --provider <name>
+        Specify the AI provider to use (e.g., 'gemini', 'ollama'). Defaults to 'ollama'.
+    -m, --model <name>
+        Specify the exact model name to use for the chosen provider.
+
+EXAMPLES
+    forge "a simple python flask server" server.py
+    forge "a professional README for a javascript project"
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the forge command."""
     return 'Usage: forge [OPTIONS] "<description>" [output_file]'

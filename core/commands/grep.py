@@ -132,17 +132,17 @@ def run(args, flags, user_context, stdin_data=None):
                 content = node.get('content', '')
                 output_lines.extend(_process_content(content, pattern, flags, path, display_file_names))
 
-    if has_errors and not output_lines:
+    if has_errors and not any(line for line in output_lines if not line.startswith("grep:")):
         return {
             "success": False,
             "error": {
-                "message": "\n".join(output_lines),
+                "message": "\\n".join(output_lines),
                 "suggestion": "Check the file paths and ensure they are correct."
             }
         }
 
 
-    return "\n".join(output_lines)
+    return "\\n".join(output_lines)
 
 def man(args, flags, user_context, **kwargs):
     return '''
@@ -154,7 +154,8 @@ SYNOPSIS
 
 DESCRIPTION
     grep searches for PATTERNS in each FILE. A PATTERN is a regular expression.
-    
+
+OPTIONS
     -i, --ignore-case
           Ignore case distinctions in patterns and input data.
     -v, --invert-match
@@ -165,6 +166,11 @@ DESCRIPTION
           Suppress normal output; instead print a count of matching lines.
     -r, -R, --recursive
           Read all files under each directory, recursively.
+
+EXAMPLES
+    grep "error" /var/log/system.log
+    ls -l | grep -i "jan"
+    grep -r "TODO" /home/guest/projects
 '''
 
 def help(args, flags, user_context, **kwargs):

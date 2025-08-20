@@ -78,8 +78,13 @@ SYNOPSIS
 DESCRIPTION
     Creates a new group with the specified name. This command can only
     be run by the root user. Group names cannot contain spaces.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sudo groupadd developers
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the groupadd command."""
     return "Usage: groupadd <group_name>"

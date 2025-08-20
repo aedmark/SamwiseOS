@@ -16,7 +16,7 @@ def run(args, flags, user_context, stdin_data=None):
     lines = []
     has_errors = False
     error_output = []
-    # Logic to handle both piped data and file arguments
+
     if stdin_data:
         lines.extend(stdin_data.splitlines())
     elif args:
@@ -32,13 +32,13 @@ def run(args, flags, user_context, stdin_data=None):
                 continue
             lines.extend(node.get('content', '').splitlines())
     else:
-        return "" # No input, no output
+        return ""
 
     if has_errors and not lines:
         return {
             "success": False,
             "error": {
-                "message": "\n".join(error_output),
+                "message": "\\n".join(error_output),
                 "suggestion": "Check the file paths and try again."
             }
         }
@@ -51,7 +51,7 @@ def run(args, flags, user_context, stdin_data=None):
         try:
             byte_count = int(byte_count_str)
             if byte_count < 0: raise ValueError
-            full_content = "\n".join(lines)
+            full_content = "\\n".join(lines)
             return full_content[:byte_count]
         except (ValueError, TypeError):
             return {
@@ -75,27 +75,31 @@ def run(args, flags, user_context, stdin_data=None):
                         "suggestion": "Please provide a non-negative integer for the line count."
                     }
                 }
-        return "\n".join(lines[:line_count])
+        return "\\n".join(lines[:line_count])
 
 
-def man(args, flags, user_context, stdin_data=None):
+def man(args, flags, user_context, **kwargs):
     return """
 NAME
-head - output the first part of files
+    head - output the first part of files
 
 SYNOPSIS
-head [OPTION]... [FILE]...
+    head [OPTION]... [FILE]...
 
 DESCRIPTION
-Print the first 10 lines of each FILE to standard output.
-With no FILE, or when FILE is -, read standard input.
+    Print the first 10 lines of each FILE to standard output. With no FILE, or when FILE is -, read standard input.
 
--n, --lines=COUNT
-print the first COUNT lines instead of the first 10
--c, --bytes=COUNT
-print the first COUNT bytes
+OPTIONS
+    -n, --lines=COUNT
+        Print the first COUNT lines instead of the first 10.
+    -c, --bytes=COUNT
+        Print the first COUNT bytes.
+
+EXAMPLES
+    head /var/log/system.log
+    head -n 5 my_file.txt
+    ls | head -n 3
 """
 
-def help(args, flags, user_context, stdin_data=None):
-    """Provides help information for the head command."""
+def help(args, flags, user_context, **kwargs):
     return "Usage: head [-n COUNT] [-c BYTES] [FILE]..."

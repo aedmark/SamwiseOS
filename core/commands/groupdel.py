@@ -72,8 +72,13 @@ SYNOPSIS
 DESCRIPTION
     Deletes an existing group. You cannot delete the primary group of an
     existing user. This command can only be run by the root user.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sudo groupdel old_project
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the groupdel command."""
     return "Usage: groupdel <group_name>"

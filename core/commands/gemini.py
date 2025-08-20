@@ -87,17 +87,30 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    gemini - Engages in a context-aware conversation with a configured AI model.
+    gemini - Engage in a context-aware conversation with a configured AI model.
 
 SYNOPSIS
-    gemini [-c | --chat] [-p provider] [-m model] "<prompt>"
+    gemini [OPTIONS] "<prompt>"
 
 DESCRIPTION
     The gemini command sends a prompt to a configured AI model, acting as a powerful
     assistant capable of using system tools to answer questions about your files.
-    Use the --chat flag to open an interactive, graphical chat session.
+
+OPTIONS
+    -c, --chat
+        Open an interactive, graphical chat session.
+
+    -p, --provider <name>
+        Specify the AI provider to use (e.g., 'gemini', 'ollama'). Defaults to 'ollama'.
+
+    -m, --model <name>
+        Specify the exact model name to use for the chosen provider.
+
+EXAMPLES
+    gemini "summarize all the .txt files in my home directory"
+    gemini -c
+    gemini -p gemini "what is the purpose of the main.js file?"
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the gemini command."""
-    return 'Usage: gemini [-c] "<prompt>"'
+    return 'Usage: gemini [-c] [OPTIONS] "<prompt>"'
