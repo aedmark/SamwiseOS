@@ -14,26 +14,28 @@ def define_flags():
         'metadata': {}
     }
 
-def _add_to_zip(zip_buffer, path, archive_path=""):
-    """Recursively adds a file or directory to the zip buffer."""
+def _add_to_zip(zipf, path, archive_path=""):
+    """Recursively adds a file or directory to the zip file."""
     node = fs_manager.get_node(path)
-    if not node: return
+    if not node:
+        return
 
-    zip_info = zipfile.ZipInfo(os.path.join(archive_path, os.path.basename(path)))
-    zip_info.date_time = datetime.now().timetuple()[:6]
+    # The archive name for the current node
+    current_archive_name = os.path.join(archive_path, os.path.basename(path))
 
     if node['type'] == 'file':
-        zip_info.compress_type = zipfile.ZIP_DEFLATED
-        zip_buffer.writestr(zip_info, node.get('content', '').encode('utf-8'))
+        zipf.writestr(current_archive_name, node.get('content', '').encode('utf-8'))
     elif node['type'] == 'directory':
-        # Add the directory entry itself
-        zip_info.external_attr = 0o40755 << 16 # drwxr-xr-x
-        zip_buffer.writestr(zip_info, '')
+        # For directories, recursively add their children.
+        # An explicit directory entry is often not needed if it contains files,
+        # but let's add it for empty directories.
+        if not node.get('children'):
+            zipf.writestr(current_archive_name + '/', b'')
 
-        new_archive_path = os.path.join(archive_path, os.path.basename(path))
         for child_name in node.get('children', {}):
-            child_path = fs_manager.get_absolute_path(os.path.join(path, child_name))
-            _add_to_zip(zip_buffer, child_path, new_archive_path)
+            child_path = os.path.join(path, child_name)
+            _add_to_zip(zipf, child_path, current_archive_name)
+
 
 def run(args, flags, user_context, **kwargs):
     if len(args) < 2:
@@ -50,13 +52,16 @@ def run(args, flags, user_context, **kwargs):
 
     with zipfile.ZipFile(in_memory_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
         for path in source_paths:
-            _add_to_zip(zipf, path)
+            # We start with an empty archive path for the top-level items.
+            _add_to_zip(zipf, path, archive_path="")
 
     zip_content_b64 = base64.b64encode(in_memory_zip.getvalue()).decode('utf-8')
 
     try:
         fs_manager.write_file(archive_name, zip_content_b64, user_context)
-        return f"  adding: {', '.join(source_paths)} (deflated 0%)" # Simplified output
+        # Generate a more realistic output message.
+        output_lines = [f"  adding: {p} (deflated 0%)" for p in source_paths]
+        return "\n".join(output_lines)
     except Exception as e:
         return {
             "success": False,

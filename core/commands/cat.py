@@ -27,9 +27,7 @@ def run(args, flags, user_context, stdin_data=None):
     for file_path in files_to_process:
         content_to_add = None
         if file_path == '-':
-            # Only process stdin if it was actually provided
-            if stdin_data is not None:
-                content_to_add = stdin_data
+            content_to_add = str(stdin_data or "")
         else:
             node = fs_manager.get_node(file_path)
             if not node:

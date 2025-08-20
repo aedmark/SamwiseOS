@@ -49,18 +49,18 @@ def run(args, flags, user_context, **kwargs):
 
             for member in file_list:
                 dest_path = fs_manager.get_absolute_path(os.path.join(target_dir, member.filename))
+
+                # Ensure parent directory exists before writing file
+                if not member.is_dir():
+                    parent_dir = os.path.dirname(dest_path)
+                    if not fs_manager.get_node(parent_dir):
+                        fs_manager.create_directory(parent_dir, user_context, parents=True)
+
                 output_messages.append(f"  inflating: {dest_path}")
 
                 if member.is_dir():
                     fs_manager.create_directory(dest_path, user_context, parents=True)
                 else:
-                    # --- START OF THE FIX ---
-                    # Ensure the parent directory for the file exists before writing.
-                    parent_dir = os.path.dirname(dest_path)
-                    if not fs_manager.get_node(parent_dir):
-                        fs_manager.create_directory(parent_dir, user_context, parents=True)
-                    # --- END OF THE FIX ---
-
                     content_bytes = zipf.read(member)
                     content_str = content_bytes.decode('utf-8', 'replace')
                     fs_manager.write_file(dest_path, content_str, user_context)

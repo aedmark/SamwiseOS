@@ -186,22 +186,17 @@ class FileSystemManager:
         file_name = os.path.basename(abs_path)
         parent_node = self.get_node(parent_path)
 
-        if not parent_node:
+        if not parent_node or parent_node.get('type') != 'directory':
             # --- START OF THE FIX ---
-            # If the parent directory doesn't exist, create it. This makes
-            # commands like 'unzip' much more robust.
+            # If the parent directory doesn't exist, create it.
             try:
                 self.create_directory(parent_path, user_context, parents=True)
-                parent_node = self.get_node(parent_path) # Re-fetch the node after creation
-                if not parent_node: # If it still fails, then it's a real issue.
+                parent_node = self.get_node(parent_path)
+                if not parent_node:
                     raise FileNotFoundError(f"Cannot create parent directory for '{path}'")
             except Exception as e:
-                # Re-raise with a more specific error message
                 raise FileNotFoundError(f"Cannot create file in '{parent_path}': {repr(e)}")
-
-        if parent_node.get('type') != 'directory':
-            raise FileNotFoundError(f"Cannot create file in '{parent_path}': A component of the path is not a directory.")
-        # --- END OF THE FIX ---
+            # --- END OF THE FIX ---
 
         existing_node = parent_node['children'].get(file_name)
 
