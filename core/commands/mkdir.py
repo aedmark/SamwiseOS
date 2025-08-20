@@ -3,7 +3,6 @@
 from filesystem import fs_manager
 
 def define_flags():
-    """Declares the flags that the mkdir command accepts."""
     return {
         'flags': [
             {'name': 'parents', 'short': 'p', 'long': 'parents', 'takes_value': False},
@@ -12,9 +11,6 @@ def define_flags():
     }
 
 def run(args, flags, user_context, **kwargs):
-    """
-    Creates new directories.
-    """
     if not args:
         return {"success": False, "error": {"message": "mkdir: missing operand", "suggestion": "Try 'mkdir <directory_name>'."}}
 
@@ -22,22 +18,22 @@ def run(args, flags, user_context, **kwargs):
 
     for path in args:
         try:
-            fs_manager.create_directory(path, user_context)
-        except FileExistsError:
+            fs_manager.create_directory(path, user_context, parents=is_parents)
+        except FileExistsError as e:
             if not is_parents:
                 return {
                     "success": False,
                     "error": {
-                        "message": f"mkdir: cannot create directory ‘{path}’: File exists.",
+                        "message": f"mkdir: cannot create directory ‘{path}’: {e}",
                         "suggestion": "If you meant to create parent directories, try using the '-p' flag."
                     }
                 }
-        except FileNotFoundError as e:
+        except PermissionError as e:
             return {
                 "success": False,
                 "error": {
                     "message": f"mkdir: cannot create directory ‘{path}’: {e}",
-                    "suggestion": "Ensure the parent directory exists or use the '-p' flag."
+                    "suggestion": "Check your permissions for the parent directory."
                 }
             }
         except Exception as e:
@@ -49,12 +45,9 @@ def run(args, flags, user_context, **kwargs):
                 }
             }
 
-    return "" # Success
+    return ""
 
 def man(args, flags, user_context, **kwargs):
-    """
-    Displays the manual page for the mkdir command.
-    """
     return """
 NAME
     mkdir - make directories
@@ -70,7 +63,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """
-    Provides help information for the mkdir command.
-    """
     return "Usage: mkdir [-p] [DIRECTORY]..."

@@ -21,7 +21,12 @@ def run(args, flags, user_context, **kwargs):
         man_func = getattr(command_module, 'man', None)
 
         if man_func and callable(man_func):
-            return man_func(args, flags, user_context, **kwargs)
+            # The actual content is paged by the JS layer, so we just return it.
+            return {
+                "effect": "page_output",
+                "content": man_func(args, flags, user_context, **kwargs),
+                "mode": "less"
+            }
         else:
             return {
                 "success": False,
@@ -40,7 +45,6 @@ def run(args, flags, user_context, **kwargs):
         }
 
 def man(args, flags, user_context, **kwargs):
-    """Displays the manual page for the man command itself."""
     return """
 NAME
     man - format and display the on-line manual pages
@@ -54,5 +58,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the man command."""
     return "Usage: man <command>"

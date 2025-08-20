@@ -1,11 +1,14 @@
-# gem/core/commands/netstat.py
+# /core/commands/netstat.py
 
 def run(args, flags, user_context, config=None, **kwargs):
-    """
-    Returns an effect to trigger the display of network status.
-    """
     if not config or not config.get('NETWORKING_ENABLED'):
-        return {"success": False, "error": "netstat: networking is disabled by the system administrator."}
+        return {
+            "success": False,
+            "error": {
+                "message": "netstat: networking is disabled by the system administrator.",
+                "suggestion": "To enable networking, set NETWORKING_ENABLED to true in the system configuration and reboot."
+            }
+        }
 
     if args:
         return {"success": False, "error": "netstat: command takes no arguments"}
@@ -26,5 +29,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the netstat command."""
     return "Usage: netstat"

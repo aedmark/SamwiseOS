@@ -1,21 +1,24 @@
-# gem/core/commands/nc.py
+# /core/commands/nc.py
 
 def define_flags():
-    """Declares the flags that the nc command accepts."""
     return {
         'flags': [
-            {'name': 'listen', 'long': 'listen', 'takes_value': False},
-            {'name': 'exec', 'long': 'exec', 'takes_value': False},
+            {'name': 'listen', 'short': 'l', 'long': 'listen', 'takes_value': False},
+            {'name': 'exec', 'short': 'e', 'long': 'exec', 'takes_value': False},
         ],
         'metadata': {}
     }
 
 def run(args, flags, user_context, config=None, **kwargs):
-    """
-    Handles network communication by returning effects to the JS layer.
-    """
+
     if not config or not config.get('NETWORKING_ENABLED'):
-        return {"success": False, "error": "nc: networking is disabled by the system administrator."}
+        return {
+            "success": False,
+            "error": {
+                "message": "nc: networking is disabled by the system administrator.",
+                "suggestion": "To enable networking, set NETWORKING_ENABLED to true in the system configuration and reboot."
+            }
+        }
 
     is_listen = flags.get('listen', False)
     is_exec = flags.get('exec', False)
@@ -46,15 +49,14 @@ NAME
     nc - netcat utility for network communication
 
 SYNOPSIS
-    nc [--listen] [--exec] | [<targetId> "<message>"]
+    nc [-l] [-e] | [<targetId> "<message>"]
 
 DESCRIPTION
     A utility for network communication between SamwiseOS instances.
     It can send direct messages or set up a listener to receive them.
-    --exec (with --listen) executes incoming messages as commands.
+    -e, --exec (with -l) executes incoming messages as commands.
     WARNING: --exec is a security risk. Use with trusted peers only.
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the nc command."""
-    return "Usage: nc [--listen [--exec]] | [<targetId> \"<message>\"]"
+    return "Usage: nc [-l [-e]] | [<targetId> \"<message>\"]"

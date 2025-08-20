@@ -85,11 +85,20 @@ def _get_sort_key_for_node(flags):
     if flags.get('sort-extension'): return lambda item: (os.path.splitext(item[0])[1], item[0].lower())
     return lambda item: item[0].lower()
 
-def _list_directory_contents(path, flags, user_context):
-    """Lists the contents of a single directory, sorted and formatted."""
+def _list_directory_contents(path, flags, user_context, recursive_output, all_errors):
+    """Recursively lists directory contents."""
+    is_first_level = not recursive_output
+    if not is_first_level:
+        recursive_output.append(f"\n{path}:")
+
     node = fs_manager.get_node(path, resolve_symlink=False)
-    if not node or not fs_manager.has_permission(path, user_context, 'read'):
-        return [], [f"ls: cannot open directory '{path}': Permission denied"]
+    if not node or node.get('type') != 'directory':
+        all_errors.append(f"ls: cannot open directory '{path}': Not a directory")
+        return
+
+    if not fs_manager.has_permission(path, user_context, 'read'):
+        all_errors.append(f"ls: cannot open directory '{path}': Permission denied")
+        return
 
     children_items = list(node.get('children', {}).items())
     if not flags.get('all'):
@@ -98,16 +107,33 @@ def _list_directory_contents(path, flags, user_context):
     sort_key_func = _get_sort_key_for_node(flags)
     sorted_children = sorted(children_items, key=sort_key_func, reverse=flags.get('reverse', False))
 
-    output = []
+    dir_content = []
+    sub_dirs_to_recurse = []
+
     if flags.get('long'):
         for name, child_node in sorted_children:
-            output.append(_format_long(path, name, child_node))
+            dir_content.append(_format_long(path, name, child_node))
+            if flags.get('recursive') and child_node.get('type') == 'directory':
+                sub_dirs_to_recurse.append(os.path.join(path, name))
     elif flags.get('one-per-line'):
-        output.extend([name for name, _ in sorted_children])
+        for name, child_node in sorted_children:
+            dir_content.append(name)
+            if flags.get('recursive') and child_node.get('type') == 'directory':
+                sub_dirs_to_recurse.append(os.path.join(path, name))
     else:
-        formatted_columns = _format_columns([name for name, _ in sorted_children])
-        if formatted_columns: output.append(formatted_columns)
-    return output, []
+        names = [name for name, child_node in sorted_children]
+        formatted_columns = _format_columns(names)
+        if formatted_columns:
+            dir_content.append(formatted_columns)
+        for name, child_node in sorted_children:
+            if flags.get('recursive') and child_node.get('type') == 'directory':
+                sub_dirs_to_recurse.append(os.path.join(path, name))
+
+    recursive_output.extend(dir_content)
+
+    for sub_dir_path in sub_dirs_to_recurse:
+        _list_directory_contents(sub_dir_path, flags, user_context, recursive_output, all_errors)
+
 
 def run(args, flags, user_context, **kwargs):
     paths = args if args else ["."]
@@ -119,6 +145,11 @@ def run(args, flags, user_context, **kwargs):
             error_lines.append(f"ls: cannot access '{path}': No such file or directory")
             continue
 
+        # Check permissions right away
+        if not fs_manager.has_permission(path, user_context, 'read'):
+            error_lines.append(f"ls: cannot open directory '{path}': Permission denied")
+            continue
+
         is_link_and_long = node.get('type') == 'symlink' and flags.get('long')
         if node.get('type') == 'directory' and not flags.get('directory'):
             dir_args.append((path, node))
@@ -128,13 +159,17 @@ def run(args, flags, user_context, **kwargs):
     if file_args:
         sort_key_func = _get_sort_key_for_node(flags)
         sorted_files = sorted(file_args, key=lambda x: sort_key_func((os.path.basename(x[0]), x[1])), reverse=flags.get('reverse', False))
+
+        file_output = []
         if flags.get('long'):
             for path, node in sorted_files:
-                output.append(_format_long(os.path.dirname(path), os.path.basename(path), node))
+                file_output.append(_format_long(os.path.dirname(path), os.path.basename(path), node))
         elif flags.get('one-per-line'):
-            output.extend([p[0] for p in sorted_files])
+            file_output.extend([p[0] for p in sorted_files])
         else:
-            output.append(_format_columns([p[0] for p in sorted_files]))
+            file_output.append(_format_columns([p[0] for p in sorted_files]))
+        output.extend(file_output)
+
 
     if dir_args:
         if file_args: output.append("")
@@ -142,30 +177,17 @@ def run(args, flags, user_context, **kwargs):
 
         for i, (path, node) in enumerate(sorted_dirs):
             if i > 0: output.append("")
-            if len(paths) > 1 or flags.get('recursive'): output.append(f"{path}:")
+            if len(paths) > 1:
+                output.append(f"{path}:")
 
-            content_lines, errors = _list_directory_contents(path, flags, user_context)
-            output.extend(content_lines)
-            error_lines.extend(errors)
-
-            if flags.get('recursive'):
-                # Simplified recursive implementation
-                children = sorted(node.get('children', {}).keys())
-                for child_name in children:
-                    child_node = node['children'][child_name]
-                    if child_node.get('type') == 'directory':
-                        child_path = os.path.join(path, child_name)
-                        # Create a recursive call via the main run function for full logic
-                        # This is a placeholder for a more complex recursive descent
-                        output.append(f"\n{child_path}:")
-                        content_lines, errors = _list_directory_contents(child_path, flags, user_context)
-                        output.extend(content_lines)
-                        error_lines.extend(errors)
-
+            dir_output = []
+            _list_directory_contents(path, flags, user_context, dir_output, error_lines)
+            output.extend(dir_output)
 
     final_output_str = "\n".join(output)
     if error_lines:
-        return {"success": False, "error": "\n".join(error_lines)}
+        return {"success": False, "error": {"message": "\n".join(error_lines), "suggestion": "Please check the file paths and permissions."}}
+
     return final_output_str
 
 def man(args, flags, user_context, **kwargs):

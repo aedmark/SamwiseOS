@@ -1,4 +1,4 @@
-# gem/core/commands/nl.py
+# /core/commands/nl.py
 
 from filesystem import fs_manager
 
@@ -7,7 +7,9 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     has_errors = False
     error_output = []
 
-    if args:
+    if stdin_data is not None:
+        lines.extend(str(stdin_data or "").splitlines())
+    elif args:
         for path in args:
             node = fs_manager.get_node(path)
             if not node:
@@ -19,8 +21,6 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 has_errors = True
                 continue
             lines.extend(node.get('content', '').splitlines())
-    elif stdin_data is not None:
-        lines.extend(str(stdin_data or "").splitlines())
     else:
         return "" # No input, no output
 
@@ -42,11 +42,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         else:
             output_lines.append("")
 
-    final_output = "\n".join(output_lines)
-    if error_output:
-        return "\n".join(error_output) + "\n" + final_output
+    final_output_str = "\n".join(output_lines)
 
-    return final_output
+    if error_output:
+        return "\n".join(error_output) + "\n" + final_output_str
+
+    return final_output_str
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -58,7 +59,7 @@ SYNOPSIS
 
 DESCRIPTION
     Write each FILE to standard output, with line numbers added to
-    non-empty lines. With no FILE, read standard input.
+    non-empty lines. With no FILE, or when FILE is -, read standard input.
 """
 
 def help(args, flags, user_context, **kwargs):
