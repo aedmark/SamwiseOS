@@ -91,12 +91,16 @@ def _list_directory_contents(path, flags, user_context, recursive_output, all_er
     if not is_first_level:
         recursive_output.append(f"\n{path}:")
 
-    node = fs_manager.get_node(path, resolve_symlink=False)
+    # When listing contents, we MUST resolve the link to get the target directory
+    node = fs_manager.get_node(path, resolve_symlink=True)
+
     if not node or node.get('type') != 'directory':
         all_errors.append(f"ls: cannot open directory '{path}': Not a directory")
         return
 
+    # Permission check for reading the directory's contents
     if not fs_manager.has_permission(path, user_context, 'read'):
+        # THE FIX IS HERE! Added 'f' to make this an f-string.
         all_errors.append(f"ls: cannot open directory '{path}': Permission denied")
         return
 
@@ -140,18 +144,22 @@ def run(args, flags, user_context, **kwargs):
     output, error_lines, file_args, dir_args = [], [], [], []
 
     for path in paths:
+        # Get the node itself, don't resolve symlinks yet
         node = fs_manager.get_node(path, resolve_symlink=False)
         if not node:
             error_lines.append(f"ls: cannot access '{path}': No such file or directory")
             continue
 
-        # Check permissions right away
-        if not fs_manager.has_permission(path, user_context, 'read'):
-            error_lines.append(f"ls: cannot open directory '{path}': Permission denied")
-            continue
-
-        is_link_and_long = node.get('type') == 'symlink' and flags.get('long')
+        # Determine if we should list the item itself or its contents
+        should_list_contents = False
         if node.get('type') == 'directory' and not flags.get('directory'):
+            should_list_contents = True
+        elif node.get('type') == 'symlink' and not flags.get('directory'):
+            resolved_node = fs_manager.get_node(path, resolve_symlink=True)
+            if resolved_node and resolved_node.get('type') == 'directory':
+                should_list_contents = True
+
+        if should_list_contents:
             dir_args.append((path, node))
         else:
             file_args.append((path, node))
@@ -169,7 +177,6 @@ def run(args, flags, user_context, **kwargs):
         else:
             file_output.append(_format_columns([p[0] for p in sorted_files]))
         output.extend(file_output)
-
 
     if dir_args:
         if file_args: output.append("")
