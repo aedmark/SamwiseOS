@@ -5,29 +5,26 @@ import time
 import os
 
 def run(args, flags, user_context, **kwargs):
-    """
-    Gathers file information and returns an effect to launch the Paint UI.
-    """
     if len(args) > 1:
-        return {"success": False, "error": "Usage: paint [filename.oopic]"}
+        return {"success": False, "error": {"message": "paint: too many arguments", "suggestion": "Usage: paint [filename.oopic]"}}
 
     file_path_arg = args[0] if args else f"untitled-{int(time.time())}.oopic"
 
     if not file_path_arg.endswith('.oopic'):
-        return {"success": False, "error": "paint: can only edit .oopic files."}
+        return {"success": False, "error": {"message": "paint: invalid file type", "suggestion": "Paint can only create or edit .oopic files."}}
 
     file_content = ""
     validation_result = fs_manager.validate_path(file_path_arg, user_context, '{"allowMissing": true, "expectedType": "file"}')
 
     if not validation_result.get("success"):
-        return {"success": False, "error": f"paint: {validation_result.get('error')}"}
+        return {"success": False, "error": {"message": f"paint: {validation_result.get('error')}", "suggestion": "Check the file path and permissions."}}
 
     resolved_path = validation_result.get("resolvedPath")
     node = validation_result.get("node")
 
     if node:
         if not fs_manager.has_permission(resolved_path, user_context, "read"):
-            return {"success": False, "error": f"paint: cannot open '{file_path_arg}': Permission denied"}
+            return {"success": False, "error": {"message": f"paint: cannot open '{file_path_arg}': Permission denied", "suggestion": "Check the file's permissions with 'ls -l'."}}
         file_content = node.get('content', '')
 
     return {
@@ -53,5 +50,4 @@ DESCRIPTION
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the paint command."""
     return "Usage: paint [filename.oopic]"

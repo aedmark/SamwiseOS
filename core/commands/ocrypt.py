@@ -8,7 +8,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from filesystem import fs_manager
 
 def define_flags():
-    """Declares the flags that the ocrypt command accepts."""
     return {
         'flags': [
             {'name': 'decode', 'short': 'd', 'long': 'decode', 'takes_value': False},
@@ -43,35 +42,28 @@ def run(args, flags, user_context, **kwargs):
     if not input_node or input_node.get('type') != 'file':
         return {
             "success": False,
-            "error": { "message": f"ocrypt: input file not found or is a directory: {input_path}" }
+            "error": { "message": f"ocrypt: input file not found or is a directory: {input_path}", "suggestion": "Please ensure the input file exists." }
         }
 
-    # [FIXED] Use 'latin-1' to correctly read the raw bytes back
     input_content_bytes = input_node.get('content', '').encode('latin-1')
 
     try:
         if is_decrypt:
-            # For decryption, the first 16 bytes are the salt.
+            if len(input_content_bytes) < 17: # 16 for salt + at least 1 for data
+                return {"success": False, "error": {"message": "ocrypt: input file is not a valid encrypted file (too short).", "suggestion": "Ensure you are decrypting a file that was encrypted with ocrypt."}}
             salt = input_content_bytes[:16]
             encrypted_data = input_content_bytes[16:]
-            if not salt or not encrypted_data:
-                raise ValueError("Invalid encrypted file format.")
-
             key = _derive_key(password, salt)
             f = Fernet(key)
             decrypted_content = f.decrypt(encrypted_data)
             fs_manager.write_file(output_path, decrypted_content.decode('utf-8'), user_context)
             return "" # Success
         else:
-            # For encryption, generate a new salt.
             salt = os.urandom(16)
             key = _derive_key(password, salt)
             f = Fernet(key)
-            # The content to be encrypted must be bytes
             content_to_encrypt_bytes = input_node.get('content', '').encode('utf-8')
             encrypted_content = f.encrypt(content_to_encrypt_bytes)
-
-            # Prepend the salt to the encrypted data for storage.
             content_to_write = salt + encrypted_content
             fs_manager.write_file(output_path, content_to_write.decode('latin-1'), user_context)
             return "" # Success
@@ -79,12 +71,12 @@ def run(args, flags, user_context, **kwargs):
     except InvalidToken:
         return {
             "success": False,
-            "error": { "message": "ocrypt: decryption failed. Incorrect password or corrupted file." }
+            "error": { "message": "ocrypt: decryption failed.", "suggestion": "This is likely due to an incorrect password or a corrupted file." }
         }
     except Exception as e:
         return {
             "success": False,
-            "error": { "message": f"ocrypt: an unexpected error occurred: {repr(e)}" }
+            "error": { "message": f"ocrypt: an unexpected error occurred: {repr(e)}", "suggestion": "Please check the file paths and permissions." }
         }
 
 def man(args, flags, user_context, **kwargs):

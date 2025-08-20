@@ -1,4 +1,4 @@
-# gem/core/commands/patch.py
+# /core/commands/patch.py
 
 import re
 from filesystem import fs_manager
@@ -114,15 +114,21 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-patch - apply a diff file to an original
+    patch - apply a diff file to an original
 
 SYNOPSIS
-patch [ORIGINALFILE] [PATCHFILE]
+    patch [ORIGINALFILE] [PATCHFILE]
 
 DESCRIPTION
-patch takes a patch file containing a difference listing produced
-by the diff program and applies those differences to an original
-file, producing a patched version.
+    patch takes a patch file containing a difference listing produced
+    by the diff program and applies those differences to an original
+    file, producing a patched version.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    patch original.txt changes.patch
 """
 
 def help(args, flags, user_context, **kwargs):

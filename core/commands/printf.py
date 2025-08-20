@@ -19,15 +19,14 @@ def run(args, flags, user_context, stdin_data=None):
     fmt_unescaped = _unescape(fmt).replace("%b", "%s")
 
     try:
-        # This will fail if there are not enough values, which mimics shell behavior.
         return fmt_unescaped % tuple(values)
     except TypeError:
-        # Fallback for incorrect format string/argument mismatch
         return " ".join([fmt_unescaped] + values)
 
 def man(args, flags, user_context, stdin_data=None):
     """Displays the manual page for the printf command."""
-    return """NAME
+    return '''
+NAME
     printf - format and print data
 
 SYNOPSIS
@@ -35,9 +34,15 @@ SYNOPSIS
 
 DESCRIPTION
     Write formatted data to standard output. Interprets backslash escapes
-    and format specifiers like %s, %d, etc.
-"""
+    and format specifiers.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    printf "Hello, %s\\n" "World"
+    printf "%b" "This string has \\t a tab."
+'''
 
 def help(args, flags, user_context, stdin_data=None):
-    """Provides help information for the printf command."""
     return "Usage: printf FORMAT [ARGUMENT]..."

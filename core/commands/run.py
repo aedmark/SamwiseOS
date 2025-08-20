@@ -49,7 +49,6 @@ def run(args, flags, user_context, **kwargs):
         num_parts = len(line_parts)
         password_lines_needed = 0
 
-        # Determine if the command needs a password from the next line(s)
         if cmd == 'useradd' and num_parts == 2:
             password_lines_needed = 2
         elif cmd == 'sudo':
@@ -100,8 +99,14 @@ DESCRIPTION
     non-interactive password setting for commands like 'useradd' or 'sudo'
     by placing the required password(s) on the line(s) immediately following
     the command.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    run my_setup_script.sh
+    run backup.sh "my_project"
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the run command."""
     return "Usage: run SCRIPT [ARGUMENTS...]"

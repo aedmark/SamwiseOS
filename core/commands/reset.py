@@ -1,8 +1,7 @@
-# gem/core/commands/reset.py
+# /core/commands/reset.py
 from audit import audit_manager
 
 def define_flags():
-    """Declares the flags that the reset command accepts."""
     return {
         'flags': [],
         'metadata': {
@@ -16,11 +15,17 @@ def run(args, flags, user_context, **kwargs):
     after a confirmation prompt.
     """
     if args:
-        return {"success": False, "error": "reset: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "reset: command takes no arguments",
+                "suggestion": "Simply run 'reset' by itself."
+            }
+        }
 
     actor = user_context.get('name')
     audit_manager.log(actor, 'RESET_ATTEMPT', "User initiated a factory reset.", user_context)
-    # The actual success/failure will be logged by the JS handler.
+
     return {
         "effect": "confirm",
         "message": [
@@ -49,8 +54,13 @@ DESCRIPTION
     only be run by the root user.
 
     The system will automatically reboot after a successful reset.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sudo reset
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the reset command."""
     return "Usage: reset"

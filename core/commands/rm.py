@@ -1,11 +1,10 @@
-# gem/core/commands/rm.py
+# /core/commands/rm.py
 
 from filesystem import fs_manager
 import shlex
 import os
 
 def define_flags():
-    """Declares the flags that the rm command accepts."""
     return [
         {'name': 'recursive', 'short': 'r', 'long': 'recursive', 'takes_value': False},
         {'name': 'force', 'short': 'f', 'long': 'force', 'takes_value': False},
@@ -14,9 +13,7 @@ def define_flags():
     ]
 
 def run(args, flags, user_context, **kwargs):
-    """
-    Removes files or directories with interactive and force options.
-    """
+    """ Removes files or directories with interactive and force options. """
     stdin_data = kwargs.get('stdin_data')
     if not args:
         return {"success": False, "error": {"message": "rm: missing operand", "suggestion": "Try 'rm <file_name>'."}}
@@ -42,8 +39,6 @@ def run(args, flags, user_context, **kwargs):
             output_messages.append(f"rm: cannot remove '{path}': Is a directory")
             continue
 
-        # Non-interactive scripts will not have `is_interactive` set, so this block will be skipped.
-        # The `is_force` flag will correctly bypass this and proceed to deletion.
         if is_interactive and not is_force and not is_pre_confirmed and abs_path != confirmed_path:
             prompt_type = "directory" if node.get('type') == 'directory' else "regular file"
             return {
@@ -59,7 +54,13 @@ def run(args, flags, user_context, **kwargs):
                 output_messages.append(f"rm: cannot remove '{path}': {repr(e)}")
 
     if output_messages:
-        return {"success": False, "error": {"message": "\n".join(output_messages)}}
+        return {
+            "success": False,
+            "error": {
+                "message": "\\n".join(output_messages),
+                "suggestion": "Check the file paths and permissions."
+            }
+        }
 
     return "" # Success
 
@@ -74,14 +75,19 @@ SYNOPSIS
 DESCRIPTION
     Removes each specified file. By default, it does not remove directories.
 
+OPTIONS
     -f, --force
           ignore nonexistent files and arguments, never prompt
     -i
           prompt before every removal
     -r, -R, --recursive
           remove directories and their contents recursively
+
+EXAMPLES
+    rm my_old_file.txt
+    rm -i important_document.doc
+    rm -rf old_project/
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the rm command."""
     return "Usage: rm [OPTION]... [FILE]..."

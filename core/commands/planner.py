@@ -55,23 +55,22 @@ def _write_json_file(path, data, user_context):
 def run(args, flags, user_context, **kwargs):
     """Manages shared and personal project to-do lists."""
     if not args:
-        return {"success": False, "error": "planner: missing project name or sub-command. See 'help planner'."}
+        return {"success": False, "error": {"message": "planner: missing project name or sub-command", "suggestion": "See 'help planner' for usage."}}
 
     sub_command_or_project = args[0]
 
     if sub_command_or_project == 'create':
-        # ... (create logic remains the same)
         if len(args) != 2:
-            return {"success": False, "error": "Usage: planner create <project_name>"}
+            return {"success": False, "error": {"message": "planner: missing operand for create", "suggestion": "Usage: planner create <project_name>"}}
         project_name = args[1]
         project_path = _get_project_path(project_name, user_context)
         if fs_manager.get_node(project_path):
-            return {"success": False, "error": f"planner: project '{project_name}' already exists at '{project_path}'."}
+            return {"success": False, "error": {"message": f"planner: project '{project_name}' already exists", "suggestion": f"A project already exists at '{project_path}'."}}
         initial_data = {"projectName": project_name, "tasks": []}
         success, error = _write_json_file(project_path, initial_data, user_context)
         if success:
             return f"Project '{project_name}' created successfully at '{project_path}'."
-        return {"success": False, "error": f"planner: {error}"}
+        return {"success": False, "error": {"message": "planner: failed to create project", "suggestion": f"Details: {error}"}}
 
 
     project_name = sub_command_or_project
@@ -80,12 +79,12 @@ def run(args, flags, user_context, **kwargs):
 
     data, error = _read_json_file(project_path)
     if error:
-        return {"success": False, "error": f"planner: {error}"}
+        return {"success": False, "error": {"message": f"planner: {error}", "suggestion": "Please ensure the project planner file exists and is accessible."}}
 
     can_modify = fs_manager.has_permission(project_path, user_context, 'write')
     mod_commands = ['add', 'assign', 'done', 'link', 'schedule']
     if sub_command in mod_commands and not can_modify:
-        return {"success": False, "error": f"planner: you do not have permission to modify '{project_name}'."}
+        return {"success": False, "error": {"message": "planner: permission denied", "suggestion": f"You do not have permission to modify '{project_name}'."}}
 
     if sub_command == 'list':
         output = [f"\n  Project Status: {data.get('projectName', project_name)} ({project_path})", f"  {'='*70}"]
@@ -106,44 +105,41 @@ def run(args, flags, user_context, **kwargs):
         return "\n".join(output)
 
     elif sub_command == 'add':
-        # ... (add logic remains the same)
-        if len(args) != 3: return {"success": False, "error": 'Usage: planner <project> add "<task>"'}
+        if len(args) != 3: return {"success": False, "error": {"message": "planner: missing task description for add", "suggestion": 'Usage: planner <project> add "<task>"'}}
         description = args[2]
         new_id = (max([t.get('id', 0) for t in data['tasks']]) if data.get('tasks') else 0) + 1
         data.setdefault('tasks', []).append({"id": new_id, "description": description, "status": "open", "assignee": "none"})
         success, error = _write_json_file(project_path, data, user_context)
-        return f"Added task {new_id}." if success else {"success": False, "error": f"planner: {error}"}
+        return f"Added task {new_id}." if success else {"success": False, "error": {"message": f"planner: failed to add task", "suggestion": f"Details: {error}"}}
 
 
     elif sub_command == 'assign':
-        # ... (assign logic remains the same)
-        if len(args) != 4: return {"success": False, "error": "Usage: planner <project> assign <user> <task_id>"}
+        if len(args) != 4: return {"success": False, "error": {"message": "planner: incorrect arguments for assign", "suggestion": "Usage: planner <project> assign <user> <task_id>"}}
         user, task_id_str = args[2], args[3]
-        if not kwargs.get('users', {}).get(user): return {"success": False, "error": f"planner: user '{user}' does not exist."}
+        if not kwargs.get('users', {}).get(user): return {"success": False, "error": {"message": f"planner: user '{user}' does not exist", "suggestion": "Use the 'listusers' command to see available users."}}
         try:
             task = next((t for t in data['tasks'] if t.get('id') == int(task_id_str)), None)
-            if not task: return {"success": False, "error": f"planner: task ID {task_id_str} not found."}
+            if not task: return {"success": False, "error": {"message": f"planner: task ID {task_id_str} not found", "suggestion": "Use 'planner <project> list' to see available tasks."}}
             task.update({'assignee': user, 'status': 'assigned'})
             success, error = _write_json_file(project_path, data, user_context)
-            return f"Task {task_id_str} assigned to {user}." if success else {"success": False, "error": f"planner: {error}"}
-        except ValueError: return {"success": False, "error": f"planner: invalid task ID '{task_id_str}'."}
+            return f"Task {task_id_str} assigned to {user}." if success else {"success": False, "error": {"message": "planner: failed to assign task", "suggestion": f"Details: {error}"}}
+        except ValueError: return {"success": False, "error": {"message": f"planner: invalid task ID '{task_id_str}'", "suggestion": "Task ID must be a number."}}
 
 
     elif sub_command == 'done':
         if len(args) != 3:
-            return {"success": False, "error": "Usage: planner <project> done <task_id>"}
+            return {"success": False, "error": {"message": "planner: missing task ID for done", "suggestion": "Usage: planner <project> done <task_id>"}}
         try:
             task_id = int(args[2])
             task = next((t for t in data['tasks'] if t.get('id') == task_id), None)
             if not task or task['status'] == 'done':
-                return {"success": False, "error": f"Task {task_id} not found or already done."}
+                return {"success": False, "error": {"message": f"Task {task_id} not found or already done.", "suggestion": "Use 'planner <project> list' to see available tasks."}}
 
             task['status'] = 'done'
             success, error = _write_json_file(project_path, data, user_context)
             if not success:
-                return {"success": False, "error": f"planner: {error}"}
+                return {"success": False, "error": {"message": "planner: failed to update task", "suggestion": f"Details: {error}"}}
 
-            # [NEW] Scoring logic
             scores, _ = _read_json_file(SCORE_PATH, default='{}')
             if scores is None: scores = {}
             user_name = user_context.get('name')
@@ -152,29 +148,29 @@ def run(args, flags, user_context, **kwargs):
 
             return {"output": f"Task {task_id} marked as done! Score +1 for {user_name}!", "effect": "beep"}
         except ValueError:
-            return {"success": False, "error": f"planner: invalid task ID '{args[2]}'."}
+            return {"success": False, "error": {"message": f"planner: invalid task ID '{args[2]}'", "suggestion": "Task ID must be a number."}}
 
     elif sub_command == 'link':
         if len(args) != 4:
-            return {"success": False, "error": "Usage: planner <project> link <task_id> <file>"}
+            return {"success": False, "error": {"message": "planner: incorrect arguments for link", "suggestion": "Usage: planner <project> link <task_id> <file>"}}
         task_id_str, file_path = args[2], args[3]
         if not fs_manager.get_node(file_path):
-            return {"success": False, "error": f"planner: file not found '{file_path}'"}
+            return {"success": False, "error": {"message": f"planner: file not found '{file_path}'", "suggestion": "Please ensure the file you are linking to exists."}}
         try:
             task = next((t for t in data['tasks'] if t.get('id') == int(task_id_str)), None)
-            if not task: return {"success": False, "error": f"planner: task ID {task_id_str} not found."}
+            if not task: return {"success": False, "error": {"message": f"planner: task ID {task_id_str} not found", "suggestion": "Use 'planner <project> list' to see available tasks."}}
             task['linked_file'] = file_path
             success, error = _write_json_file(project_path, data, user_context)
-            return f"Task {task_id_str} linked to file {file_path}." if success else {"success": False, "error": f"planner: {error}"}
-        except ValueError: return {"success": False, "error": f"planner: invalid task ID '{task_id_str}'."}
+            return f"Task {task_id_str} linked to file {file_path}." if success else {"success": False, "error": {"message": "planner: failed to link file", "suggestion": f"Details: {error}"}}
+        except ValueError: return {"success": False, "error": {"message": f"planner: invalid task ID '{task_id_str}'", "suggestion": "Task ID must be a number."}}
 
     elif sub_command == 'schedule':
         if len(args) != 4:
-            return {"success": False, "error": 'Usage: planner <project> schedule <task_id> "<cron_string>"'}
+            return {"success": False, "error": {"message": "planner: incorrect arguments for schedule", "suggestion": 'Usage: planner <project> schedule <task_id> "<cron_string>"'}}
         task_id_str, cron_string = args[2], args[3]
         try:
             task = next((t for t in data['tasks'] if t.get('id') == int(task_id_str)), None)
-            if not task: return {"success": False, "error": f"planner: task ID {task_id_str} not found."}
+            if not task: return {"success": False, "error": {"message": f"planner: task ID {task_id_str} not found", "suggestion": "Use 'planner <project> list' to see available tasks."}}
 
             agenda_data, _ = _read_json_file(AGENDA_PATH, default='[]')
             if agenda_data is None: agenda_data = []
@@ -183,15 +179,15 @@ def run(args, flags, user_context, **kwargs):
             agenda_data.append({"id": agenda_id, "cronString": cron_string, "command": command})
 
             success, error = _write_json_file(AGENDA_PATH, agenda_data, {"name": "root", "group": "root"})
-            if not success: return {"success": False, "error": f"planner: could not write to agenda: {error}"}
+            if not success: return {"success": False, "error": {"message": f"planner: could not write to agenda", "suggestion": f"Details: {error}"}}
 
             task['scheduled'] = cron_string
             success, error = _write_json_file(project_path, data, user_context)
-            return f"Task {task_id_str} scheduled on agenda." if success else {"success": False, "error": f"planner: {error}"}
-        except ValueError: return {"success": False, "error": f"planner: invalid task ID '{task_id_str}'."}
+            return f"Task {task_id_str} scheduled on agenda." if success else {"success": False, "error": {"message": "planner: failed to schedule task", "suggestion": f"Details: {error}"}}
+        except ValueError: return {"success": False, "error": {"message": f"planner: invalid task ID '{task_id_str}'", "suggestion": "Task ID must be a number."}}
 
     else:
-        return {"success": False, "error": f"planner: unknown sub-command '{sub_command}'."}
+        return {"success": False, "error": {"message": f"planner: unknown sub-command '{sub_command}'", "suggestion": "Available commands are: create, list, add, assign, done, link, schedule."}}
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -203,19 +199,34 @@ SYNOPSIS
 
 DESCRIPTION
     Manages project plans. By default, it operates on .planner files in the
-    user's ~/.plans/ directory. When run with sudo, it manages system-wide
+    user's ~/.plans/ directory. When run as root, it manages system-wide
     projects in /etc/projects/.
 
-SUB-COMMANDS:
-  create <name>               - Creates a new project plan.
-  (no sub-command) or list    - Displays the status board for <project>.
-  add "<task>"                - Adds a new task to the plan.
-  assign <user> <id>          - Assigns a task ID to a user.
-  done <id>                   - Marks a task ID as complete and grants +1 score.
-  link <id> <file>            - Links a task ID to a file path.
-  schedule <id> "<cron>"      - Schedules a bulletin reminder for a task.
+OPTIONS
+    This command takes no options.
+
+SUB-COMMANDS
+    create <name>
+        Creates a new project plan.
+    list
+        Displays the status board for <project>. (This is the default action).
+    add "<task>"
+        Adds a new task to the plan.
+    assign <user> <id>
+        Assigns a task ID to a user.
+    done <id>
+        Marks a task ID as complete and grants +1 score.
+    link <id> <file>
+        Links a task ID to a file path.
+    schedule <id> "<cron>"
+        Schedules a bulletin reminder for a task using a cron string.
+
+EXAMPLES
+    planner create my_project
+    planner my_project add "Write the first chapter."
+    planner my_project assign guest 1
+    planner my_project done 1
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the planner command."""
     return "Usage: planner <project> [sub-command] [options]"

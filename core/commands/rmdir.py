@@ -14,7 +14,13 @@ def define_flags():
 
 def run(args, flags, user_context, **kwargs):
     if not args:
-        return {"success": False, "error": "rmdir: missing operand"}
+        return {
+            "success": False,
+            "error": {
+                "message": "rmdir: missing operand",
+                "suggestion": "You must specify at least one directory to remove."
+            }
+        }
 
     is_parents = flags.get('parents', False)
 
@@ -23,11 +29,11 @@ def run(args, flags, user_context, **kwargs):
         try:
             node = fs_manager.get_node(abs_path)
             if not node:
-                return {"success": False, "error": f"rmdir: failed to remove '{path}': No such file or directory"}
+                return {"success": False, "error": {"message": f"rmdir: failed to remove '{path}': No such file or directory", "suggestion": "Please check the directory path."}}
             if node.get('type') != 'directory':
-                return {"success": False, "error": f"rmdir: failed to remove '{path}': Not a directory"}
+                return {"success": False, "error": {"message": f"rmdir: failed to remove '{path}': Not a directory", "suggestion": "You can only use rmdir on directories."}}
             if node.get('children'):
-                return {"success": False, "error": f"rmdir: failed to remove '{path}': Directory not empty"}
+                return {"success": False, "error": {"message": f"rmdir: failed to remove '{path}': Directory not empty", "suggestion": "Use 'rm -r' to remove non-empty directories."}}
 
             fs_manager.remove(abs_path)
 
@@ -41,7 +47,7 @@ def run(args, flags, user_context, **kwargs):
                     else:
                         break
         except Exception as e:
-            return {"success": False, "error": f"rmdir: failed to remove '{path}': {repr(e)}"}
+            return {"success": False, "error": {"message": f"rmdir: failed to remove '{path}': {repr(e)}", "suggestion": "An unexpected error occurred. Check permissions."}}
 
     return ""
 
@@ -56,9 +62,14 @@ SYNOPSIS
 DESCRIPTION
     Removes the DIRECTORY(ies), if they are empty.
 
+OPTIONS
     -p, --parents
           remove DIRECTORY and its ancestors. For instance,
           `rmdir -p a/b/c` is similar to `rmdir a/b/c a/b a`.
+
+EXAMPLES
+    rmdir old_project
+    rmdir -p new/empty/structure
 """
 
 def help(args, flags, user_context, **kwargs):

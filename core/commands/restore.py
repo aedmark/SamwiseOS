@@ -1,8 +1,8 @@
-# gem/core/commands/restore.py
+# /core/commands/restore.py
+
 from audit import audit_manager
 
 def define_flags():
-    """Declares the flags that the restore command accepts."""
     return {
         'flags': [],
         'metadata': {
@@ -15,11 +15,16 @@ def run(args, flags, user_context, **kwargs):
     Returns an effect to trigger the browser's file restore workflow.
     """
     if args:
-        return {"success": False, "error": "restore: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "restore: command takes no arguments",
+                "suggestion": "Simply run 'restore' by itself."
+            }
+        }
 
     actor = user_context.get('name')
     audit_manager.log(actor, 'RESTORE_ATTEMPT', "User initiated a system restore.", user_context)
-    # The actual success/failure will be logged by the JS handler.
     return {
         "effect": "trigger_restore_flow"
     }
@@ -33,12 +38,17 @@ SYNOPSIS
     restore
 
 DESCRIPTION
-    Restore the SamwiseOS system from a backup file (.json).
+    Restores the SamwiseOS system from a backup file (.json).
     This operation is destructive and will overwrite your entire current system.
     The command will prompt you to select a backup file and confirm before
     proceeding. This command can only be run by the root user.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sudo restore
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the restore command."""
     return "Usage: restore"

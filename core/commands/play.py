@@ -6,7 +6,13 @@ def run(args, flags, user_context, **kwargs):
     to be handled by the JavaScript SoundManager.
     """
     if len(args) != 2:
-        return {"success": False, "error": "Usage: play \"<note or chord>\" <duration>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "play: incorrect number of arguments",
+                "suggestion": "Usage: play \"<note or chord>\" <duration>"
+            }
+        }
 
     notes_string = args[0]
     duration = args[1]
@@ -18,19 +24,26 @@ def run(args, flags, user_context, **kwargs):
     }
 
 def man(args, flags, user_context, **kwargs):
-    return """
+    return '''
 NAME
-    play - Plays a musical note or chord for a specific duration.
+    play - Plays a musical note or chord.
 
 SYNOPSIS
     play "<note or chord>" <duration>
 
 DESCRIPTION
-    Plays a musical note or chord using the system synthesizer.
-    - "<note or chord>": Standard musical notation (e.g., C4, "F#5 G5", "A3 C4 E4"). For chords, enclose the notes in quotes.
-    - <duration>: Note duration (e.g., 4n, 8n, 1m).
-"""
+    Plays a musical note or chord using the system synthesizer. Notes should be
+    specified in standard notation (e.g., C4, F#5). Chords are space-separated
+    notes within quotes. Duration is specified in notation like '4n' (quarter note)
+    or '8n' (eighth note).
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    play C4 4n
+    play "A3 C4 E4" 2n
+'''
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the play command."""
     return 'Usage: play "<note or chord>" <duration>'

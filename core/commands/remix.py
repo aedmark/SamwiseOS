@@ -76,7 +76,7 @@ async def run(args, flags, user_context, stdin_data=None, api_key=None, ai_manag
             "content": result["data"]
         }
     else:
-        return result # Propagate the already-formatted error from the AI Manager
+        return result
 
 def man(args, flags, user_context, **kwargs):
     return """
@@ -87,11 +87,19 @@ SYNOPSIS
     remix [-p provider] [-m model] <file1> <file2>
 
 DESCRIPTION
-    The remix command uses the AI Manager to read two source files,
-    understand the core ideas of each, and then generate a new,
-    summarized article that synthesizes the information from both.
+    The remix command uses an AI to read two source files, understand the
+    core ideas of each, and then generate a new, summarized article that
+    synthesizes the information from both.
+
+OPTIONS
+    -p, --provider <name>
+        Specify the AI provider (e.g., 'gemini', 'ollama'). Defaults to 'ollama'.
+    -m, --model <name>
+        Specify the exact model name to use for the chosen provider.
+
+EXAMPLES
+    remix document_a.txt document_b.txt
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the remix command."""
-    return "Usage: remix <file1> <file2>"
+    return "Usage: remix [-p provider] [-m model] <file1> <file2>"

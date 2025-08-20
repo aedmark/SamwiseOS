@@ -3,12 +3,15 @@ import os
 from datetime import datetime
 
 def run(args, flags, user_context, **kwargs):
-    """
-    Determines whether to capture a screenshot as a PNG or dump terminal
-    text to a file, and returns the appropriate effect.
-    """
+    """ Determines whether to capture a screenshot as a PNG or dump terminal text to a file, and returns the appropriate effect. """
     if len(args) > 1:
-        return {"success": False, "error": "printscreen: too many arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "printscreen: too many arguments",
+                "suggestion": "You can only provide a single filename or no arguments."
+            }
+        }
 
     if args:
         output_filename = args[0]
@@ -33,12 +36,18 @@ SYNOPSIS
 
 DESCRIPTION
     The printscreen command captures the visible content of the terminal.
-    - Image Mode (default): Generates a PNG image of the terminal and
-      initiates a browser download.
-    - Text Dump Mode: If an [output_file] is specified, it dumps the
-      visible text content of the terminal to that file.
+    In Image Mode (default), it generates a PNG image of the terminal and
+    initiates a browser download. In Text Dump Mode, if an [output_file]
+    is specified, it dumps the visible text content of the terminal to
+    that file.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    printscreen
+    printscreen my_screen_content.txt
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the printscreen command."""
     return "Usage: printscreen [output_file]"

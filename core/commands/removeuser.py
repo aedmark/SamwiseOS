@@ -1,9 +1,8 @@
-# gem/core/commands/removeuser.py
+# /core/commands/removeuser.py
 
 from users import user_manager
 
 def define_flags():
-    """Declares the flags that the removeuser command accepts."""
     return {
         'flags': [
             {'name': 'remove-home', 'short': 'r', 'long': 'remove-home', 'takes_value': False},
@@ -14,18 +13,28 @@ def define_flags():
 
 def run(args, flags, user_context, **kwargs):
     if user_context.get('name') != 'root':
-        return {"success": False, "error": "removeuser: only root can remove users."}
+        return {
+            "success": False,
+            "error": {
+                "message": "removeuser: permission denied",
+                "suggestion": "Only the 'root' user can remove other users."
+            }
+        }
 
     if not args:
-        return {"success": False, "error": "Usage: removeuser [-r] [-f] <username>"}
+        return {
+            "success": False,
+            "error": {
+                "message": "removeuser: missing username operand",
+                "suggestion": "Usage: removeuser [-r] [-f] <username>"
+            }
+        }
 
     username = args[0]
     remove_home = flags.get('remove-home', False)
     is_force = flags.get('force', False)
 
     if is_force:
-        # If forced, directly call the deletion logic from the user_manager.
-        # This is a new, direct path that doesn't involve the UI.
         delete_result = user_manager.delete_user_and_data(username, remove_home)
         if delete_result.get("success"):
             return {
@@ -36,7 +45,8 @@ def run(args, flags, user_context, **kwargs):
                 "groups": kwargs.get("groups")
             }
         else:
-            return delete_result # Propagate the error message from the manager
+            # Propagate the already-structured error from the user_manager
+            return delete_result
 
     # If not forced, return the confirmation effect for the UI to handle.
     return {
@@ -57,12 +67,16 @@ DESCRIPTION
     Removes a user account from the system. This command requires root
     privileges.
 
+OPTIONS
     -r, --remove-home
           Remove the user's home directory.
     -f, --force
-          Never prompt for confirmation.
+          Never prompt for confirmation, even if the user is logged in.
+
+EXAMPLES
+    sudo removeuser jerry
+    sudo removeuser -r larry
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the removeuser command."""
     return "Usage: removeuser [-r] [-f] <username>"
