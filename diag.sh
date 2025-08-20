@@ -606,7 +606,7 @@ delay 200
 echo "--- Test: 'find' and 'xargs' with spaced filenames ---"
 rm -f "a file with spaces.tmp"
 touch "a file with spaces.tmp"
-find . -name "*.tmp" | xargs rm
+find . -name "*.tmp" | xargs -I {} rm "{}"
 check_fail "ls \"a file with spaces.tmp\""
 echo "'find' and 'xargs' with spaces test complete."
 delay 200

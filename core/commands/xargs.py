@@ -17,29 +17,35 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         return ""
 
     command_to_run_parts = args if args else ['echo']
-    # Use shlex to handle inputs with quoted spaces correctly
-    try:
-        input_items = shlex.split(stdin_data)
-    except ValueError:
-        # Fallback for simple newline-separated lists if shlex fails
-        input_items = [line for line in stdin_data.splitlines() if line.strip()]
+    replace_str = flags.get('replace-str')
 
+    # Correctly determine how to split the input
+    if replace_str:
+        # With -I, process line by line, preserving spaces in each line.
+        input_items = [line for line in stdin_data.splitlines() if line.strip()]
+    else:
+        # Without -I, split by whitespace, respecting quotes.
+        try:
+            input_items = shlex.split(stdin_data)
+        except ValueError:
+            # Fallback for simple newline-separated lists if shlex fails.
+            input_items = [line for line in stdin_data.splitlines() if line.strip()]
 
     if not input_items:
         return ""
 
     new_commands = []
-    replace_str = flags.get('replace-str')
 
     if replace_str:
         for item in input_items:
-            # When -I is used, we process each item to generate a new command
+            # When -I is used, we process each item to generate a new command.
+            # The item is the full line from stdin.
             substituted_parts = [
                 part.replace(replace_str, item) for part in command_to_run_parts
             ]
             new_commands.append(" ".join(shlex.quote(p) for p in substituted_parts))
     else:
-        # When no -I, append all items as separate arguments to a single command
+        # When no -I, append all items as separate arguments to a single command.
         full_command_parts = command_to_run_parts + input_items
         new_commands.append(" ".join(shlex.quote(p) for p in full_command_parts))
 
