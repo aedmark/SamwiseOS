@@ -34,6 +34,13 @@ DESCRIPTION
     The unset command removes the specified environment variable(s).
     Once unset, a variable will no longer be available to commands
     or for expansion.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    unset MY_VAR
+    unset TEMP_DIR OLD_PROMPT
 """
 
 def help(args, flags, user_context, stdin_data=None):

@@ -19,9 +19,21 @@ def run(args, flags, user_context, session_start_time=None, **kwargs):
     Shows how long the system has been running.
     """
     if args:
-        return {"success": False, "error": "uptime: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "uptime: command takes no arguments",
+                "suggestion": "Simply run 'uptime' by itself."
+            }
+        }
     if not session_start_time:
-        return {"success": False, "error": "uptime: session start time not available."}
+        return {
+            "success": False,
+            "error": {
+                "message": "uptime: session start time not available",
+                "suggestion": "This may indicate a system-level issue."
+            }
+        }
 
     try:
         start_time = datetime.fromisoformat(session_start_time.replace('Z', '+00:00'))
@@ -43,10 +55,15 @@ SYNOPSIS
     uptime
 
 DESCRIPTION
-    Print the current time, how long the system has been running,
-    and the number of users currently logged on.
+    Print the current time, how long the system has been running since the
+    web page was loaded, and the number of users currently logged on.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    uptime
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the uptime command."""
     return "Usage: uptime"

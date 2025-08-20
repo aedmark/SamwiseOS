@@ -5,10 +5,13 @@ from filesystem import fs_manager
 
 def define_flags():
     """Declares the flags that the tree command accepts."""
-    return [
-        {'name': 'level', 'short': 'L', 'long': 'level', 'takes_value': True},
-        {'name': 'dirs-only', 'short': 'd', 'long': 'dirs-only', 'takes_value': False},
-    ]
+    return {
+        'flags': [
+            {'name': 'level', 'short': 'L', 'long': 'level', 'takes_value': True},
+            {'name': 'dirs-only', 'short': 'd', 'long': 'dirs-only', 'takes_value': False},
+        ],
+        'metadata': {}
+    }
 
 def run(args, flags, user_context, **kwargs):
     path_arg = args[0] if args else "."
@@ -16,14 +19,41 @@ def run(args, flags, user_context, **kwargs):
     start_node = fs_manager.get_node(start_path)
 
     if not start_node:
-        return {"success": False, "error": f"tree: '{path_arg}' [error opening dir]"}
+        return {
+            "success": False,
+            "error": {
+                "message": f"tree: '{path_arg}' [error opening dir]",
+                "suggestion": "The specified directory does not exist or cannot be accessed."
+            }
+        }
     if start_node.get('type') != 'directory':
-        return {"success": False, "error": f"tree: '{path_arg}' is not a directory."}
+        return {
+            "success": False,
+            "error": {
+                "message": f"tree: '{path_arg}' is not a directory.",
+                "suggestion": "The tree command can only be used on directories."
+            }
+        }
 
     try:
         max_depth = int(flags.get('level')) if flags.get('level') else float('inf')
+        if max_depth <= 0:
+            return {
+                "success": False,
+                "error": {
+                    "message": f"tree: Invalid level, must be greater than 0.",
+                    "suggestion": "Please provide a positive integer for the level."
+                }
+            }
     except (ValueError, TypeError):
-        return {"success": False, "error": "tree: Invalid level, must be an integer."}
+        return {
+            "success": False,
+            "error": {
+                "message": "tree: Invalid level, must be an integer.",
+                "suggestion": "Please provide a whole number for the level."
+            }
+        }
+
 
     dirs_only = flags.get('dirs-only', False)
     output, dir_count, file_count = [path_arg], 0, 0
@@ -64,12 +94,20 @@ SYNOPSIS
     tree [-d] [-L level] [DIRECTORY]
 
 DESCRIPTION
-    Recursively displays the directory structure of a given path.
+    Recursively displays the directory structure of a given path in a
+    tree-like format. If no directory is specified, it lists the
+    current directory.
 
+OPTIONS
     -d
-          List directories only.
+        List directories only.
     -L level
-          Descend only level directories deep.
+        Descend only 'level' directories deep.
+
+EXAMPLES
+    tree
+    tree /home/guest
+    tree -L 2 -d
 """
 
 def help(args, flags, user_context, **kwargs):

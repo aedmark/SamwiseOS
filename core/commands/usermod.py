@@ -17,13 +17,6 @@ def define_flags():
 
 
 def run(args, flags, user_context, **kwargs):
-    # Determine the current user from the session stack if available; fallback to user_context
-    session_stack = kwargs.get('session_stack') if 'session_stack' in kwargs else None
-    if session_stack and isinstance(session_stack, (list, tuple)) and len(session_stack) > 0:
-        current_user = session_stack[-1]
-    else:
-        current_user = user_context.get('name')
-
     group_to_add = flags.get('append-groups')
     primary_group_to_set = flags.get('primary-group')
 
@@ -31,7 +24,7 @@ def run(args, flags, user_context, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": "usermod: invalid command usage.",
+                "message": "usermod: invalid command usage",
                 "suggestion": "Try 'usermod -aG <groupname> <username>' or 'usermod -g <primarygroup> <username>'."
             }
         }
@@ -42,7 +35,7 @@ def run(args, flags, user_context, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": f"usermod: user '{username}' does not exist.",
+                "message": f"usermod: user '{username}' does not exist",
                 "suggestion": "You can list all users with the 'listusers' command."
             }
         }
@@ -52,7 +45,7 @@ def run(args, flags, user_context, **kwargs):
             return {
                 "success": False,
                 "error": {
-                    "message": f"usermod: group '{group_to_add}' does not exist.",
+                    "message": f"usermod: group '{group_to_add}' does not exist",
                     "suggestion": "You can create it first with 'sudo groupadd <groupname>'."
                 }
             }
@@ -71,7 +64,7 @@ def run(args, flags, user_context, **kwargs):
             return {
                 "success": False,
                 "error": {
-                    "message": f"usermod: group '{primary_group_to_set}' does not exist.",
+                    "message": f"usermod: group '{primary_group_to_set}' does not exist",
                     "suggestion": "You can create it first with 'sudo groupadd <groupname>'."
                 }
             }
@@ -82,7 +75,7 @@ def run(args, flags, user_context, **kwargs):
     return {
         "success": False,
         "error": {
-            "message": "usermod: no action specified.",
+            "message": "usermod: no action specified",
             "suggestion": "You must provide an option like '-aG' or '-g'."
         }
     }
@@ -104,8 +97,11 @@ OPTIONS
           Add the user to the supplementary GROUP.
     -g, --gid GROUP
           Set the user's primary group.
+
+EXAMPLES
+    sudo usermod -aG towncrier guest
+    sudo usermod -g root jerry
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the usermod command."""
-    return "Usage: usermod [-aG group] [-g group] <username>"
+    return "Usage: usermod [OPTION]... <username>"

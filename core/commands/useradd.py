@@ -20,7 +20,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": "useradd: missing username operand.",
+                "message": "useradd: missing username operand",
                 "suggestion": "Try 'useradd <new_username>'."
             }
         }
@@ -29,6 +29,11 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
     actor = user_context.get('name')
 
     audit_manager.log(actor, 'USERADD_ATTEMPT', f"Attempting to add user '{username}'", user_context)
+
+    validation_result = user_manager.validate_username_format(username)
+    if not validation_result["success"]:
+        return {"success": False, "error": {"message": f"useradd: {validation_result['error']}", "suggestion": "Please choose a different username."}}
+
 
     if user_manager.user_exists(username):
         error_msg = f"useradd: user '{username}' already exists"
@@ -72,7 +77,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 if not group_manager.create_group(username):
                     error_msg = f"useradd: failed to create group '{username}'"
                     audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg}", user_context)
-                    return {"success": False, "error": {"message": error_msg}}
+                    return {"success": False, "error": {"message": error_msg, "suggestion": "An internal error occurred."}}
 
             group_manager.add_user_to_group(username, username)
             registration_result = user_manager.register_user(username, password, username)
@@ -92,8 +97,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
                 }
             else:
                 audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {registration_result.get('error')}", user_context)
-                # Pass the structured error from the user_manager through
-                return {"success": False, "error": registration_result.get('error')}
+                return {"success": False, "error": {"message": registration_result.get('error'), "suggestion": "An internal error occurred during user registration."}}
         except IndexError:
             error_msg = "useradd: malformed password lines from stdin"
             audit_manager.log(actor, 'USERADD_FAILURE', f"Reason: {error_msg} for user '{username}'", user_context)
@@ -111,19 +115,23 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    useradd - create a new user or update default new user information
+    useradd - create a new user account
 
 SYNOPSIS
     useradd [username]
 
 DESCRIPTION
-    Creates a new user account with the specified username. If run
-    interactively, it will now reliably prompt for a new password. When used within a
-    script via the 'run' command, the password and confirmation can be
-    supplied on the next two lines. This command requires root privileges.
+    Creates a new user account with the specified username. This command
+    also creates a primary group with the same name and a home directory
+    at /home/<username>. If run interactively, it will prompt for a new
+    password. This command requires root privileges.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sudo useradd jerry
 """
 
-
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the useradd command."""
     return "Usage: useradd <username>"

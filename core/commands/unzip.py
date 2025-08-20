@@ -37,7 +37,7 @@ def run(args, flags, user_context, **kwargs):
         return {
             "success": False,
             "error": {
-                "message": f"unzip: {archive_path} is not a valid zip archive",
+                "message": f"unzip: '{archive_path}' is not a valid zip archive",
                 "suggestion": "The file may be corrupted or not in zip format."
             }
         }
@@ -52,11 +52,11 @@ def run(args, flags, user_context, **kwargs):
                 output_messages.append(f"  inflating: {dest_path}")
 
                 if member.is_dir():
-                    fs_manager.create_directory(dest_path, user_context)
+                    fs_manager.create_directory(dest_path, user_context, parents=True)
                 else:
                     parent_dir = os.path.dirname(dest_path)
                     if not fs_manager.get_node(parent_dir):
-                        fs_manager.create_directory(parent_dir, user_context)
+                        fs_manager.create_directory(parent_dir, user_context, parents=True)
 
                     content_bytes = zipf.read(member)
                     content_str = content_bytes.decode('utf-8', 'replace')
@@ -83,9 +83,17 @@ SYNOPSIS
     unzip archive.zip [destination_dir]
 
 DESCRIPTION
-    The unzip utility will extract files from a ZIP archive.
+    The unzip utility will extract files from a ZIP archive created by the 'zip'
+    command. If a destination directory is specified, files will be extracted
+    there; otherwise, they are extracted to the current directory.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    unzip my_project.zip
+    unzip my_photos.zip /home/guest/pictures
 '''
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the unzip command."""
     return "Usage: unzip <archive.zip> [destination_dir]"

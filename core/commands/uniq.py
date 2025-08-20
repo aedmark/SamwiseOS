@@ -87,15 +87,21 @@ SYNOPSIS
 DESCRIPTION
     Filter adjacent matching lines from input, writing to output. Note:
     'uniq' does not detect repeated lines unless they are adjacent. You
-    may want to 'sort' the input first.
+    may want to 'sort' the input first to group all identical lines.
 
+OPTIONS
     -c, --count
-          prefix lines by the number of occurrences
+          Prefix lines by the number of occurrences.
     -d, --repeated
-          only print duplicate lines, one for each group
+          Only print duplicate lines, one for each group.
     -u, --unique
-          only print lines that are not repeated
+          Only print lines that are not repeated.
+
+EXAMPLES
+    uniq my_sorted_file.txt
+    sort data.txt | uniq -c
+    sort data.txt | uniq -u
 """
 
 def help(args, flags, user_context, **kwargs):
-    return "Usage: uniq [-cdu] [FILE]..."
+    return "Usage: uniq [OPTION]... [FILE]..."

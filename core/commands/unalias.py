@@ -56,9 +56,15 @@ SYNOPSIS
     unalias alias_name ...
 
 DESCRIPTION
-    Removes the specified alias(es).
+    Removes each specified alias from the current session's list of defined aliases.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    unalias ll
+    unalias myhome q
 """
 
 def help(args, flags, user_context, stdin_data=None):
-    """Provides help information for the unalias command."""
     return "Usage: unalias <alias_name>..."
