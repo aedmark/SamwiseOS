@@ -2,7 +2,7 @@
 
 from filesystem import fs_manager
 from datetime import datetime
-from time_utils import time_utils # <-- IMPORT our new utility!
+from time_utils import time_utils
 
 def define_flags():
     """Declares the flags that the touch command accepts."""
@@ -14,16 +14,19 @@ def define_flags():
         'metadata': {}
     }
 
-# The old _parse_date_string and _parse_stamp functions have been REMOVED!
-
 def run(args, flags, user_context, **kwargs):
     if not args:
-        return {"success": False, "error": "touch: missing file operand"}
+        return {
+            "success": False,
+            "error": {
+                "message": "touch: missing file operand",
+                "suggestion": "Please specify one or more files to touch."
+            }
+        }
 
-    # Use our new, centralized utility to handle timestamp logic!
     timestamp_result = time_utils.resolve_timestamp_from_flags(flags, command_name="touch")
     if timestamp_result["error"]:
-        return {"success": False, "error": timestamp_result["error"]}
+        return {"success": False, "error": {"message": f"touch: {timestamp_result['error']}", "suggestion": "Please check the format of your timestamp or date string."}}
 
     mtime_iso = timestamp_result["timestamp_iso"]
 
@@ -37,7 +40,8 @@ def run(args, flags, user_context, **kwargs):
                 new_node = fs_manager.get_node(path)
                 if new_node: new_node['mtime'] = mtime_iso
         except IsADirectoryError:
-            pass
+            # Touching a directory should just update its timestamp without error.
+            node['mtime'] = mtime_iso
         except Exception as e:
             return {"success": False, "error": f"touch: an unexpected error occurred with '{path}': {repr(e)}"}
 
@@ -50,18 +54,24 @@ NAME
     touch - change file timestamps
 
 SYNOPSIS
-    touch [-d date_string] [-t stamp] [FILE]...
+    touch [OPTION]... FILE...
 
 DESCRIPTION
     Update the access and modification times of each FILE to the specified time,
     or the current time if no time is given. A FILE argument that does not
     exist is created empty.
 
+OPTIONS
     -d, --date=STRING
-          parse STRING and use it instead of current time
+          Parse STRING and use it instead of current time (e.g., "1 day ago").
     -t STAMP
-          use [[CC]YY]MMDDhhmm[.ss] instead of current time
+          Use [[CC]YY]MMDDhhmm[.ss] instead of current time.
+
+EXAMPLES
+    touch my_file.txt
+    touch -d "2 hours ago" important.log
+    touch -t 202508192000 my_script.sh
 """
 
 def help(args, flags, user_context, **kwargs):
-    return "Usage: touch [OPTION]... [FILE...]"
+    return "Usage: touch [OPTION]... FILE..."

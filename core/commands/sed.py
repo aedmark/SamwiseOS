@@ -89,9 +89,14 @@ SYNOPSIS
 DESCRIPTION
     sed is a stream editor. A stream editor is used to perform basic
     text transformations on an input stream (a file or input from a
-    pipeline).
+    pipeline). This version supports simple substitution.
 
-    Currently supports simple substitution: s/regexp/replacement/g
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sed 's/old/new/g' my_file.txt
+    echo "hello world" | sed 's/world/SamwiseOS/'
 """
 
 def help(args, flags, user_context, **kwargs):

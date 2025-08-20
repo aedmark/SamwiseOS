@@ -5,7 +5,13 @@ def run(args, flags, user_context, **kwargs):
     Returns an effect to launch the Top UI (process viewer).
     """
     if args:
-        return {"success": False, "error": "top: command takes no arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "top: command takes no arguments",
+                "suggestion": "Simply run 'top' by itself."
+            }
+        }
 
     return {
         "effect": "launch_app",
@@ -16,17 +22,23 @@ def run(args, flags, user_context, **kwargs):
 def man(args, flags, user_context, **kwargs):
     return """
 NAME
-    top - Displays a real-time view of running processes.
+    top - display a real-time view of running processes
 
 SYNOPSIS
     top
 
 DESCRIPTION
-    Provides a dynamic, real-time view of the processes running in OopisOS.
+    Provides a dynamic, real-time view of the processes running in SamwiseOS.
     The top command opens a full-screen application that lists all active
-    background jobs and system processes. The list is updated in real-time.
+    background jobs and system processes. The list is updated automatically.
+    Press 'q' or 'Escape' to quit.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    top
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the top command."""
     return "Usage: top"

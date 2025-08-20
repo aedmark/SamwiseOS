@@ -74,7 +74,14 @@ async def run(args, flags, user_context, stdin_data=None, ai_manager=None, api_k
         files_to_analyze = _get_files_for_analysis(start_path, user_context)
 
     if not files_to_analyze:
-        return "No supported files found to analyze."
+        return {
+            "success": False,
+            "error": {
+                "message": "storyboard: no supported files found to analyze.",
+                "suggestion": "Ensure the target directory contains supported file types or pipe them in."
+            }
+        }
+
 
     result = await ai_manager.perform_storyboard(
         files_to_analyze,
@@ -107,9 +114,26 @@ SYNOPSIS
 
 DESCRIPTION
     Analyzes a set of files to describe their collective purpose and structure.
-    ... (Full man page) ...
+    It can be run on a directory path or accept a list of file paths from
+    standard input (e.g., from `find` or `ls`).
+
+OPTIONS
+    --mode <mode>
+        The analysis mode ('code' or 'prose'). Defaults to 'code'.
+    --summary
+        Generate a single, concise paragraph summary instead of a detailed analysis.
+    --ask "<question>"
+        Ask a specific question about the provided files.
+    --provider <name>
+        Specify the AI provider (e.g., 'gemini', 'ollama'). Defaults to 'ollama'.
+    --model <name>
+        Specify the exact model name to use for the chosen provider.
+
+EXAMPLES
+    storyboard /home/guest/my_project
+    ls /etc/*.conf | storyboard --mode prose
+    storyboard --ask "What is the main purpose of this script?" main.js
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the storyboard command."""
     return "Usage: storyboard [OPTIONS] [path]"

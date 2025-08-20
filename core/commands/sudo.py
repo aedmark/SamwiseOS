@@ -9,7 +9,13 @@ def run(args, flags, user_context, user_groups=None, stdin_data=None, **kwargs):
     effect for the CommandExecutor to re-run the command with elevated privileges.
     """
     if not args:
-        return {"success": False, "error": "sudo: a command must be provided"}
+        return {
+            "success": False,
+            "error": {
+                "message": "sudo: a command must be provided",
+                "suggestion": "Try 'sudo <command>'."
+            }
+        }
 
     command_to_run_parts = args
     full_command_str = " ".join(command_to_run_parts)
@@ -22,7 +28,14 @@ def run(args, flags, user_context, user_groups=None, stdin_data=None, **kwargs):
 
     if not sudo_manager.can_user_run_command(username, groups_for_user, command_name):
         audit_manager.log(username, 'SUDO_FAILURE', f"Reason: Not in sudoers for '{command_name}'", user_context)
-        return {"success": False, "error": f"sudo: user {username} is not allowed to execute '{full_command_str}' as root."}
+        return {
+            "success": False,
+            "error": {
+                "message": f"sudo: user {username} is not allowed to execute '{full_command_str}' as root.",
+                "suggestion": "Check the /etc/sudoers file or contact an administrator."
+            }
+        }
+
 
     return {
         "effect": "sudo_exec",
@@ -39,10 +52,17 @@ SYNOPSIS
     sudo command [args...]
 
 DESCRIPTION
-    sudo allows a permitted user to execute a command as the superuser or
-    another user, as specified by the security policy in the sudoers file.
+    sudo allows a permitted user to execute a command as the superuser (root),
+    as specified by the security policy in the /etc/sudoers file. The user
+    will be prompted for their own password to authenticate.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    sudo ls /root
+    sudo useradd new_user
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the sudo command."""
     return "Usage: sudo <command> [args...]"

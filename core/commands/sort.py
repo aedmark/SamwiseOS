@@ -1,4 +1,4 @@
-# gem/core/commands/sort.py
+# /core/commands/sort.py
 
 from filesystem import fs_manager
 
@@ -76,6 +76,7 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
 
     final_output = "\n".join(lines)
     if error_output:
+        # This will likely not be hit due to the check above, but is kept for safety.
         return "\n".join(error_output) + "\n" + final_output
 
     return final_output
@@ -90,12 +91,22 @@ SYNOPSIS
 
 DESCRIPTION
     Write sorted concatenation of all FILE(s) to standard output. With no
-    FILE, or when FILE is -, read standard input.
+    FILE, or when FILE is -, read standard input. The command sorts
+    lexicographically by default.
 
-    -r, --reverse           reverse the result of comparisons
-    -n, --numeric-sort      compare according to string numerical value
-    -u, --unique            output only the first of an equal run
+OPTIONS
+    -n, --numeric-sort
+          Compare according to string numerical value.
+    -r, --reverse
+          Reverse the result of comparisons.
+    -u, --unique
+          Output only the first of an equal run.
+
+EXAMPLES
+    sort my_file.txt
+    ls | sort -r
+    sort -n data.txt
 """
 
 def help(args, flags, user_context, **kwargs):
-    return "Usage: sort [-ru] [-n] [FILE]..."
+    return "Usage: sort [OPTION]... [FILE]..."

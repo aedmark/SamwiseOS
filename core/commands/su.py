@@ -8,7 +8,13 @@ def run(args, flags, user_context, **kwargs):
     password = None
 
     if len(args) > 2:
-        return {"success": False, "error": "su: too many arguments"}
+        return {
+            "success": False,
+            "error": {
+                "message": "su: too many arguments",
+                "suggestion": "The 'su' command takes a maximum of two arguments."
+            }
+        }
 
     if args:
         target_username = args[0]
@@ -33,11 +39,16 @@ DESCRIPTION
     The su utility allows a user to run a new shell as another user.
     If a username is not provided, it defaults to 'root'. If a password
     is not provided on the command line, the user will be prompted for one
-    interactively.
+    interactively. To return to your original session, type 'logout'.
 
-    To return to your original session, type 'logout'.
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    su
+    su guest
+    su root "my_secret_password"
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the su command."""
     return "Usage: su [username] [password]"

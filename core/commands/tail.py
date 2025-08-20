@@ -24,25 +24,12 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         }
 
     content = ""
-    # Logic to handle both piped data and file arguments
     if stdin_data:
         content = stdin_data
     elif args:
-        # If there are flags, the file is the last argument. This is a simple way to handle it.
-        # A more robust parser would be better, but this matches the script's usage.
         file_path = args[-1]
         node = fs_manager.get_node(file_path)
         if not node:
-            # Check if an argument that looks like a flag was misinterpreted as a file
-            for arg in args:
-                if arg.startswith('-'):
-                    return {
-                        "success": False,
-                        "error": {
-                            "message": f"tail: invalid option -- '{arg.lstrip('-')}'",
-                            "suggestion": "Ensure flags are placed before the filename."
-                        }
-                    }
             return {
                 "success": False,
                 "error": {
@@ -69,7 +56,6 @@ def run(args, flags, user_context, stdin_data=None, **kwargs):
         try:
             byte_count = int(byte_count_str)
             if byte_count < 0: raise ValueError
-            # Slicing from the end for bytes
             return content[-byte_count:]
         except (ValueError, TypeError):
             return {
@@ -110,15 +96,19 @@ DESCRIPTION
     Print the last 10 lines of each FILE to standard output.
     With no FILE, or when FILE is -, read standard input.
 
+OPTIONS
     -n, --lines=COUNT
-          output the last COUNT lines, instead of the last 10
+          Output the last COUNT lines, instead of the last 10.
     -c, --bytes=COUNT
-          output the last COUNT bytes
+          Output the last COUNT bytes.
     -f, --follow
-          output appended data as the file grows
-          (NOTE: This feature is handled by the JS command layer)
+          Output appended data as the file grows.
+
+EXAMPLES
+    tail /var/log/system.log
+    tail -n 20 my_notes.txt
+    ls -l | tail -n 5
 """
 
 def help(args, flags, user_context, **kwargs):
-    """Provides help information for the tail command."""
-    return "Usage: tail [-n COUNT] [-c BYTES] [-f] [FILE]..."
+    return "Usage: tail [OPTION]... [FILE]..."

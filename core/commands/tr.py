@@ -102,14 +102,21 @@ SYNOPSIS
     tr [OPTION]... SET1 [SET2]
 
 DESCRIPTION
-    Translate, squeeze, and/or delete characters from standard input.
+    Translate, squeeze, and/or delete characters from standard input, writing to standard output.
 
+OPTIONS
     -c, --complement
-          use the complement of SET1
+          Use the complement of SET1.
     -d, --delete
-          delete characters in SET1, do not translate
+          Delete characters in SET1, do not translate.
     -s, --squeeze-repeats
-          replace each sequence of a repeated character with a single occurrence
+          Replace each input sequence of a repeated character that is listed in SET1
+          with a single occurrence of that character.
+
+EXAMPLES
+    echo "hello" | tr 'a-z' 'A-Z'
+    echo "Hello   World" | tr -s ' '
+    echo "remove all vowels" | tr -d 'aeiou'
 """
 
 def help(args, flags, user_context, **kwargs):

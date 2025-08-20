@@ -70,7 +70,17 @@ SYNOPSIS
     set [variable[=value]]
 
 DESCRIPTION
-    Set or display environment variables.
+    Set or display environment variables. When run without arguments, it displays
+    a list of all current environment variables. When a variable and value
+    are provided, it sets or updates the variable.
+
+OPTIONS
+    This command takes no options.
+
+EXAMPLES
+    set
+    set MY_VAR="hello world"
+    set PROMPT_STYLE="simple"
 """
 
 def help(args, flags, user_context, stdin_data=None):
