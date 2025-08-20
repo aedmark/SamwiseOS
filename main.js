@@ -26,7 +26,7 @@ function startOnboardingProcess(dependencies) {
 // --- Asynchronous Python Command Execution ---
 async function executePythonCommand(rawCommandText, options = {}) {
     const { isInteractive = true, scriptingContext = null, stdinContent = null, asUser = null } = options;
-    const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Utils } = dependencies;
+    const { ModalManager, OutputManager, TerminalUI, AppLayerManager, HistoryManager, Config, ErrorHandler, Utils, FileSystemManager } = dependencies;
 
     if (isInteractive && !scriptingContext) {
         TerminalUI.hideInputLine();
@@ -80,6 +80,13 @@ async function executePythonCommand(rawCommandText, options = {}) {
                     return { success: true, output: pyResult.output };
                 }
             }
+            // --- START OF THE FIX ---
+            // After any successful python command, ensure the JS filesystem manager
+            // is aware of any changes that might have occurred.
+            const updatedFsData = await FileSystemManager.getFsData();
+            FileSystemManager.setFsData(updatedFsData);
+            // --- END OF THE FIX ---
+
         } else {
             // The ErrorHandler will create a standardized error object for us.
             const errorObject = ErrorHandler.createError(pyResult.error);
